@@ -20,6 +20,7 @@ This package has yet to be reviewed.  Use something else.
 #### Package structure
 
  * curve: A mid-level API in the spirit of curve25519-dalek.
+ * primitives/x25519: A X25519 implementation like `x/crypto/curve25519`.
 
 #### Notes
 
