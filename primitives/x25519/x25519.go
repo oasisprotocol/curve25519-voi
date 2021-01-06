@@ -82,12 +82,12 @@ func ScalarMult(dst, in, base *[32]byte) {
 
 	var s scalar.Scalar
 	if err := s.FromBits(ec[:]); err != nil {
-		panic("primitives/x25519: failed to deserialize scalar: " + err.Error())
+		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
 	var montP curve.MontgomeryPoint
 	if err := montP.FromBytes(base[:]); err != nil {
-		panic("primitives/x25519: failed to deserialize point: " + err.Error())
+		panic("x25519: failed to deserialize point: " + err.Error())
 	}
 
 	montP.Mul(&montP, &s)
@@ -110,7 +110,7 @@ func ScalarBaseMult(dst, in *[32]byte) {
 
 	var s scalar.Scalar
 	if err := s.FromBits(ec[:]); err != nil {
-		panic("primitives/x25519: failed to deserialize scalar: " + err.Error())
+		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
 	edP := curve.ED25519_BASEPOINT_TABLE.Mul(&s)
@@ -173,7 +173,7 @@ func checkBasepoint() {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}) != 1 {
-		panic("primitives/x25519: global Basepoint value was modified")
+		panic("x25519: global Basepoint value was modified")
 	}
 }
 
