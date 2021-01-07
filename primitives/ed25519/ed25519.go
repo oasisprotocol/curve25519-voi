@@ -30,11 +30,15 @@
 // Package ed25519 implements the Ed25519 signature algorithm. See
 // https://ed25519.cr.yp.to/.
 //
-// These functions are also compatible with the “Ed25519” function defined in
+// These functions are mostly compatible with the “Ed25519” function defined in
 // RFC 8032. However, unlike RFC 8032's formulation, this package's private key
 // representation includes a public key suffix to make multiple signing
 // operations with the same key more efficient. This package refers to the RFC
 // 8032 private key as the “seed”.
+//
+// The default verification behavior is neither identical to that of the
+// runtime library, nor that specified in FIPS 186-5.  If exact compability
+// is required, use the appropriate VerifyOptions presets.
 package ed25519
 
 import (
@@ -69,6 +73,24 @@ const (
 )
 
 var (
+	// VerifyOptionsRuntime specifies verification behavior that is
+	// compatible with that provided by the Go `crypto/ed25519` package.
+	//
+	// Note: This preset is incompatible with batch verification.
+	VerifyOptionsRuntime = &VerifyOptions{
+		AllowSmallOrderA:    true,
+		AllowSmallOrderR:    true,
+		AllowNonCanonicalAR: true,
+		CofactorlessVerify:  true,
+	}
+
+	// VerifyOptionsFIPS_186_5 specifies verification behavior that is
+	// compatible with FIPS 186-5.
+	VerifyOptionsFIPS_186_5 = &VerifyOptions{
+		AllowSmallOrderA: true,
+		AllowSmallOrderR: true,
+	}
+
 	_ crypto.Signer = (PrivateKey)(nil)
 
 	defaultPureOptions = &Options{
@@ -92,7 +114,7 @@ type Options struct {
 	Context string
 
 	// Verify allows specifying verification behavior for compatibility
-	// with other Ed25519 implementations.  If left unsepcified, the
+	// with other Ed25519 implementations.  If left unspecified, the
 	// default value will be used, which should be acceptable for most
 	// use cases.
 	Verify *VerifyOptions
