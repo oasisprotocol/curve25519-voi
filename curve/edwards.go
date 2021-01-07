@@ -83,6 +83,22 @@ func (p *CompressedEdwardsY) Identity() {
 	}
 }
 
+// IsCanonical returns true iff the the encoding is canonical, in
+// variable-time.
+func (p *CompressedEdwardsY) IsCanonical() bool {
+	// Use the succeed-fast implementation presented in
+	// "Taming the many EdDSAs" by Chalkias, Garillot, and Nikolaenko.
+	if p[0] & 0x7f < 237 {
+		return true
+	}
+	for i := 1; i <= 30; i++ {
+		if p[i] != 255 {
+			return true
+		}
+	}
+	return p[31] | 128 != 255
+}
+
 // EdwardsPoint represents a point on the Edwards form of Curve25519.
 type EdwardsPoint struct {
 	inner edwardsPointInner

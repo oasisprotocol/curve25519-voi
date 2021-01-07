@@ -57,7 +57,7 @@ relatively easy to add such a thing, if the demand is high enough.
 
 #### TODO
 
- * Actually implement X25519 and Ed25519.
+ * Implement Ed25519 batch verification.
 
  * Add the functions that were omitted in the initial porting effort.
    This would primarily be for completeness, none of the use cases the
