@@ -34,6 +34,7 @@
 package x25519
 
 import (
+	"crypto/sha512"
 	"crypto/subtle"
 	"fmt"
 	"runtime"
@@ -42,6 +43,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 const (
@@ -78,7 +80,7 @@ func ScalarMult(dst, in, base *[32]byte) {
 
 	var ec [32]byte
 	copy(ec[:], in[:])
-	clampScalar(&ec)
+	clampScalar(ec[:])
 
 	var s scalar.Scalar
 	if err := s.FromBits(ec[:]); err != nil {
@@ -106,7 +108,7 @@ func ScalarBaseMult(dst, in *[32]byte) {
 
 	var ec [32]byte
 	copy(ec[:], in[:])
-	clampScalar(&ec)
+	clampScalar(ec[:])
 
 	var s scalar.Scalar
 	if err := s.FromBits(ec[:]); err != nil {
@@ -160,7 +162,43 @@ func x25519(dst *[32]byte, scalar, point []byte) ([]byte, error) {
 	return dst[:], nil
 }
 
-func clampScalar(s *[scalar.ScalarSize]byte) {
+// EdPrivateKeyToX25519 converts an Ed25519 private key into a corresponding
+// X25519 private key such that the resulting X25519 public key will equal
+// the result from EdPublicKeyToX25519.
+func EdPrivateKeyToX25519(privateKey ed25519.PrivateKey) []byte {
+	h := sha512.New()
+	_, _ = h.Write(privateKey[:32])
+	digest := h.Sum(nil)
+	h.Reset()
+
+	clampScalar(digest)
+
+	dst := make([]byte, ScalarSize)
+	copy(dst, digest)
+
+	return dst
+}
+
+// EdPublicKeyToX25519 converts an Ed25519 public key into the X25519 public
+// key that would be generated from the same private key.
+func EdPublicKeyToX25519(publicKey ed25519.PublicKey) ([]byte, bool) {
+	var aCompressed curve.CompressedEdwardsY
+	if err := aCompressed.FromBytes(publicKey); err != nil {
+		return nil, false
+	}
+
+	var A curve.EdwardsPoint
+	if err := A.FromCompressedY(&aCompressed); err != nil {
+		return nil, false
+	}
+
+	var montA curve.MontgomeryPoint
+	montA.FromEdwards(&A)
+
+	return montA[:], true
+}
+
+func clampScalar(s []byte) {
 	s[0] &= 248
 	s[31] &= 127
 	s[31] |= 64

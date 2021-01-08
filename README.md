@@ -21,6 +21,7 @@ This package has yet to be reviewed.  Use something else.
 
  * curve: A mid-level API in the spirit of curve25519-dalek.
  * primitives/x25519: A X25519 implementation like `x/crypto/curve25519`.
+ * primitives/ed25519: A Ed25519 implementation like `crypto/ed25519`.
 
 #### Notes
 
@@ -56,8 +57,6 @@ That said, the package is written in such a way that it would be
 relatively easy to add such a thing, if the demand is high enough.
 
 #### TODO
-
- * Implement Ed25519 batch verification.
 
  * Add the functions that were omitted in the initial porting effort.
    This would primarily be for completeness, none of the use cases the

@@ -36,7 +36,8 @@ import (
 	"testing"
 
 	xcurve "golang.org/x/crypto/curve25519"
-	//"github.com/oasisprotocol/ed25519"
+
+	"github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 const expectedHex = "89161fde887b2b53de549af483940106ecc114d6982daa98256de23bdf77661a"
@@ -182,7 +183,6 @@ func testHighBitIgnored(t *testing.T) {
 	}
 }
 
-/*
 func TestX25519Conversion(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 
@@ -201,7 +201,6 @@ func TestX25519Conversion(t *testing.T) {
 		t.Errorf("Values didn't match: curve25519 produced %x, conversion produced %x", xPublic, xPublic2)
 	}
 }
-*/
 
 func BenchmarkScalarBaseMult(b *testing.B) {
 	b.Run("voi", func(b *testing.B) { benchScalarBaseMult(b, ScalarBaseMult) })
