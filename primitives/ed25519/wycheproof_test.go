@@ -167,7 +167,7 @@ func TestWycheproof(t *testing.T) {
 		}
 
 		for _, testCase := range group.Tests {
-			n := fmt.Sprintf("TestCase_%d", testCase.ID)
+			n := fmt.Sprintf("TestCase/%d", testCase.ID)
 			t.Run(n, func(t *testing.T) {
 				testCase.Run(t, pubKey, privKey)
 			})

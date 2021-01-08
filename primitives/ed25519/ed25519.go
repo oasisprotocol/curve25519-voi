@@ -78,10 +78,10 @@ var (
 	//
 	// Note: This preset is incompatible with batch verification.
 	VerifyOptionsRuntime = &VerifyOptions{
-		AllowSmallOrderA:    true,
-		AllowSmallOrderR:    true,
-		AllowNonCanonicalAR: true,
-		CofactorlessVerify:  true,
+		AllowSmallOrderA:   true,
+		AllowSmallOrderR:   true,
+		AllowNonCanonicalA: true,
+		CofactorlessVerify: true,
 	}
 
 	// VerifyOptionsFIPS_186_5 specifies verification behavior that is
@@ -89,6 +89,15 @@ var (
 	VerifyOptionsFIPS_186_5 = &VerifyOptions{
 		AllowSmallOrderA: true,
 		AllowSmallOrderR: true,
+	}
+
+	// VerifyOptionsZIP_215 specifies verification behavior that is
+	// compatible with ZIP-215.
+	VerifyOptionsZIP_215 = &VerifyOptions{
+		AllowSmallOrderA:   true,
+		AllowSmallOrderR:   true,
+		AllowNonCanonicalA: true,
+		AllowNonCanonicalR: true,
 	}
 
 	_ crypto.Signer = (PrivateKey)(nil)
@@ -177,9 +186,13 @@ type VerifyOptions struct {
 	// AllowSmallOrder R allows signatures with a small order R.
 	AllowSmallOrderR bool
 
-	// AllowNonCanonicalAR allows signatures with a non-canonical
-	// encoding of A and/or R.
-	AllowNonCanonicalAR bool
+	// AllowNonCanonicalA allows signatures with a non-canonical
+	// encoding of A.
+	AllowNonCanonicalA bool
+
+	// AllowNonCanonicalR allows signatures with a non-canonical
+	// encoding of R.
+	AllowNonCanonicalR bool
 
 	// CofactorlessVerify uses the cofactorless verification equation.
 	//
@@ -388,6 +401,11 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, nil
 	}
 
+	// Check if A is canonical.
+	if !vOpts.AllowNonCanonicalA && !isCanonical(&aCompressed, &A) {
+		return false, nil
+	}
+
 	// hram = H(R,A,m)
 	var (
 		hash [64]byte
@@ -401,12 +419,6 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	h.Sum(hash[:0])
 	if err = hram.FromBytesModOrderWide(hash[:]); err != nil {
 		return false, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
-	}
-
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !scMinimal(sig[32:]) {
-		return false, nil
 	}
 
 	// R
@@ -423,8 +435,14 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, nil
 	}
 
-	// Check if A and R are canonical.
-	if !vOpts.AllowNonCanonicalAR && !(aCompressed.IsCanonical() && rCompressed.IsCanonical()) {
+	// Check if R is canonical.
+	if !vOpts.AllowNonCanonicalR && !isCanonical(&rCompressed, &checkR) {
+		return false, nil
+	}
+
+	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
+	// the range [0, order) in order to prevent signature malleability.
+	if !scMinimal(sig[32:]) {
 		return false, nil
 	}
 
@@ -563,4 +581,11 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
+}
+
+func isCanonical(compressedPoint *curve.CompressedEdwardsY, point *curve.EdwardsPoint) bool {
+	// TODO/perf: Use the succeed-fast algorithm.
+	var check curve.CompressedEdwardsY
+	check.FromEdwardsPoint(point)
+	return check == *compressedPoint // Vartime, only used in verification
 }
