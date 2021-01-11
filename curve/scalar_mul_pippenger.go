@@ -117,8 +117,8 @@ func (p *EdwardsPoint) multiscalarMulPippengerVartime(scalars []*scalar.Scalar, 
 		columns[idx] = bucketsSum
 	}
 
-	// Take the high column as an initial value to avoid wasting time doubling the identity element in `fold()`.
-	// `unwrap()` always succeeds because we know we have more than zero digits.
+	// Take the high column as an initial value to avoid wasting time doubling
+	// the identity element.
 	sum := columns[digitsCount-1]
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
 		sumMul := sum
