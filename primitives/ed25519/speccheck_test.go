@@ -47,7 +47,7 @@ import (
 var speccheckExpectedResults = []bool{
 	false, // 0: small order A, small order R
 	false, // 1: small order A, mixed order R
-	false, // 2: mixed order A, small order R
+	true,  // 2: mixed order A, small order R
 	true,  // 3: mixed order A, mixed order R
 	true,  // 4: cofactored verify
 	true,  // 5: cofactored verify computes 8(hA) instead of (8h mod L)A
@@ -185,7 +185,7 @@ func TestSpeccheck(t *testing.T) {
 	}
 
 	t.Run("Default", func(t *testing.T) {
-		doTestCases("Default", defaultPureOptions, speccheckExpectedResults)
+		doTestCases("Default", &Options{Verify: VerifyOptionsDefault}, speccheckExpectedResults)
 	})
 	t.Run("Runtime", func(t *testing.T) {
 		doTestCases("Runtime", &Options{Verify: VerifyOptionsRuntime}, speccheckExpectedResultsRuntime)

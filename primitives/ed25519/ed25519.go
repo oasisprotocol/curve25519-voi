@@ -73,6 +73,12 @@ const (
 )
 
 var (
+	// VerifyOptionsDefault specifies verification behavior that is
+	// used by this package by default.
+	VerifyOptionsDefault = &VerifyOptions{
+		AllowSmallOrderR: true,
+	}
+
 	// VerifyOptionsRuntime specifies verification behavior that is
 	// compatible with that provided by the Go `crypto/ed25519` package.
 	//
@@ -101,10 +107,6 @@ var (
 	}
 
 	_ crypto.Signer = (PrivateKey)(nil)
-
-	defaultPureOptions = &Options{
-		Verify: &VerifyOptions{},
-	}
 )
 
 // Options can be used with PrivateKey.Sign or VerifyWithOptions
@@ -124,8 +126,8 @@ type Options struct {
 
 	// Verify allows specifying verification behavior for compatibility
 	// with other Ed25519 implementations.  If left unspecified, the
-	// default value will be used, which should be acceptable for most
-	// use cases.
+	// VerifyOptionsDefault will be used, which should be acceptable
+	// for most use cases.
 	Verify *VerifyOptions
 }
 
@@ -336,7 +338,9 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
-	signature, err := privateKey.Sign(nil, message, defaultPureOptions)
+	signature, err := privateKey.Sign(nil, message, &Options{
+		Verify: VerifyOptionsDefault,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -347,7 +351,9 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return VerifyWithOptions(publicKey, message, sig, defaultPureOptions)
+	return VerifyWithOptions(publicKey, message, sig, &Options{
+		Verify: VerifyOptionsDefault,
+	})
 }
 
 // VerifyWithOptions reports whether sig is a valid Ed25519 signature by
@@ -372,7 +378,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	}
 	vOpts := opts.Verify
 	if vOpts == nil {
-		vOpts = defaultPureOptions.Verify
+		vOpts = VerifyOptionsDefault
 	}
 
 	// Now that the Options specific validation is done, see if the caller
