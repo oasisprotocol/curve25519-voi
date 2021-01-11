@@ -37,8 +37,8 @@
 // 8032 private key as the “seed”.
 //
 // The default verification behavior is neither identical to that of the
-// runtime library, nor that specified in FIPS 186-5.  If exact compability
-// is required, use the appropriate VerifyOptions presets.
+// runtime library, nor that as specified in FIPS 186-5.  If exact
+// compatibility is required, use the appropriate VerifyOptions presets.
 package ed25519
 
 import (
@@ -91,7 +91,8 @@ var (
 	}
 
 	// VerifyOptionsFIPS_186_5 specifies verification behavior that is
-	// compatible with FIPS 186-5.
+	// compatible with FIPS 186-5.  The behavior provided by this preset
+	// also follows RFC 8032.
 	VerifyOptionsFIPS_186_5 = &VerifyOptions{
 		AllowSmallOrderA: true,
 		AllowSmallOrderR: true,
