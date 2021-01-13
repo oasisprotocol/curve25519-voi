@@ -38,7 +38,8 @@
 //
 // The default verification behavior is neither identical to that of the
 // runtime library, nor that as specified in FIPS 186-5.  If exact
-// compatibility is required, use the appropriate VerifyOptions presets.
+// compatibility with either definition is required, use the appropriate
+// VerifyOptions presets.
 package ed25519
 
 import (
@@ -92,7 +93,7 @@ var (
 
 	// VerifyOptionsFIPS_186_5 specifies verification behavior that is
 	// compatible with FIPS 186-5.  The behavior provided by this preset
-	// also follows RFC 8032.
+	// also matches RFC 8032 (with cofactored verification).
 	VerifyOptionsFIPS_186_5 = &VerifyOptions{
 		AllowSmallOrderA: true,
 		AllowSmallOrderR: true,
@@ -187,6 +188,8 @@ type VerifyOptions struct {
 	AllowSmallOrderA bool
 
 	// AllowSmallOrder R allows signatures with a small order R.
+	//
+	// Note: Rejecting small order R is not required for binding.
 	AllowSmallOrderR bool
 
 	// AllowNonCanonicalA allows signatures with a non-canonical
@@ -201,6 +204,67 @@ type VerifyOptions struct {
 	//
 	// Note: Setting this option is incompatible with batch verification.
 	CofactorlessVerify bool
+}
+
+func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.EdwardsPoint) bool {
+	// Unpack A.
+	var aCompressed curve.CompressedEdwardsY
+	if err := aCompressed.FromBytes(publicKey); err != nil {
+		return false
+	}
+	if err := A.FromCompressedY(&aCompressed); err != nil {
+		return false
+	}
+
+	// Check A order (required for strong binding).
+	if !vOpts.AllowSmallOrderA && A.IsSmallOrder() {
+		return false
+	}
+
+	// Check if A is canonical.
+	if !vOpts.AllowNonCanonicalA && !isCanonical(&aCompressed, A) {
+		return false
+	}
+
+	return true
+}
+
+func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S *scalar.Scalar) bool {
+	if len(sig) != SignatureSize || (sig[63]&224 != 0) {
+		return false
+	}
+
+	// Unpack R.
+	var rCompressed curve.CompressedEdwardsY
+	if err := rCompressed.FromBytes(sig[:32]); err != nil {
+		return false
+	}
+	if err := R.FromCompressedY(&rCompressed); err != nil {
+		return false
+	}
+
+	// Check R order.
+	if !vOpts.AllowSmallOrderR && R.IsSmallOrder() {
+		return false
+	}
+
+	// Check if R is canonical.
+	if !vOpts.AllowNonCanonicalR && !isCanonical(&rCompressed, R) {
+		return false
+	}
+
+	// Unpack S.
+	if err := S.FromBytesModOrder(sig[32:]); err != nil {
+		return false
+	}
+
+	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
+	// the range [0, order) in order to prevent signature malleability.
+	if !scMinimal(sig[32:]) {
+		return false
+	}
+
+	return true
 }
 
 // PrivateKey is the type of Ed25519 private keys. It implements crypto.Signer.
@@ -389,27 +453,18 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, err
 	}
 
-	if len(sig) != SignatureSize || (sig[63]&224 != 0) {
-		return false, nil
-	}
-
-	var aCompressed curve.CompressedEdwardsY
-	if err = aCompressed.FromBytes(publicKey); err != nil {
-		return false, nil
-	}
-
+	// Unpack and ensure the public key is well-formed (A).
 	var A curve.EdwardsPoint
-	if err = A.FromCompressedY(&aCompressed); err != nil {
+	if ok := vOpts.unpackPublicKey(publicKey, &A); !ok {
 		return false, nil
 	}
 
-	// Check A order (required for strong binding).
-	if !vOpts.AllowSmallOrderA && A.IsSmallOrder() {
-		return false, nil
-	}
-
-	// Check if A is canonical.
-	if !vOpts.AllowNonCanonicalA && !isCanonical(&aCompressed, &A) {
+	// Unpack and ensure the signature is well-formed (R, S).
+	var (
+		checkR curve.EdwardsPoint
+		S      scalar.Scalar
+	)
+	if ok := vOpts.unpackSignature(sig, &checkR, &S); !ok {
 		return false, nil
 	}
 
@@ -426,37 +481,6 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	h.Sum(hash[:0])
 	if err = hram.FromBytesModOrderWide(hash[:]); err != nil {
 		return false, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
-	}
-
-	// R
-	var rCompressed curve.CompressedEdwardsY
-	_ = rCompressed.FromBytes(sig[:32]) // Can't fail.
-
-	var checkR curve.EdwardsPoint
-	if err = checkR.FromCompressedY(&rCompressed); err != nil {
-		return false, nil
-	}
-
-	// Check R order.
-	if !vOpts.AllowSmallOrderR && checkR.IsSmallOrder() {
-		return false, nil
-	}
-
-	// Check if R is canonical.
-	if !vOpts.AllowNonCanonicalR && !isCanonical(&rCompressed, &checkR) {
-		return false, nil
-	}
-
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !scMinimal(sig[32:]) {
-		return false, nil
-	}
-
-	// S
-	var S scalar.Scalar
-	if err = S.FromBytesModOrder(sig[32:]); err != nil {
-		return false, fmt.Errorf("ed25519: failed to deserialize S scalar: %w", err)
 	}
 
 	// SB - H(R,A,m)A
@@ -476,6 +500,9 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// Check that [8]R == [8](SB - H(R,A,m)A)).  Note that this actually
 	// checks if [8](R - (SB - H(R,A,m)A) is the identity element (the
 	// the difference is small order).
+	//
+	// Note: IsSmallOrder multiplies by the cofactor and checks that
+	// the result is the identity element.
 	var rDiff curve.EdwardsPoint
 	rDiff.Sub(&R, &checkR)
 	return rDiff.IsSmallOrder(), nil
