@@ -228,7 +228,6 @@ func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []
 		panic("curve/edwards: len(scalars) != len(points")
 	}
 
-	p.multiscalarMulStrausVartime(scalars, points)
 	if size < 190 {
 		p.multiscalarMulStrausVartime(scalars, points)
 	} else {
