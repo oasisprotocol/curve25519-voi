@@ -211,7 +211,7 @@ func (p *EdwardsPoint) Neg() {
 // WARNING: This function will panic if `len(scalars) != len(points)`.
 func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*EdwardsPoint) {
 	if len(scalars) != len(points) {
-		panic("curve/edwards: len(scalars) != len(points")
+		panic("curve/edwards: len(scalars) != len(points)")
 	}
 
 	// There is only one constant-time implementation of this, so use it.
@@ -225,7 +225,7 @@ func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*Edward
 func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []*EdwardsPoint) {
 	size := len(scalars)
 	if size != len(points) {
-		panic("curve/edwards: len(scalars) != len(points")
+		panic("curve/edwards: len(scalars) != len(points)")
 	}
 
 	if size < 190 {
