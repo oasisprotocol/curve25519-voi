@@ -37,6 +37,7 @@ package ed25519
 
 import (
 	"compress/gzip"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -148,7 +149,24 @@ func (v *speccheckTestVector) Run(t *testing.T, isBatch bool, opts *Options) boo
 	case false:
 		sigOk = VerifyWithOptions(pk, msg, sig, opts)
 	case true:
-		t.Fatalf("batch tests not implemented yet")
+		var pks []PublicKey
+		var sigs, msgs [][]byte
+		for i := 0; i < testBatchSize; i++ {
+			pks = append(pks, pk)
+			msgs = append(msgs, msg)
+			sigs = append(sigs, sig)
+		}
+
+		var valid []bool
+		sigOk, valid, err = VerifyBatch(rand.Reader, pks, msgs, sigs, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, v := range valid {
+			if v != sigOk {
+				t.Fatalf("sigOk != valid[%d]", i)
+			}
+		}
 	}
 
 	return sigOk
@@ -178,6 +196,11 @@ func TestSpeccheck(t *testing.T) {
 			expected := expectedResults[idx]
 			t.Run(fmt.Sprintf("%s/%d", n, idx), func(t *testing.T) {
 				if sigOk := tc.Run(t, false, opts); sigOk != expected {
+					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+				}
+			})
+			t.Run(fmt.Sprintf("%s_Batch/%d", n, idx), func(t *testing.T) {
+				if sigOk := tc.Run(t, true, opts); sigOk != expected {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})
