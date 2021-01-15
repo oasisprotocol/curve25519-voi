@@ -51,7 +51,18 @@ func (zeroReader) Read(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func TestSignVerify(t *testing.T) {
+func TestRuntime(t *testing.T) {
+	// Tests shamelessly stolen from the runtime library.
+	t.Run("SignVerify", testSignVerify)
+	t.Run("SignVerify/Hashed", testSignVerifyHashed)
+	t.Run("CryptoSigner", testCryptoSigner)
+	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
+	t.Run("Equal", testEqual)
+	t.Run("Golden", testGolden)
+	t.Run("Malleability", testMalleability)
+}
+
+func testSignVerify(t *testing.T) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
@@ -67,7 +78,7 @@ func TestSignVerify(t *testing.T) {
 	}
 }
 
-func TestSignVerifyHashed(t *testing.T) {
+func testSignVerifyHashed(t *testing.T) {
 	key, _ := hex.DecodeString("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
 	expectedSig, _ := hex.DecodeString("98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
 
@@ -90,7 +101,7 @@ func TestSignVerifyHashed(t *testing.T) {
 	}
 }
 
-func TestCryptoSigner(t *testing.T) {
+func testCryptoSigner(t *testing.T) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
@@ -127,7 +138,7 @@ func TestCryptoSigner(t *testing.T) {
 	}
 }
 
-func TestCryptoSignerHashed(t *testing.T) {
+func testCryptoSignerHashed(t *testing.T) {
 	var zero zeroReader
 	public, private, _ := GenerateKey(zero)
 
@@ -155,7 +166,7 @@ func TestCryptoSignerHashed(t *testing.T) {
 	}
 }
 
-func TestEqual(t *testing.T) {
+func testEqual(t *testing.T) {
 	public, private, _ := GenerateKey(rand.Reader)
 
 	if !public.Equal(public) {
@@ -177,7 +188,7 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestGolden(t *testing.T) {
+func testGolden(t *testing.T) {
 	// sign.input.gz is a selection of test cases from
 	// https://ed25519.cr.yp.to/python/sign.input
 	testDataZ, err := os.Open("testdata/sign.input.gz")
@@ -247,7 +258,7 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-func TestMalleability(t *testing.T) {
+func testMalleability(t *testing.T) {
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
 	// that s be in [0, order). This prevents someone from adding a multiple of
 	// order to s and obtaining a second valid signature for the same message.
