@@ -51,8 +51,8 @@ func (zeroReader) Read(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
-func TestRuntime(t *testing.T) {
-	// Tests shamelessly stolen from the runtime library.
+func TestStdLib(t *testing.T) {
+	// Tests mostly shamelessly stolen from the standard library.
 	t.Run("SignVerify", testSignVerify)
 	t.Run("SignVerify/Hashed", testSignVerifyHashed)
 	t.Run("CryptoSigner", testCryptoSigner)

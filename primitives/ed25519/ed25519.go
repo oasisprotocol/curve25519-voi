@@ -37,7 +37,7 @@
 // 8032 private key as the “seed”.
 //
 // The default verification behavior is neither identical to that of the
-// runtime library, nor that as specified in FIPS 186-5.  If exact
+// Go standard library, nor that as specified in FIPS 186-5.  If exact
 // compatibility with either definition is required, use the appropriate
 // VerifyOptions presets.
 package ed25519
@@ -80,11 +80,11 @@ var (
 		AllowSmallOrderR: true,
 	}
 
-	// VerifyOptionsRuntime specifies verification behavior that is
+	// VerifyOptionsStdLib specifies verification behavior that is
 	// compatible with that provided by the Go `crypto/ed25519` package.
 	//
 	// Note: This preset is incompatible with batch verification.
-	VerifyOptionsRuntime = &VerifyOptions{
+	VerifyOptionsStdLib = &VerifyOptions{
 		AllowSmallOrderA:   true,
 		AllowSmallOrderR:   true,
 		AllowNonCanonicalA: true,

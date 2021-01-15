@@ -60,7 +60,7 @@ var speccheckExpectedResults = []bool{
 	false, // 11: non-canonical small order A, mixed order R (accepted if cofactored or A not reduced before hashing)
 }
 
-var speccheckExpectedResultsRuntime = []bool{
+var speccheckExpectedResultsStdLib = []bool{
 	true,  // 0: small order A, small order R
 	true,  // 1: small order A, mixed order R
 	true,  // 2: mixed order A, small order R
@@ -210,8 +210,8 @@ func TestSpeccheck(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		doTestCases("Default", &Options{Verify: VerifyOptionsDefault}, speccheckExpectedResults)
 	})
-	t.Run("Runtime", func(t *testing.T) {
-		doTestCases("Runtime", &Options{Verify: VerifyOptionsRuntime}, speccheckExpectedResultsRuntime)
+	t.Run("StdLib", func(t *testing.T) {
+		doTestCases("StdLib", &Options{Verify: VerifyOptionsStdLib}, speccheckExpectedResultsStdLib)
 	})
 	t.Run("FIPS-186-5", func(t *testing.T) {
 		doTestCases("FIPS-186-5", &Options{Verify: VerifyOptionsFIPS_186_5}, speccheckExpectedResultsFIPS_186_5)

@@ -23,6 +23,28 @@ This package has yet to be reviewed.  Use something else.
  * primitives/x25519: A X25519 implementation like `x/crypto/curve25519`.
  * primitives/ed25519: A Ed25519 implementation like `crypto/ed25519`.
 
+#### Ed25519 verification semantics
+
+At the time of this writing, Ed25519 signature verification behavior
+varies based on the implementation.  The implementation provided by
+this package aims to provide a sensible default, and to support
+compatibility with other implementations if required.
+
+The default verification semantics are as follows, using the terminology
+from [ed25519-speccheck][1]:
+
+ * Both iterative and batch verification are cofactored.
+ * Small order A is rejected.
+ * Small order R is accepted.
+ * Non-canonical A is rejected.
+ * Non-canonical R is rejected.
+ * A signature's scalar component must be in canonical form (S < L).
+
+Pre-defined configuration presets for compatibility with the Go standard
+library, FIPS 186-5/RFC 8032, and ZIP-215 are provided for convenience.
+
+For more details on this general problem, see [Taming the many EdDSAs][2].
+
 #### Notes
 
 The curve25519-dalek crate makes use of "modern" programing language
@@ -66,3 +88,6 @@ relatively easy to add such a thing, if the demand is high enough.
  * Try to get performance of certain operations closer to this author's
    previous attempt at a better Go Ed25519, which was ed25519-donna
    based.
+
+[1]: https://github.com/novifinancial/ed25519-speccheck
+[2]: https://eprint.iacr.org/2020/1244.pdf
