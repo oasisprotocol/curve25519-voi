@@ -34,6 +34,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto"
+	stded "crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
@@ -284,11 +285,20 @@ func testMalleability(t *testing.T) {
 
 func BenchmarkKeyGeneration(b *testing.B) {
 	var zero zeroReader
-	for i := 0; i < b.N; i++ {
-		if _, _, err := GenerateKey(zero); err != nil {
-			b.Fatal(err)
+	b.Run("voi", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, _, err := GenerateKey(zero); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
+	b.Run("stdlib", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if _, _, err := stded.GenerateKey(zero); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
 
 func BenchmarkSigning(b *testing.B) {
@@ -298,10 +308,17 @@ func BenchmarkSigning(b *testing.B) {
 		b.Fatal(err)
 	}
 	message := []byte("Hello, world!")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		Sign(priv, message)
-	}
+
+	b.Run("voi", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Sign(priv, message)
+		}
+	})
+	b.Run("stdlib", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			stded.Sign(stded.PrivateKey(priv), message)
+		}
+	})
 }
 
 func BenchmarkVerification(b *testing.B) {
@@ -312,8 +329,33 @@ func BenchmarkVerification(b *testing.B) {
 	}
 	message := []byte("Hello, world!")
 	signature := Sign(priv, message)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		Verify(pub, message, signature)
-	}
+
+	b.Run("voi", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if !Verify(pub, message, signature) {
+				b.Fatalf("verification failed")
+			}
+		}
+	})
+	b.Run("voi_stdlib", func(b *testing.B) {
+		// The more secure and spec compliant ed25519 variant used by
+		// default is also slower because of the additional checks.
+		//
+		// Benchmark with the StdLib profile to get a better comparison.
+		opts := &Options{
+			Verify: VerifyOptionsStdLib,
+		}
+		for i := 0; i < b.N; i++ {
+			if !VerifyWithOptions(pub, message, signature, opts) {
+				b.Fatalf("verification failed")
+			}
+		}
+	})
+	b.Run("stdlib", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			if !stded.Verify(stded.PublicKey(pub), message, signature) {
+				b.Fatalf("verification failed")
+			}
+		}
+	})
 }

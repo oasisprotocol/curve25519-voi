@@ -78,16 +78,19 @@ maintenance effort as such architectures are increasingly irrelevant.
 That said, the package is written in such a way that it would be
 relatively easy to add such a thing, if the demand is high enough.
 
+This package is moderately slower than the author's previous effort
+at producing a better ed25519 for Go.  It is the author's opinion
+that the current performance (which is still significantly superior
+to the standard library) should be adequate for most use cases, and
+increased maintanability (and the ability to reuse the code providing
+the underlying group operations) is worth the minor regression.
+
 #### TODO
 
  * Add the functions that were omitted in the initial porting effort.
    This would primarily be for completeness, none of the use cases the
    author is interested in require them at the moment, likely due
    to lack of imagination.
-
- * Try to get performance of certain operations closer to this author's
-   previous attempt at a better Go Ed25519, which was ed25519-donna
-   based.
 
 [1]: https://github.com/novifinancial/ed25519-speccheck
 [2]: https://eprint.iacr.org/2020/1244.pdf
