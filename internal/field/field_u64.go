@@ -65,7 +65,7 @@ func (fe *FieldElement) Sub(a, b *FieldElement) {
 	// of every FieldElement, we could choose a multiple of p
 	// just bigger than b and avoid having to do a reduction.
 
-	fe.reduce([5]uint64{
+	fe.reduce(&[5]uint64{
 		(a.inner[0] + 36028797018963664) - b.inner[0],
 		(a.inner[1] + 36028797018963952) - b.inner[1],
 		(a.inner[2] + 36028797018963952) - b.inner[2],
@@ -184,7 +184,7 @@ func (fe *FieldElement) Mul(a, b *FieldElement) {
 // Neg computes `-fe`.
 func (fe *FieldElement) Neg() {
 	// See commentary in the Sub impl.
-	fe.reduce([5]uint64{
+	fe.reduce(&[5]uint64{
 		36028797018963664 - fe.inner[0],
 		36028797018963952 - fe.inner[1],
 		36028797018963952 - fe.inner[2],
@@ -233,7 +233,7 @@ func (fe *FieldElement) MinusOne() {
 	)
 }
 
-func (fe *FieldElement) reduce(limbs [5]uint64) {
+func (fe *FieldElement) reduce(limbs *[5]uint64) {
 	// Since the input limbs are bounded by 2^64, the biggest
 	// carry-out is bounded by 2^13.
 	//
@@ -317,7 +317,7 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 
 	// First, reduce the limbs to ensure h < 2*p.
 	var reduced FieldElement
-	reduced.reduce(fe.inner)
+	reduced.reduce(&fe.inner)
 	l0, l1, l2, l3, l4 := reduced.inner[0], reduced.inner[1], reduced.inner[2], reduced.inner[3], reduced.inner[4]
 
 	q := (l0 + 19) >> 51
