@@ -28,37 +28,31 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
-// +build !force32bit
+// +build !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 !go1.14,s390x 386 arm mips mipsle mips64le mips64 force32bit
+// +build !force64bit
 
 package scalar
 
 // `L` is the order of base point, i.e. 2^252 + 27742317777372353535851937790883648493.
 var constL unpackedScalar = unpackedScalar{
-	0x0002631a5cf5d3ed,
-	0x000dea2f79cd6581,
-	0x000000000014def9,
-	0x0000000000000000,
-	0x0000100000000000,
+	0x1cf5d3ed, 0x009318d2, 0x1de73596, 0x1df3bd45,
+	0x0000014d, 0x00000000, 0x00000000, 0x00000000,
+	0x00100000,
 }
 
 // `R` = R % L where R = 2^260.
 var constR unpackedScalar = unpackedScalar{
-	0x000f48bd6721e6ed,
-	0x0003bab5ac67e45a,
-	0x000fffffeb35e51b,
-	0x000fffffffffffff,
-	0x00000fffffffffff,
+	0x114df9ed, 0x1a617303, 0x0f7c098c, 0x16793167,
+	0x1ffd656e, 0x1fffffff, 0x1fffffff, 0x1fffffff,
+	0x000fffff,
 }
 
 // `RR` = (R^2) % L where R = 2^260.
 var constRR = unpackedScalar{
-	0x0009d265e952d13b,
-	0x000d63c715bea69f,
-	0x0005be65cb687604,
-	0x0003dceec73d217f,
-	0x000009411b7c309a,
+	0x0b5f9d12, 0x1e141b17, 0x158d7f3d, 0x143f3757,
+	0x1972d781, 0x042feb7c, 0x1ceec73d, 0x1e184d1e,
+	0x0005046d,
 }
 
-// `L` * `LFACTOR` = -1 (mod 2^52).
-const constLFACTOR uint64 = 0x51da312547e1b
+// `L` * `LFACTOR` = -1 (mod 2^29)
+const constLFACTOR uint32 = 0x12547e1b
