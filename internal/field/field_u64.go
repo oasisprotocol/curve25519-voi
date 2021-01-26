@@ -28,6 +28,9 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
+// +build !force32bit
+
 package field
 
 import (
@@ -273,7 +276,7 @@ func (fe *FieldElement) reduce(limbs *[5]uint64) {
 // and check that the input was canonical.
 func (fe *FieldElement) FromBytes(in []byte) error {
 	if len(in) != FieldElementSize {
-		return fmt.Errorf("curve/field: unexpected input size")
+		return fmt.Errorf("internal/field/u64: unexpected input size")
 	}
 
 	*fe = FieldElement{
@@ -297,7 +300,7 @@ func (fe *FieldElement) FromBytes(in []byte) error {
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
 func (fe *FieldElement) ToBytes(out []byte) error {
 	if len(out) != FieldElementSize {
-		return fmt.Errorf("curve/field: unexpected output size")
+		return fmt.Errorf("internal/field/u64: unexpected output size")
 	}
 
 	// Let h = limbs[0] + limbs[1]*2^51 + ... + limbs[4]*2^204.
@@ -382,7 +385,7 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 // Pow2k computes `self^(2^k)`, given `k > 0`.
 func (fe *FieldElement) Pow2k(k uint) {
 	if k == 0 {
-		panic("curve/field/u64: k out of bounds")
+		panic("internal/field/u64: k out of bounds")
 	}
 
 	var c0, c1, c2, c3, c4 uint128.Uint128

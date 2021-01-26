@@ -55,3 +55,15 @@ func ConstantTimeSwapUint64(choice int, a, b *uint64) {
 	*a ^= t
 	*b ^= t
 }
+
+func ConstantTimeSelectUint32(choice int, a, b uint32) uint32 {
+	mask := uint32(-choice)
+	return b ^ (mask & (a ^ b))
+}
+
+func ConstantTimeSwapUint32(choice int, a, b *uint32) {
+	mask := uint32(-choice)
+	t := mask & (*a ^ *b)
+	*a ^= t
+	*b ^= t
+}
