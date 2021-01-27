@@ -1,0 +1,39 @@
+# NOTE: This name appears in GitHub's Checks API and in workflow's status badge.
+name: ci-tests
+
+# Trigger the workflow when:
+on:
+  # A push occurs to one of the matched branches.
+  push:
+    branches:
+      - master
+  # Or when a pull request event occurs for a pull request against one of the
+  # matched branches.
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  tests:
+    # NOTE: This name appears in GitHub's Checks API.
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.15.x"
+      - name: Run 32 bit tests
+        run: go test ./... -tags=force32bit
+      - name: Run 64 bit tests
+        run: go test ./... -tags=force64bit
+      - name: Purge the mod cache
+        run: |
+          # https://github.com/golangci/golangci-lint-action/issues/135
+          go clean -modcache
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.34
