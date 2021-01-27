@@ -66,17 +66,23 @@ Anyone that mentions memguard will be asked to re-read the previous
 sentence again, and then be mercilessly mocked.  It is worth noting
 that the standard library does not do this appropriately either.
 
-Go prior to 1.13 provides no guarantees regarding the timing
-characteristics of the relevant `math/bits` intrinsics that are used
-by this package.  Additionally, `bits.Mul64` and `bits.Add64` must be
-optimized correctly by the compiler for this implementation to be fast.
-If this is not the case on your architecture, the author recommends
-complaining to the Go developers.
+This package uses hand-crafted build tags of doom to determine if
+the 32-bit or 64-bit codepath should be used.
 
-A dedicated 32 bit code path is omitted to save development and
-maintenance effort as such architectures are increasingly irrelevant.
-That said, the package is written in such a way that it would be
-relatively easy to add such a thing, if the demand is high enough.
+ * `amd64` will always use the 64 bit code.
+ * `arm64`, `ppc64le`, `ppc64` will use the 64-bit code iff Go >= 1.13,
+   32-bit otherwise.
+ * `s390x` will use the 64-bit code iff Go >= 1.14, 32-bit otherwise.
+ * `386`, `arm`, `mips`, `mipsle`, `mips64` will always use the 32-bit code.
+ * All other `GOARCH`s are not supported.
+
+This decision is more complicated than it should due to:
+
+ * Go prior to 1.13 providing no guarantee regarding the timing
+   characteristics of the `math/bits` intrinsics used by this package.
+ * `math/bits.Mul64` and `math/bits.Add64` requiring special cases in
+   the SSA code (`cmd/compile/internal/gc/ssa.go`) to be performant.
+ * The Go developers rejecting [adding build tags for bit-width][3].
 
 This package is moderately slower than the author's previous effort
 at producing a better ed25519 for Go.  It is the author's opinion
@@ -94,3 +100,4 @@ the underlying group operations) is worth the minor regression.
 
 [1]: https://github.com/novifinancial/ed25519-speccheck
 [2]: https://eprint.iacr.org/2020/1244.pdf
+[3]: https://github.com/golang/go/issues/33388
