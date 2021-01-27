@@ -73,8 +73,8 @@ func (p *EdwardsPoint) multiscalarMulStrausVartime(scalars []*scalar.Scalar, poi
 	var r projectivePoint
 	r.identity()
 
+	var t completedPoint
 	for i := 255; i >= 0; i-- {
-		var t completedPoint
 		t.double(&r)
 
 		for j := 0; j < len(points); j++ {

@@ -330,7 +330,9 @@ func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
 	// but as an `affineNielsPoint`, so add identity to convert to extended.
 	var ep EdwardsPoint
 	ep.Identity()
+
 	aPt := tbl[0].lookup(1)
+
 	var sum completedPoint
 	sum.addEdwardsAffineNiels(&ep, &aPt)
 	ep.fromCompleted(&sum)

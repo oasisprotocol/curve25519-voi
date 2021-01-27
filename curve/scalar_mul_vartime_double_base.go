@@ -52,8 +52,9 @@ func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *Edwa
 
 	var r projectivePoint
 	r.identity()
+
+	var t completedPoint
 	for {
-		var t completedPoint
 		t.double(&r)
 
 		if aNaf[i] > 0 {
