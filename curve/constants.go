@@ -30,7 +30,10 @@
 
 package curve
 
-import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
+import (
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/internal/field"
+)
 
 const (
 	// CompressedPointSize is the size of a compressed point in bytes.
@@ -104,3 +107,14 @@ var (
 		return s
 	}()
 )
+
+func newEdwardsPoint(X, Y, Z, T field.FieldElement) EdwardsPoint {
+	return EdwardsPoint{
+		edwardsPointInner{
+			X: X,
+			Y: Y,
+			Z: Z,
+			T: T,
+		},
+	}
+}

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
+// Copyright (c) 2016-2019 Isis Agora Lovecruft. All rights reserved.
 // Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,32 +28,13 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
-// +build !force32bit
+// +build !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 !go1.14,s390x 386 arm mips mipsle mips64le mips64 force32bit
+// +build !force64bit
 
-package curve
+package field
 
-import (
-	"testing"
-
-	"github.com/oasisprotocol/curve25519-voi/internal/field"
+// Precomputed value of one of the square roots of -1 (mod p).
+var SQRT_M1 = NewFieldElement2625(
+	34513072, 25610706, 9377949, 3500415, 12389472,
+	33281959, 41962654, 31548777, 326685, 11406482,
 )
-
-func testConstantsDVsRatio(t *testing.T) {
-	// Test that d = -121665/121666.
-	a := field.NewFieldElement51(121665, 0, 0, 0, 0)
-	a.Neg()
-	bInv := field.NewFieldElement51(121666, 0, 0, 0, 0)
-	bInv.Invert()
-
-	var d, d2 field.FieldElement
-	d.Mul(&a, &bInv)
-	d2.Add(&d, &d)
-
-	if d.Equal(&constEDWARDS_D) != 1 {
-		t.Fatalf("d != EDWARDS_D (Got: %v)", d)
-	}
-	if d2.Equal(&constEDWARDS_D2) != 1 {
-		t.Fatalf("d2 != EDWARDS_D2 (Got: %v)", d2)
-	}
-}

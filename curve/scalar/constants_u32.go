@@ -28,32 +28,31 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
-// +build !force32bit
+// +build !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 !go1.14,s390x 386 arm mips mipsle mips64le mips64 force32bit
+// +build !force64bit
 
-package curve
+package scalar
 
-import (
-	"testing"
-
-	"github.com/oasisprotocol/curve25519-voi/internal/field"
-)
-
-func testConstantsDVsRatio(t *testing.T) {
-	// Test that d = -121665/121666.
-	a := field.NewFieldElement51(121665, 0, 0, 0, 0)
-	a.Neg()
-	bInv := field.NewFieldElement51(121666, 0, 0, 0, 0)
-	bInv.Invert()
-
-	var d, d2 field.FieldElement
-	d.Mul(&a, &bInv)
-	d2.Add(&d, &d)
-
-	if d.Equal(&constEDWARDS_D) != 1 {
-		t.Fatalf("d != EDWARDS_D (Got: %v)", d)
-	}
-	if d2.Equal(&constEDWARDS_D2) != 1 {
-		t.Fatalf("d2 != EDWARDS_D2 (Got: %v)", d2)
-	}
+// `L` is the order of base point, i.e. 2^252 + 27742317777372353535851937790883648493.
+var constL unpackedScalar = unpackedScalar{
+	0x1cf5d3ed, 0x009318d2, 0x1de73596, 0x1df3bd45,
+	0x0000014d, 0x00000000, 0x00000000, 0x00000000,
+	0x00100000,
 }
+
+// `R` = R % L where R = 2^260.
+var constR unpackedScalar = unpackedScalar{
+	0x114df9ed, 0x1a617303, 0x0f7c098c, 0x16793167,
+	0x1ffd656e, 0x1fffffff, 0x1fffffff, 0x1fffffff,
+	0x000fffff,
+}
+
+// `RR` = (R^2) % L where R = 2^260.
+var constRR = unpackedScalar{
+	0x0b5f9d12, 0x1e141b17, 0x158d7f3d, 0x143f3757,
+	0x1972d781, 0x042feb7c, 0x1ceec73d, 0x1e184d1e,
+	0x0005046d,
+}
+
+// `L` * `LFACTOR` = -1 (mod 2^29)
+const constLFACTOR uint32 = 0x12547e1b

@@ -28,6 +28,9 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
+// +build !force32bit
+
 package field
 
 // Precomputed value of one of the square roots of -1 (mod p).
@@ -37,13 +40,4 @@ var SQRT_M1 = NewFieldElement51(
 	2233514472574048,
 	2117202627021982,
 	765476049583133,
-)
-
-// `= 1/sqrt(a-d)`, where `a = -1 (mod p)`, `d` are the Edwards curve parameters.
-var INVSQRT_A_MINUS_D = NewFieldElement51(
-	278908739862762,
-	821645201101625,
-	8113234426968,
-	1777959178193151,
-	2118520810568447,
 )
