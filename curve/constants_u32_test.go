@@ -28,8 +28,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
-// +build !force32bit
+// +build !go1.13,arm64 !go1.13,ppc64le !go1.13,ppc64 !go1.14,s390x 386 arm mips mipsle mips64le mips64 force32bit
+// +build !force64bit
 
 package curve
 
@@ -41,9 +41,9 @@ import (
 
 func testConstantsDVsRatio(t *testing.T) {
 	// Test that d = -121665/121666.
-	a := field.NewFieldElement51(121665, 0, 0, 0, 0)
+	a := field.NewFieldElement2625(121665, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	a.Neg()
-	bInv := field.NewFieldElement51(121666, 0, 0, 0, 0)
+	bInv := field.NewFieldElement2625(121666, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	bInv.Invert()
 
 	var d, d2 field.FieldElement

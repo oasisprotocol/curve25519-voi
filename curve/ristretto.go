@@ -83,7 +83,7 @@ func (p *CompressedRistretto) FromRistrettoPoint(ristrettoPoint *RistrettoPoint)
 	var iX, iY, enchantedDenominator field.FieldElement
 	iX.Mul(&X, &field.SQRT_M1)
 	iY.Mul(&Y, &field.SQRT_M1)
-	enchantedDenominator.Mul(&i1, &field.INVSQRT_A_MINUS_D)
+	enchantedDenominator.Mul(&i1, &constINVSQRT_A_MINUS_D)
 
 	tmp.Mul(&T, &zInv)
 	rotate := tmp.IsNegative()

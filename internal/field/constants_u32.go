@@ -38,9 +38,3 @@ var SQRT_M1 = NewFieldElement2625(
 	34513072, 25610706, 9377949, 3500415, 12389472,
 	33281959, 41962654, 31548777, 326685, 11406482,
 )
-
-// `= 1/sqrt(a-d)`, where `a = -1 (mod p)`, `d` are the Edwards curve parameters.
-var INVSQRT_A_MINUS_D = NewFieldElement2625(
-	6111466, 4156064, 39310137, 12243467, 41204824,
-	120896, 20826367, 26493656, 6093567, 31568420,
-)
