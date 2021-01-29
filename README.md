@@ -84,13 +84,6 @@ This decision is more complicated than it should due to:
    the SSA code (`cmd/compile/internal/gc/ssa.go`) to be performant.
  * The Go developers rejecting [adding build tags for bit-width][3].
 
-This package is moderately slower than the author's previous effort
-at producing a better ed25519 for Go.  It is the author's opinion
-that the current performance (which is still significantly superior
-to the standard library) should be adequate for most use cases, and
-increased maintanability (and the ability to reuse the code providing
-the underlying group operations) is worth the minor regression.
-
 #### TODO
 
  * Add the functions that were omitted in the initial porting effort.
