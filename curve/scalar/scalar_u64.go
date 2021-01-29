@@ -36,8 +36,7 @@ package scalar
 import (
 	"encoding/binary"
 	"fmt"
-
-	"github.com/oasisprotocol/curve25519-voi/internal/uint128"
+	"math/bits"
 )
 
 const low_52_bit_mask uint64 = (1 << 52) - 1
@@ -167,31 +166,40 @@ func (s *unpackedScalar) sub(a, b *unpackedScalar) {
 	}
 }
 
+//
+// Note: The limbs *[18]uint64 parameter that is passed around by this
+// implementation is structured as { l0_lo, l0_hi, ... l8_lo, l8_hi }.
+//
+
 // fromMontgomery takes a scalar out of Montgomery form, i.e. computes `a/R (mod l)`.
 func (s *unpackedScalar) fromMontgomery() {
-	var limbs [9]uint128.Uint128
+	var limbs [18]uint64
 	for i := 0; i < 5; i++ {
-		uint128.SetUint64(&limbs[i], s[i])
+		limbs[i*2] = s[i]
 	}
 	s.montgomeryReduce(&limbs)
 }
 
 // montgomeryReduce computes `limbs/R` (mod l), where R is the Montgomery
 // modulus 2^260.
-func (s *unpackedScalar) montgomeryReduce(limbs *[9]uint128.Uint128) {
-	part1 := func(sum uint128.Uint128) (uint128.Uint128, uint64) {
-		p := uint128.Lo(&sum) * constLFACTOR & ((1 << 52) - 1)
-		carry := sum
-		uint128.Mul64x64Add(&carry, p, constL[0])
-		uint128.Shr(&carry, 52)
-		return carry, p
+func (s *unpackedScalar) montgomeryReduce(limbs *[18]uint64) {
+	part1 := func(sum_hi, sum_lo uint64) (c_hi, c_lo, p uint64) {
+		var c uint64
+		p = sum_lo * constLFACTOR & ((1 << 52) - 1)
+		tmp_hi, tmp_lo := bits.Mul64(p, constL[0])
+		c_lo, c = bits.Add64(sum_lo, tmp_lo, 0)
+		c_hi, _ = bits.Add64(sum_hi, tmp_hi, c)
+		c_lo = (c_hi << (64 - 52)) | (c_lo >> 52)
+		c_hi = c_hi >> 52
+		return
 	}
 
-	part2 := func(sum uint128.Uint128) (uint128.Uint128, uint64) {
-		w := uint128.Lo(&sum) & ((1 << 52) - 1)
-		carry := sum
-		uint128.Shr(&carry, 52)
-		return carry, w
+	part2 := func(sum_hi, sum_lo uint64) (c_hi, c_lo, w uint64) {
+		w = sum_lo & ((1 << 52) - 1)
+		c_hi, c_lo = sum_hi, sum_lo
+		c_lo = (c_hi << (64 - 52)) | (c_lo >> 52)
+		c_hi = c_hi >> 52
+		return
 	}
 
 	// note: l[3] is zero, so its multiples can be skipped
@@ -199,133 +207,219 @@ func (s *unpackedScalar) montgomeryReduce(limbs *[9]uint128.Uint128) {
 
 	// the first half computes the Montgomery adjustment factor n, and begins adding n*l to make limbs divisible by R
 	var (
-		carry              uint128.Uint128
-		n0, n1, n2, n3, n4 uint64
+		carry_hi, carry_lo, tmp_hi, tmp_lo, carry uint64
+		n0, n1, n2, n3, n4                        uint64
 	)
 
-	carry, n0 = part1(limbs[0])
+	carry_hi, carry_lo, n0 = part1(limbs[1], limbs[0])
 
-	uint128.Add(&carry, &limbs[1])
-	uint128.Mul64x64Add(&carry, n0, l[1])
-	carry, n1 = part1(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[2], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[3], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n0, l[1])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, n1 = part1(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[2])
-	uint128.Mul64x64Add(&carry, n0, l[2])
-	uint128.Mul64x64Add(&carry, n1, l[1])
-	carry, n2 = part1(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[4], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[5], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n0, l[2])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n1, l[1])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, n2 = part1(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[3])
-	uint128.Mul64x64Add(&carry, n1, l[2])
-	uint128.Mul64x64Add(&carry, n2, l[1])
-	carry, n3 = part1(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[6], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[7], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n1, l[2])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n2, l[1])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, n3 = part1(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[4])
-	uint128.Mul64x64Add(&carry, n0, l[4])
-	uint128.Mul64x64Add(&carry, n2, l[2])
-	uint128.Mul64x64Add(&carry, n3, l[1])
-	carry, n4 = part1(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[8], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[9], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n0, l[4])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n2, l[2])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n3, l[1])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, n4 = part1(carry_hi, carry_lo)
 
 	// limbs is divisible by R now, so we can divide by R by simply storing the upper half as the result
 	var r0, r1, r2, r3, r4 uint64
 
-	uint128.Add(&carry, &limbs[5])
-	uint128.Mul64x64Add(&carry, n1, l[4])
-	uint128.Mul64x64Add(&carry, n3, l[2])
-	uint128.Mul64x64Add(&carry, n4, l[1])
-	carry, r0 = part2(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[10], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[11], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n1, l[4])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n3, l[2])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n4, l[1])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, r0 = part2(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[6])
-	uint128.Mul64x64Add(&carry, n2, l[4])
-	uint128.Mul64x64Add(&carry, n4, l[2])
-	carry, r1 = part2(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[12], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[13], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n2, l[4])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(n4, l[2])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, r1 = part2(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[7])
-	uint128.Mul64x64Add(&carry, n3, l[4])
-	carry, r2 = part2(carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[14], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[15], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n3, l[4])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	carry_hi, carry_lo, r2 = part2(carry_hi, carry_lo)
 
-	uint128.Add(&carry, &limbs[8])
-	uint128.Mul64x64Add(&carry, n4, l[4])
-	carry, r3 = part2(carry)
-
-	r4 = uint128.Lo(&carry)
+	carry_lo, carry = bits.Add64(carry_lo, limbs[16], 0)
+	carry_hi, _ = bits.Add64(carry_hi, limbs[17], carry)
+	tmp_hi, tmp_lo = bits.Mul64(n4, l[4])
+	carry_lo, carry = bits.Add64(carry_lo, tmp_lo, 0)
+	carry_hi, _ = bits.Add64(carry_hi, tmp_hi, carry)
+	_, r4, r3 = part2(carry_hi, carry_lo)
 
 	// result may be >= l, so attempt to subtract l
 	s.sub(&unpackedScalar{r0, r1, r2, r3, r4}, l)
 }
 
-func (s *unpackedScalar) squareInternal() [9]uint128.Uint128 {
-	var z [9]uint128.Uint128
+func (s *unpackedScalar) squareInternal() [18]uint64 {
+	var (
+		z                                 [18]uint64
+		z_hi, z_lo, tmp_hi, tmp_lo, carry uint64
+	)
 
 	s0, s1, s2, s3, s4 := s[0], s[1], s[2], s[3], s[4]
 	aa0, aa1, aa2, aa3 := s0*2, s1*2, s2*2, s3*2
 
-	uint128.Mul64x64(&z[0], s0, s0)
+	z[1], z[0] = bits.Mul64(s0, s0)
 
-	uint128.Mul64x64(&z[1], aa0, s1)
+	z[3], z[2] = bits.Mul64(aa0, s1)
 
-	uint128.Mul64x64(&z[2], aa0, s2)
-	uint128.Mul64x64Add(&z[2], s1, s1)
+	z_hi, z_lo = bits.Mul64(aa0, s2)
+	tmp_hi, tmp_lo = bits.Mul64(s1, s1)
+	z[4], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[5], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[3], aa0, s3)
-	uint128.Mul64x64Add(&z[3], aa1, s2)
+	z_hi, z_lo = bits.Mul64(aa0, s3)
+	tmp_hi, tmp_lo = bits.Mul64(aa1, s2)
+	z[6], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[7], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[4], aa0, s4)
-	uint128.Mul64x64Add(&z[4], aa1, s3)
-	uint128.Mul64x64Add(&z[4], s2, s2)
+	z_hi, z_lo = bits.Mul64(aa0, s4)
+	tmp_hi, tmp_lo = bits.Mul64(aa1, s3)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(s2, s2)
+	z[8], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[9], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[5], aa1, s4)
-	uint128.Mul64x64Add(&z[5], aa2, s3)
+	z_hi, z_lo = bits.Mul64(aa1, s4)
+	tmp_hi, tmp_lo = bits.Mul64(aa2, s3)
+	z[10], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[11], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[6], aa2, s4)
-	uint128.Mul64x64Add(&z[6], s3, s3)
+	z_hi, z_lo = bits.Mul64(aa2, s4)
+	tmp_hi, tmp_lo = bits.Mul64(s3, s3)
+	z[12], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[13], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[7], aa3, s4)
+	z[15], z[14] = bits.Mul64(aa3, s4)
 
-	uint128.Mul64x64(&z[8], s4, s4)
+	z[17], z[16] = bits.Mul64(s4, s4)
 
 	return z
 }
 
 // scalarMulInternal computes `a * b`.
-func scalarMulInternal(a, b *unpackedScalar) [9]uint128.Uint128 {
-	var z [9]uint128.Uint128
+func scalarMulInternal(a, b *unpackedScalar) [18]uint64 {
+	var (
+		z                                 [18]uint64
+		z_hi, z_lo, tmp_hi, tmp_lo, carry uint64
+	)
 
 	a0, a1, a2, a3, a4 := a[0], a[1], a[2], a[3], a[4]
 	b0, b1, b2, b3, b4 := b[0], b[1], b[2], b[3], b[4]
 
-	uint128.Mul64x64(&z[0], a0, b0)
+	z[1], z[0] = bits.Mul64(a0, b0)
 
-	uint128.Mul64x64(&z[1], a0, b1)
-	uint128.Mul64x64Add(&z[1], a1, b0)
+	z_hi, z_lo = bits.Mul64(a0, b1)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b0)
+	z[2], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[3], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[2], a0, b2)
-	uint128.Mul64x64Add(&z[2], a1, b1)
-	uint128.Mul64x64Add(&z[2], a2, b0)
+	z_hi, z_lo = bits.Mul64(a0, b2)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b1)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b0)
+	z[4], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[5], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[3], a0, b3)
-	uint128.Mul64x64Add(&z[3], a1, b2)
-	uint128.Mul64x64Add(&z[3], a2, b1)
-	uint128.Mul64x64Add(&z[3], a3, b0)
+	z_hi, z_lo = bits.Mul64(a0, b3)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b2)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b1)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b0)
+	z[6], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[7], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[4], a0, b4)
-	uint128.Mul64x64Add(&z[4], a1, b3)
-	uint128.Mul64x64Add(&z[4], a2, b2)
-	uint128.Mul64x64Add(&z[4], a3, b1)
-	uint128.Mul64x64Add(&z[4], a4, b0)
+	z_hi, z_lo = bits.Mul64(a0, b4)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b3)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b2)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b1)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b0)
+	z[8], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[9], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[5], a1, b4)
-	uint128.Mul64x64Add(&z[5], a2, b3)
-	uint128.Mul64x64Add(&z[5], a3, b2)
-	uint128.Mul64x64Add(&z[5], a4, b1)
+	z_hi, z_lo = bits.Mul64(a1, b4)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b3)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b2)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b1)
+	z[10], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[11], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[6], a2, b4)
-	uint128.Mul64x64Add(&z[6], a3, b3)
-	uint128.Mul64x64Add(&z[6], a4, b2)
+	z_hi, z_lo = bits.Mul64(a2, b4)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b3)
+	z_lo, carry = bits.Add64(z_lo, tmp_lo, 0)
+	z_hi, _ = bits.Add64(z_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b2)
+	z[12], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[13], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[7], a3, b4)
-	uint128.Mul64x64Add(&z[7], a4, b3)
+	z_hi, z_lo = bits.Mul64(a3, b4)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b3)
+	z[14], carry = bits.Add64(z_lo, tmp_lo, 0)
+	z[15], _ = bits.Add64(z_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&z[8], a4, b4)
+	z[17], z[16] = bits.Mul64(a4, b4)
 
 	return z
 }
