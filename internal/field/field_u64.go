@@ -36,10 +36,10 @@ package field
 import (
 	"encoding/binary"
 	"fmt"
+	"math/bits"
 
 	"github.com/oasisprotocol/curve25519-voi/internal/disalloweq"
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
-	"github.com/oasisprotocol/curve25519-voi/internal/uint128"
 )
 
 const low_51_bit_mask uint64 = (1 << 51) - 1
@@ -101,36 +101,78 @@ func (fe *FieldElement) Mul(a, b *FieldElement) {
 	b4_19 := b4 * 19
 
 	// Multiply to get 128-bit coefficients of output
-	var c0, c1, c2, c3, c4 uint128.Uint128
-	uint128.Mul64x64(&c0, a0, b0)
-	uint128.Mul64x64Add(&c0, a4, b1_19)
-	uint128.Mul64x64Add(&c0, a3, b2_19)
-	uint128.Mul64x64Add(&c0, a2, b3_19)
-	uint128.Mul64x64Add(&c0, a1, b4_19)
+	var c0_lo, c1_lo, c2_lo, c3_lo, c4_lo, c0_hi, c1_hi, c2_hi, c3_hi, c4_hi, tmp_lo, tmp_hi, carry uint64
 
-	uint128.Mul64x64(&c1, a1, b0)
-	uint128.Mul64x64Add(&c1, a0, b1)
-	uint128.Mul64x64Add(&c1, a4, b2_19)
-	uint128.Mul64x64Add(&c1, a3, b3_19)
-	uint128.Mul64x64Add(&c1, a2, b4_19)
+	c0_hi, c0_lo = bits.Mul64(a0, b0)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b1_19)
+	c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+	c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b2_19)
+	c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+	c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b3_19)
+	c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+	c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b4_19)
+	c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+	c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&c2, a2, b0)
-	uint128.Mul64x64Add(&c2, a1, b1)
-	uint128.Mul64x64Add(&c2, a0, b2)
-	uint128.Mul64x64Add(&c2, a4, b3_19)
-	uint128.Mul64x64Add(&c2, a3, b4_19)
+	c1_hi, c1_lo = bits.Mul64(a1, b0)
+	tmp_hi, tmp_lo = bits.Mul64(a0, b1)
+	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+	c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b2_19)
+	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+	c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b3_19)
+	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+	c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b4_19)
+	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+	c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&c3, a3, b0)
-	uint128.Mul64x64Add(&c3, a2, b1)
-	uint128.Mul64x64Add(&c3, a1, b2)
-	uint128.Mul64x64Add(&c3, a0, b3)
-	uint128.Mul64x64Add(&c3, a4, b4_19)
+	c2_hi, c2_lo = bits.Mul64(a2, b0)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b1)
+	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+	c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a0, b2)
+	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+	c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b3_19)
+	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+	c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b4_19)
+	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+	c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
 
-	uint128.Mul64x64(&c4, a4, b0)
-	uint128.Mul64x64Add(&c4, a3, b1)
-	uint128.Mul64x64Add(&c4, a2, b2)
-	uint128.Mul64x64Add(&c4, a1, b3)
-	uint128.Mul64x64Add(&c4, a0, b4)
+	c3_hi, c3_lo = bits.Mul64(a3, b0)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b1)
+	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+	c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b2)
+	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+	c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a0, b3)
+	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+	c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a4, b4_19)
+	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+	c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+
+	c4_hi, c4_lo = bits.Mul64(a4, b0)
+	tmp_hi, tmp_lo = bits.Mul64(a3, b1)
+	c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+	c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a2, b2)
+	c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+	c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
+	tmp_hi, tmp_lo = bits.Mul64(a1, b3)
+	c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+	c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
+
+	tmp_hi, tmp_lo = bits.Mul64(a0, b4)
+	c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+	c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
 
 	// How big are the c[i]? We have
 	//
@@ -145,20 +187,28 @@ func (fe *FieldElement) Mul(a, b *FieldElement) {
 	//
 	// So we require b < 3 to ensure this fits.
 
-	uint128.Add64(&c1, uint128.ShrLo(&c0, 51))
-	fe.inner[0] = uint128.Lo(&c0) & low_51_bit_mask
+	tmp_lo = (c0_hi << (64 - 51)) | (c0_lo >> 51)
+	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+	c1_hi, _ = bits.Add64(c1_hi, 0, carry)
+	fe.inner[0] = c0_lo & low_51_bit_mask
 
-	uint128.Add64(&c2, uint128.ShrLo(&c1, 51))
-	fe.inner[1] = uint128.Lo(&c1) & low_51_bit_mask
+	tmp_lo = (c1_hi << (64 - 51)) | (c1_lo >> 51)
+	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+	c2_hi, _ = bits.Add64(c2_hi, 0, carry)
+	fe.inner[1] = c1_lo & low_51_bit_mask
 
-	uint128.Add64(&c3, uint128.ShrLo(&c2, 51))
-	fe.inner[2] = uint128.Lo(&c2) & low_51_bit_mask
+	tmp_lo = (c2_hi << (64 - 51)) | (c2_lo >> 51)
+	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+	c3_hi, _ = bits.Add64(c3_hi, 0, carry)
+	fe.inner[2] = c2_lo & low_51_bit_mask
 
-	uint128.Add64(&c4, uint128.ShrLo(&c3, 51))
-	fe.inner[3] = uint128.Lo(&c3) & low_51_bit_mask
+	tmp_lo = (c3_hi << (64 - 51)) | (c3_lo >> 51)
+	c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+	c4_hi, _ = bits.Add64(c4_hi, 0, carry)
+	fe.inner[3] = c3_lo & low_51_bit_mask
 
-	carry := uint128.ShrLo(&c4, 51)
-	fe.inner[4] = uint128.Lo(&c4) & low_51_bit_mask
+	carry = (c4_hi << (64 - 51)) | (c4_lo >> 51)
+	fe.inner[4] = c4_lo & low_51_bit_mask
 
 	// To see that this does not overflow, we need fe[0] + carry * 19 < 2^64.
 	//
@@ -388,7 +438,7 @@ func (fe *FieldElement) Pow2k(k uint) {
 		panic("internal/field/u64: k out of bounds")
 	}
 
-	var c0, c1, c2, c3, c4 uint128.Uint128
+	var c0_lo, c1_lo, c2_lo, c3_lo, c4_lo, c0_hi, c1_hi, c2_hi, c3_hi, c4_hi, tmp_lo, tmp_hi, carry uint64
 	a0, a1, a2, a3, a4 := fe.inner[0], fe.inner[1], fe.inner[2], fe.inner[3], fe.inner[4]
 
 	for {
@@ -409,30 +459,59 @@ func (fe *FieldElement) Pow2k(k uint) {
 		a4_19 := 19 * a4
 
 		// Multiply to get 128-bit coefficients of output.
-		uint128.Mul64x64(&c0, a1, a4_19)
-		uint128.Mul64x64Add(&c0, a2, a3_19)
-		uint128.Add(&c0, &c0)
-		uint128.Mul64x64Add(&c0, a0, a0)
+		//
+		// Since golang does not have an actual 128-bit integer type,
+		// addition is used instead.
 
-		uint128.Mul64x64(&c1, a0, a1)
-		uint128.Mul64x64Add(&c1, a2, a4_19)
-		uint128.Add(&c1, &c1)
-		uint128.Mul64x64Add(&c1, a3, a3_19)
+		c0_hi, c0_lo = bits.Mul64(a1, a4_19)
+		tmp_hi, tmp_lo = bits.Mul64(a2, a3_19)
+		c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+		c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
+		c0_lo, carry = bits.Add64(c0_lo, c0_lo, 0)
+		c0_hi, _ = bits.Add64(c0_hi, c0_hi, carry)
+		tmp_hi, tmp_lo = bits.Mul64(a0, a0)
+		c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
+		c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
 
-		uint128.Mul64x64(&c2, a0, a2)
-		uint128.Mul64x64Add(&c2, a4, a3_19)
-		uint128.Add(&c2, &c2)
-		uint128.Mul64x64Add(&c2, a1, a1)
+		c1_hi, c1_lo = bits.Mul64(a0, a1)
+		tmp_hi, tmp_lo = bits.Mul64(a2, a4_19)
+		c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+		c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
+		c1_lo, carry = bits.Add64(c1_lo, c1_lo, 0)
+		c1_hi, _ = bits.Add64(c1_hi, c1_hi, carry)
+		tmp_hi, tmp_lo = bits.Mul64(a3, a3_19)
+		c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+		c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
 
-		uint128.Mul64x64(&c3, a0, a3)
-		uint128.Mul64x64Add(&c3, a1, a2)
-		uint128.Add(&c3, &c3)
-		uint128.Mul64x64Add(&c3, a4, a4_19)
+		c2_hi, c2_lo = bits.Mul64(a0, a2)
+		tmp_hi, tmp_lo = bits.Mul64(a4, a3_19)
+		c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+		c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
+		c2_lo, carry = bits.Add64(c2_lo, c2_lo, 0)
+		c2_hi, _ = bits.Add64(c2_hi, c2_hi, carry)
+		tmp_hi, tmp_lo = bits.Mul64(a1, a1)
+		c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+		c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
 
-		uint128.Mul64x64(&c4, a0, a4)
-		uint128.Mul64x64Add(&c4, a1, a3)
-		uint128.Add(&c4, &c4)
-		uint128.Mul64x64Add(&c4, a2, a2)
+		c3_hi, c3_lo = bits.Mul64(a0, a3)
+		tmp_hi, tmp_lo = bits.Mul64(a1, a2)
+		c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+		c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+		c3_lo, carry = bits.Add64(c3_lo, c3_lo, 0)
+		c3_hi, _ = bits.Add64(c3_hi, c3_hi, carry)
+		tmp_hi, tmp_lo = bits.Mul64(a4, a4_19)
+		c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+		c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
+
+		c4_hi, c4_lo = bits.Mul64(a0, a4)
+		tmp_hi, tmp_lo = bits.Mul64(a1, a3)
+		c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+		c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
+		c4_lo, carry = bits.Add64(c4_lo, c4_lo, 0)
+		c4_hi, _ = bits.Add64(c4_hi, c4_hi, carry)
+		tmp_hi, tmp_lo = bits.Mul64(a2, a2)
+		c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+		c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
 
 		// Same bound as in multiply:
 		//    c[i] < 2^(102 + 2*b) * (1+i + (4-i)*19)
@@ -446,20 +525,28 @@ func (fe *FieldElement) Pow2k(k uint) {
 		//
 		// So we require b < 3 to ensure this fits.
 
-		uint128.Add64(&c1, uint128.ShrLo(&c0, 51))
-		a0 = uint128.Lo(&c0) & low_51_bit_mask
+		tmp_lo = (c0_hi << (64 - 51)) | (c0_lo >> 51)
+		c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
+		c1_hi, _ = bits.Add64(c1_hi, 0, carry)
+		a0 = c0_lo & low_51_bit_mask
 
-		uint128.Add64(&c2, uint128.ShrLo(&c1, 51))
-		a1 = uint128.Lo(&c1) & low_51_bit_mask
+		tmp_lo = (c1_hi << (64 - 51)) | (c1_lo >> 51)
+		c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
+		c2_hi, _ = bits.Add64(c2_hi, 0, carry)
+		a1 = c1_lo & low_51_bit_mask
 
-		uint128.Add64(&c3, uint128.ShrLo(&c2, 51))
-		a2 = uint128.Lo(&c2) & low_51_bit_mask
+		tmp_lo = (c2_hi << (64 - 51)) | (c2_lo >> 51)
+		c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
+		c3_hi, _ = bits.Add64(c3_hi, 0, carry)
+		a2 = c2_lo & low_51_bit_mask
 
-		uint128.Add64(&c4, uint128.ShrLo(&c3, 51))
-		a3 = uint128.Lo(&c3) & low_51_bit_mask
+		tmp_lo = (c3_hi << (64 - 51)) | (c3_lo >> 51)
+		c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
+		c4_hi, _ = bits.Add64(c4_hi, 0, carry)
+		a3 = c3_lo & low_51_bit_mask
 
-		carry := uint128.ShrLo(&c4, 51)
-		a4 = uint128.Lo(&c4) & low_51_bit_mask
+		carry = (c4_hi << (64 - 51)) | (c4_lo >> 51)
+		a4 = c4_lo & low_51_bit_mask
 
 		// To see that this does not overflow, we need a[0] + carry * 19 < 2^64.
 		//
