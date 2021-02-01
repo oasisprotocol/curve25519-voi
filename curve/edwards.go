@@ -296,7 +296,7 @@ func (p *EdwardsPoint) mulByPow2(k uint) {
 
 // EdwardsBasepointTable defines a precomputed table of multiples of a
 // basepoint, for accelerating fixed-based scalar multiplication.
-type EdwardsBasepointTable [32]affineNielsPointLookupTable
+type EdwardsBasepointTable [32]packedAffineNielsPointLookupTable
 
 // Mul constructs a point from a scalar by computing the multiple aB
 // of this basepoint (B).
@@ -346,7 +346,7 @@ func NewEdwardsBasepointTable(basepoint *EdwardsPoint) EdwardsBasepointTable {
 	var table EdwardsBasepointTable
 	p := *basepoint
 	for i := 0; i < 32; i++ {
-		table[i] = newAffineNielsPointLookupTable(&p)
+		table[i] = newPackedAffineNielsPointLookupTable(&p)
 		p.mulByPow2(8)
 	}
 
