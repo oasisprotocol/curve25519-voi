@@ -38,7 +38,7 @@ import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
 type projectiveNielsPointLookupTable [8]projectiveNielsPoint
 
 func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint {
-	// Compute xabx = |x|
+	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := (x + xmask) ^ xmask
 
@@ -80,22 +80,36 @@ func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLo
 	return projectiveNielsPointLookupTable(points)
 }
 
-type affineNielsPointLookupTable [8]affineNielsPoint
+// Note: Unlike curve25519-dalek, the table uses the packed format as the
+// internal representation, as 96-byte entries are significantly easier
+// to manipulate with vector instructions.
+type packedAffineNielsPointLookupTable [8][96]byte
 
-func (tbl *affineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
-	// Compute xabx = |x|
+func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
+	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := (x + xmask) ^ xmask
 
 	// Set t = 0 * P = identity
-	var t affineNielsPoint
-	t.identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		t.conditionalAssign(&tbl[j-1], c)
+	var tPacked [96]byte
+	switch useAssembly {
+	case true:
+		tbl.fastLookup(&tPacked, xabs)
+	case false:
+		tPacked = identityAffineNielsPacked
+		for j := 1; j < 9; j++ {
+			// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
+			c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
+			subtle.MoveConditionalBytesx96(&tPacked, &tbl[j-1], uint64(c))
+		}
 	}
 	// Now t == |x| * P.
+
+	// Unpack t.
+	var t affineNielsPoint
+	_ = t.y_plus_x.FromBytes(tPacked[0:32])
+	_ = t.y_minus_x.FromBytes(tPacked[32:64])
+	_ = t.xy2d.FromBytes(tPacked[64:96])
 
 	negMask := int(byte(xmask & 1))
 	t.conditionalNegate(negMask)
@@ -104,7 +118,7 @@ func (tbl *affineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 	return t
 }
 
-func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTable {
+func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPointLookupTable {
 	var epANiels affineNielsPoint
 	epANiels.fromEdwards(ep)
 
@@ -122,7 +136,16 @@ func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTabl
 		points[j+1].fromEdwards(&tmp2)
 	}
 
-	return affineNielsPointLookupTable(points)
+	// Pack the table.  At this point, `points` is equivalent to the table
+	// used by curve25519-dalek.
+	var tbl packedAffineNielsPointLookupTable
+	for i, point := range points {
+		_ = point.y_plus_x.ToBytes(tbl[i][0:32])
+		_ = point.y_minus_x.ToBytes(tbl[i][32:64])
+		_ = point.xy2d.ToBytes(tbl[i][64:96])
+	}
+
+	return tbl
 }
 
 // Holds odd multiples 1A, 3A, ..., 15A of a point A.

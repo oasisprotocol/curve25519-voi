@@ -29,6 +29,10 @@ jobs:
         run: go test ./... -tags=force32bit
       - name: Run 64 bit tests
         run: go test ./... -tags=force64bit
+      - name: Run noasm tests
+        run: go test ./... -tags=forcenoasm
+      - name: Run purego tests
+        run: go test ./... -tags=purego
       - name: Purge the mod cache
         run: |
           # https://github.com/golangci/golangci-lint-action/issues/135
