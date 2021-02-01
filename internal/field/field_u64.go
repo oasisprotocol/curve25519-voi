@@ -460,56 +460,55 @@ func (fe *FieldElement) Pow2k(k uint) {
 
 		// Multiply to get 128-bit coefficients of output.
 		//
-		// Since golang does not have an actual 128-bit integer type,
-		// addition is used instead.
+		// Note: dalek just uses 128-bit multiplication here instead of
+		// doing some precomputation.  Since Go does not have an actual
+		// 128-bit integer type, this will opt for precomputing, primarily
+		// for the sake of readability.
+		//
+		// This fits into a u64 whenever 51 + b + lg(1) < 64.
 
-		c0_hi, c0_lo = bits.Mul64(a1, a4_19)
-		tmp_hi, tmp_lo = bits.Mul64(a2, a3_19)
+		d0 := 2 * a0
+		d1 := 2 * a1
+		d2 := 2 * a2
+		d4 := 2 * a4
+
+		c0_hi, c0_lo = bits.Mul64(a0, a0)
+		tmp_hi, tmp_lo = bits.Mul64(d1, a4_19)
 		c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
 		c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
-		c0_lo, carry = bits.Add64(c0_lo, c0_lo, 0)
-		c0_hi, _ = bits.Add64(c0_hi, c0_hi, carry)
-		tmp_hi, tmp_lo = bits.Mul64(a0, a0)
+		tmp_hi, tmp_lo = bits.Mul64(d2, a3_19)
 		c0_lo, carry = bits.Add64(c0_lo, tmp_lo, 0)
 		c0_hi, _ = bits.Add64(c0_hi, tmp_hi, carry)
 
-		c1_hi, c1_lo = bits.Mul64(a0, a1)
-		tmp_hi, tmp_lo = bits.Mul64(a2, a4_19)
+		c1_hi, c1_lo = bits.Mul64(a3, a3_19)
+		tmp_hi, tmp_lo = bits.Mul64(d0, a1)
 		c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
 		c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
-		c1_lo, carry = bits.Add64(c1_lo, c1_lo, 0)
-		c1_hi, _ = bits.Add64(c1_hi, c1_hi, carry)
-		tmp_hi, tmp_lo = bits.Mul64(a3, a3_19)
+		tmp_hi, tmp_lo = bits.Mul64(d2, a4_19)
 		c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
 		c1_hi, _ = bits.Add64(c1_hi, tmp_hi, carry)
 
-		c2_hi, c2_lo = bits.Mul64(a0, a2)
-		tmp_hi, tmp_lo = bits.Mul64(a4, a3_19)
+		c2_hi, c2_lo = bits.Mul64(a1, a1)
+		tmp_hi, tmp_lo = bits.Mul64(d0, a2)
 		c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
 		c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
-		c2_lo, carry = bits.Add64(c2_lo, c2_lo, 0)
-		c2_hi, _ = bits.Add64(c2_hi, c2_hi, carry)
-		tmp_hi, tmp_lo = bits.Mul64(a1, a1)
+		tmp_hi, tmp_lo = bits.Mul64(d4, a3_19)
 		c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
 		c2_hi, _ = bits.Add64(c2_hi, tmp_hi, carry)
 
-		c3_hi, c3_lo = bits.Mul64(a0, a3)
-		tmp_hi, tmp_lo = bits.Mul64(a1, a2)
+		c3_hi, c3_lo = bits.Mul64(a4, a4_19)
+		tmp_hi, tmp_lo = bits.Mul64(d0, a3)
 		c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
 		c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
-		c3_lo, carry = bits.Add64(c3_lo, c3_lo, 0)
-		c3_hi, _ = bits.Add64(c3_hi, c3_hi, carry)
-		tmp_hi, tmp_lo = bits.Mul64(a4, a4_19)
+		tmp_hi, tmp_lo = bits.Mul64(d1, a2)
 		c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
 		c3_hi, _ = bits.Add64(c3_hi, tmp_hi, carry)
 
-		c4_hi, c4_lo = bits.Mul64(a0, a4)
-		tmp_hi, tmp_lo = bits.Mul64(a1, a3)
+		c4_hi, c4_lo = bits.Mul64(a2, a2)
+		tmp_hi, tmp_lo = bits.Mul64(d0, a4)
 		c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
 		c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
-		c4_lo, carry = bits.Add64(c4_lo, c4_lo, 0)
-		c4_hi, _ = bits.Add64(c4_hi, c4_hi, carry)
-		tmp_hi, tmp_lo = bits.Mul64(a2, a2)
+		tmp_hi, tmp_lo = bits.Mul64(d1, a3)
 		c4_lo, carry = bits.Add64(c4_lo, tmp_lo, 0)
 		c4_hi, _ = bits.Add64(c4_hi, tmp_hi, carry)
 
