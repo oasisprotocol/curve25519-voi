@@ -33,6 +33,10 @@ package curve
 
 var useAssembly = false
 
+func (tbl *projectiveNielsPointLookupTable) fastLookup(out *projectiveNielsPoint, xabs int8) {
+	panic("curve/window: not implemented")
+}
+
 func (tbl *packedAffineNielsPointLookupTable) fastLookup(out *[96]byte, xabs int8) {
 	panic("curve/window: not implemented")
 }

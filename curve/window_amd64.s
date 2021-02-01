@@ -34,15 +34,17 @@
 // is only so many ways you can do a constant time table lookup in assembly
 // language, and because I had the code lying around.
 //
-// Unlike the original code, ONLY does the constant-time lookup, leaving
-// the unpack and conditional negate operation to the caller.
+// Unlike the original code, this ONLY does the constant-time lookup,
+// leaving the unpack and conditional negate operation to the caller.
+// Additionally this version opts to use a loop, instead of unrolling
+// one, for better maintainability.
 
 // func fastLookupAffineNiels_SSE2(table, out *byte, xabs uint64)
 TEXT ·fastLookupAffineNiels_SSE2(SB), NOSPLIT, $0-24
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
-	// ysubx+xaddy+t2d
+	// y_plus_x, y_minus_x, xy2d
 	MOVQ   xabs+16(FP), AX
 	MOVD   AX, X14
 	PSHUFD $0x00, X14, X14
@@ -60,16 +62,14 @@ TEXT ·fastLookupAffineNiels_SSE2(SB), NOSPLIT, $0-24
 	PCMPEQL X14, X15
 	MOVQ    $1, AX
 	MOVD    AX, X6
-	PXOR    X7, X7
 	PAND    X15, X6
-	PAND    X15, X7
 	POR     X6, X0
-	POR     X7, X1
 	POR     X6, X2
-	POR     X7, X3
 
-	// 1
-	MOVQ    $1, AX
+	// 1 .. 8
+	MOVQ $1, AX
+
+aniels_lookup_loop:
 	MOVD    AX, X15
 	PSHUFD  $0x00, X15, X15
 	PCMPEQL X14, X15
@@ -91,174 +91,10 @@ TEXT ·fastLookupAffineNiels_SSE2(SB), NOSPLIT, $0-24
 	POR     X9, X3
 	POR     X10, X4
 	POR     X11, X5
-
-	// 2
-	MOVQ    $2, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   96(R14), X6
-	MOVOU   112(R14), X7
-	MOVOU   128(R14), X8
-	MOVOU   144(R14), X9
-	MOVOU   160(R14), X10
-	MOVOU   176(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 3
-	MOVQ    $3, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   192(R14), X6
-	MOVOU   208(R14), X7
-	MOVOU   224(R14), X8
-	MOVOU   240(R14), X9
-	MOVOU   256(R14), X10
-	MOVOU   272(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 4
-	MOVQ    $4, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   288(R14), X6
-	MOVOU   304(R14), X7
-	MOVOU   320(R14), X8
-	MOVOU   336(R14), X9
-	MOVOU   352(R14), X10
-	MOVOU   368(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 5
-	MOVQ    $5, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   384(R14), X6
-	MOVOU   400(R14), X7
-	MOVOU   416(R14), X8
-	MOVOU   432(R14), X9
-	MOVOU   448(R14), X10
-	MOVOU   464(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 6
-	MOVQ    $6, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   480(R14), X6
-	MOVOU   496(R14), X7
-	MOVOU   512(R14), X8
-	MOVOU   528(R14), X9
-	MOVOU   544(R14), X10
-	MOVOU   560(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 7
-	MOVQ    $7, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   576(R14), X6
-	MOVOU   592(R14), X7
-	MOVOU   608(R14), X8
-	MOVOU   624(R14), X9
-	MOVOU   640(R14), X10
-	MOVOU   656(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
-
-	// 8
-	MOVQ    $8, AX
-	MOVD    AX, X15
-	PSHUFD  $0x00, X15, X15
-	PCMPEQL X14, X15
-	MOVOU   672(R14), X6
-	MOVOU   688(R14), X7
-	MOVOU   704(R14), X8
-	MOVOU   720(R14), X9
-	MOVOU   736(R14), X10
-	MOVOU   752(R14), X11
-	PAND    X15, X6
-	PAND    X15, X7
-	PAND    X15, X8
-	PAND    X15, X9
-	PAND    X15, X10
-	PAND    X15, X11
-	POR     X6, X0
-	POR     X7, X1
-	POR     X8, X2
-	POR     X9, X3
-	POR     X10, X4
-	POR     X11, X5
+	ADDQ    $96, R14
+	ADDQ    $1, AX
+	CMPQ    AX, $8
+	JLE     aniels_lookup_loop
 
 	// Write out the result.
 	MOVOU X0, 0(R15)
@@ -267,5 +103,96 @@ TEXT ·fastLookupAffineNiels_SSE2(SB), NOSPLIT, $0-24
 	MOVOU X3, 48(R15)
 	MOVOU X4, 64(R15)
 	MOVOU X5, 80(R15)
+
+	RET
+
+// func fastLookupProjectiveNiels_SSE2(table, out *projectiveNielsPoint, xabs uint64)
+TEXT ·fastLookupProjectiveNiels_SSE2(SB), NOSPLIT, $0-24
+	MOVQ table+0(FP), R14
+	MOVQ out+8(FP), R15
+
+	// Y_plus_X, Y_minus_X, Z, T2d
+	MOVQ   xabs+16(FP), AX
+	MOVD   AX, X14
+	PSHUFD $0x00, X14, X14
+	PXOR   X0, X0
+	PXOR   X1, X1
+	PXOR   X2, X2
+	PXOR   X3, X3
+	PXOR   X4, X4
+	PXOR   X5, X5
+	PXOR   X6, X6
+	PXOR   X7, X7
+	PXOR   X8, X8
+	PXOR   X9, X9
+
+	// 0
+	MOVQ       $0, AX
+	MOVD       AX, X15
+	PSHUFD     $0x00, X15, X15
+	PCMPEQL    X14, X15
+	PXOR       X11, X11
+	MOVQ       $1, AX
+	MOVD       AX, X10
+	PUNPCKLQDQ X10, X11
+	PAND       X15, X10
+	PAND       X15, X11
+	POR        X10, X0
+	POR        X11, X2
+	POR        X10, X5
+
+	// 1 .. 8
+	MOVQ $1, AX
+
+pniels_lookup_loop:
+	MOVD    AX, X15
+	PSHUFD  $0x00, X15, X15
+	PCMPEQL X14, X15
+	MOVOU   0(R14), X10
+	MOVOU   16(R14), X11
+	MOVOU   32(R14), X12
+	MOVOU   48(R14), X13
+	PAND    X15, X10
+	PAND    X15, X11
+	PAND    X15, X12
+	PAND    X15, X13
+	POR     X10, X0
+	POR     X11, X1
+	POR     X12, X2
+	POR     X13, X3
+	MOVOU   64(R14), X10
+	MOVOU   80(R14), X11
+	MOVOU   96(R14), X12
+	MOVOU   112(R14), X13
+	PAND    X15, X10
+	PAND    X15, X11
+	PAND    X15, X12
+	PAND    X15, X13
+	POR     X10, X4
+	POR     X11, X5
+	POR     X12, X6
+	POR     X13, X7
+	MOVOU   128(R14), X10
+	MOVOU   144(R14), X11
+	PAND    X15, X10
+	PAND    X15, X11
+	POR     X10, X8
+	POR     X11, X9
+	ADDQ    $160, R14
+	ADDQ    $1, AX
+	CMPQ    AX, $8
+	JLE     pniels_lookup_loop
+
+	// Write out the result.
+	MOVOU X0, 0(R15)
+	MOVOU X1, 16(R15)
+	MOVOU X2, 32(R15)
+	MOVOU X3, 48(R15)
+	MOVOU X4, 64(R15)
+	MOVOU X5, 80(R15)
+	MOVOU X6, 96(R15)
+	MOVOU X7, 112(R15)
+	MOVOU X8, 128(R15)
+	MOVOU X9, 144(R15)
 
 	RET

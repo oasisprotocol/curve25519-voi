@@ -36,7 +36,14 @@ import "golang.org/x/sys/cpu"
 var useAssembly bool
 
 //go:noescape
+func fastLookupProjectiveNiels_SSE2(table, out *projectiveNielsPoint, xabs uint64)
+
+//go:noescape
 func fastLookupAffineNiels_SSE2(table, out *byte, xabs uint64)
+
+func (tbl *projectiveNielsPointLookupTable) fastLookup(out *projectiveNielsPoint, xabs int8) {
+	fastLookupProjectiveNiels_SSE2(&tbl[0], out, uint64(xabs))
+}
 
 func (tbl *packedAffineNielsPointLookupTable) fastLookup(out *[96]byte, xabs int8) {
 	fastLookupAffineNiels_SSE2(&tbl[0][0], &out[0], uint64(xabs))
