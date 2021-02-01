@@ -44,11 +44,16 @@ func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint 
 
 	// Set t = 0 * P = identity
 	var t projectiveNielsPoint
-	t.identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		t.conditionalAssign(&tbl[j-1], c)
+	switch useAssembly {
+	case true:
+		tbl.fastLookup(&t, xabs)
+	case false:
+		t.identity()
+		for j := 1; j < 9; j++ {
+			// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
+			c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
+			t.conditionalAssign(&tbl[j-1], c)
+		}
 	}
 	// Now t == |x| * P.
 
