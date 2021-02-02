@@ -92,7 +92,7 @@ aniels_lookup_loop:
 	POR     X10, X4
 	POR     X11, X5
 	ADDQ    $96, R14
-	ADDQ    $1, AX
+	INCQ    AX
 	CMPQ    AX, $8
 	JLE     aniels_lookup_loop
 
@@ -179,7 +179,7 @@ pniels_lookup_loop:
 	POR     X10, X8
 	POR     X11, X9
 	ADDQ    $160, R14
-	ADDQ    $1, AX
+	INCQ    AX
 	CMPQ    AX, $8
 	JLE     pniels_lookup_loop
 

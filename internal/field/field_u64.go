@@ -190,12 +190,12 @@ func (fe *FieldElement) Mul(a, b *FieldElement) {
 	tmp_lo = (c0_hi << (64 - 51)) | (c0_lo >> 51)
 	c1_lo, carry = bits.Add64(c1_lo, tmp_lo, 0)
 	c1_hi, _ = bits.Add64(c1_hi, 0, carry)
-	fe.inner[0] = c0_lo & low_51_bit_mask
+	fe0 := c0_lo & low_51_bit_mask
 
 	tmp_lo = (c1_hi << (64 - 51)) | (c1_lo >> 51)
 	c2_lo, carry = bits.Add64(c2_lo, tmp_lo, 0)
 	c2_hi, _ = bits.Add64(c2_hi, 0, carry)
-	fe.inner[1] = c1_lo & low_51_bit_mask
+	fe1 := c1_lo & low_51_bit_mask
 
 	tmp_lo = (c2_hi << (64 - 51)) | (c2_lo >> 51)
 	c3_lo, carry = bits.Add64(c3_lo, tmp_lo, 0)
@@ -225,11 +225,11 @@ func (fe *FieldElement) Mul(a, b *FieldElement) {
 	// fe[0] + carry * 19 < 2^51 + 19 * 2^59.33 < 2^63.58
 	//
 	// and there is no overflow.
-	fe.inner[0] = fe.inner[0] + carry*19
+	fe0 = fe0 + carry*19
 
 	// Now fe[1] < 2^51 + 2^(64 -51) = 2^51 + 2^13 < 2^(51 + epsilon).
-	fe.inner[1] += fe.inner[0] >> 51
-	fe.inner[0] &= low_51_bit_mask
+	fe.inner[1] = fe1 + (fe0 >> 51)
+	fe.inner[0] = fe0 & low_51_bit_mask
 
 	// Now fe[i] < 2^(51 + epsilon) for all i.
 }
@@ -298,23 +298,25 @@ func (fe *FieldElement) reduce(limbs *[5]uint64) {
 	// limb sizes, it's OK to do a "weak reduction", where we
 	// compute the carry-outs in parallel.
 
-	c0 := limbs[0] >> 51
-	c1 := limbs[1] >> 51
-	c2 := limbs[2] >> 51
-	c3 := limbs[3] >> 51
-	c4 := limbs[4] >> 51
+	l0, l1, l2, l3, l4 := limbs[0], limbs[1], limbs[2], limbs[3], limbs[4]
 
-	limbs[0] &= low_51_bit_mask
-	limbs[1] &= low_51_bit_mask
-	limbs[2] &= low_51_bit_mask
-	limbs[3] &= low_51_bit_mask
-	limbs[4] &= low_51_bit_mask
+	c0 := l0 >> 51
+	c1 := l1 >> 51
+	c2 := l2 >> 51
+	c3 := l3 >> 51
+	c4 := l4 >> 51
 
-	fe.inner[0] = limbs[0] + c4*19
-	fe.inner[1] = limbs[1] + c0
-	fe.inner[2] = limbs[2] + c1
-	fe.inner[3] = limbs[3] + c2
-	fe.inner[4] = limbs[4] + c3
+	l0 &= low_51_bit_mask
+	l1 &= low_51_bit_mask
+	l2 &= low_51_bit_mask
+	l3 &= low_51_bit_mask
+	l4 &= low_51_bit_mask
+
+	fe.inner[0] = l0 + c4*19
+	fe.inner[1] = l1 + c0
+	fe.inner[2] = l2 + c1
+	fe.inner[3] = l3 + c2
+	fe.inner[4] = l4 + c3
 }
 
 // FromBytes loads a field element from the low 255 bits of a 256 bit input.
