@@ -222,7 +222,7 @@ func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.Edward
 	}
 
 	// Check if A is canonical.
-	if !vOpts.AllowNonCanonicalA && !isCanonical(&aCompressed, A) {
+	if !vOpts.AllowNonCanonicalA && !aCompressed.IsCanonical() {
 		return false
 	}
 
@@ -249,7 +249,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 	}
 
 	// Check if R is canonical.
-	if !vOpts.AllowNonCanonicalR && !isCanonical(&rCompressed, R) {
+	if !vOpts.AllowNonCanonicalR && !rCompressed.IsCanonical() {
 		return false
 	}
 
@@ -615,11 +615,4 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
-}
-
-func isCanonical(compressedPoint *curve.CompressedEdwardsY, point *curve.EdwardsPoint) bool {
-	// TODO/perf: Use the succeed-fast algorithm.
-	var check curve.CompressedEdwardsY
-	check.FromEdwardsPoint(point)
-	return check == *compressedPoint // Vartime, only used in verification
 }

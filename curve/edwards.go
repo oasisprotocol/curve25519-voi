@@ -31,6 +31,7 @@
 package curve
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
@@ -38,7 +39,26 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
 )
 
-var errNotValidYCoordinate = fmt.Errorf("curve/edwards: not a valid y-coordinate")
+var (
+	errNotValidYCoordinate = fmt.Errorf("curve/edwards: not a valid y-coordinate")
+
+	noncanonicalSignBits = []CompressedEdwardsY{
+		// y = 1
+		{
+			0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+		},
+		// y = 2^255-18
+		{
+			0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		},
+	}
+)
 
 // CompressedEdwardsY represents a curve point by the y-coordinate and
 // the sign of x.
@@ -81,6 +101,38 @@ func (p *CompressedEdwardsY) Identity() {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	}
+}
+
+// IsCanonical returns true if p is a canonical encoding in variable-time.
+func (p *CompressedEdwardsY) IsCanonical() bool {
+	// Check that Y is canonical, using the succeed-fast algorithm from
+	// the "Taming the many EdDSAs" paper.
+	yCanonical := func() bool {
+		if p[0] < 237 {
+			return true
+		}
+		for i := 1; i < 31; i++ {
+			if p[i] != 255 {
+				return true
+			}
+		}
+		return (p[31] | 128) != 255
+	}()
+	if !yCanonical {
+		return false
+	}
+
+	// Test for the two cases with a canonically encoded y with a
+	// noncanonical sign bit.  Since it's just two cases, and this
+	// routine is explicitly variable time, just do variable-time
+	// byte comparisons.
+	for _, invalidEncoding := range noncanonicalSignBits {
+		if bytes.Equal(p[:], invalidEncoding[:]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // EdwardsPoint represents a point on the Edwards form of Curve25519.
