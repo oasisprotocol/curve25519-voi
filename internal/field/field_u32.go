@@ -301,16 +301,16 @@ func (fe *FieldElement) FromBytes(in []byte) error {
 
 	var h [10]uint64
 	const low_23_bit_mask uint64 = (1 << 23) - 1
-	h[0] = load4(in[0:])
-	h[1] = load3(in[4:]) << 6
-	h[2] = load3(in[7:]) << 5
-	h[3] = load3(in[10:]) << 3
-	h[4] = load3(in[13:]) << 2
-	h[5] = load4(in[16:])
-	h[6] = load3(in[20:]) << 7
-	h[7] = load3(in[23:]) << 5
-	h[8] = load3(in[26:]) << 4
-	h[9] = (load3(in[29:]) & low_23_bit_mask) << 2
+	h[0] = load4(in[0:4])
+	h[1] = load3(in[4:7]) << 6
+	h[2] = load3(in[7:10]) << 5
+	h[3] = load3(in[10:13]) << 3
+	h[4] = load3(in[13:16]) << 2
+	h[5] = load4(in[16:20])
+	h[6] = load3(in[20:23]) << 7
+	h[7] = load3(in[23:26]) << 5
+	h[8] = load3(in[26:29]) << 4
+	h[9] = (load3(in[29:32]) & low_23_bit_mask) << 2
 
 	fe.reduce(&h)
 

@@ -330,18 +330,19 @@ func (fe *FieldElement) FromBytes(in []byte) error {
 		return fmt.Errorf("internal/field/u64: unexpected input size")
 	}
 
+	_ = in[31]
 	*fe = FieldElement{
 		inner: [5]uint64{
 			// load bits [  0, 64), no shift
-			binary.LittleEndian.Uint64(in[0:]) & low_51_bit_mask,
+			binary.LittleEndian.Uint64(in[0:8]) & low_51_bit_mask,
 			// load bits [ 48,112), shift to [ 51,112)
-			(binary.LittleEndian.Uint64(in[6:]) >> 3) & low_51_bit_mask,
+			(binary.LittleEndian.Uint64(in[6:14]) >> 3) & low_51_bit_mask,
 			// load bits [ 96,160), shift to [102,160)
-			(binary.LittleEndian.Uint64(in[12:]) >> 6) & low_51_bit_mask,
+			(binary.LittleEndian.Uint64(in[12:20]) >> 6) & low_51_bit_mask,
 			// load bits [152,216), shift to [153,216)
-			(binary.LittleEndian.Uint64(in[19:]) >> 1) & low_51_bit_mask,
+			(binary.LittleEndian.Uint64(in[19:27]) >> 1) & low_51_bit_mask,
 			// load bits [192,256), shift to [204,112)
-			(binary.LittleEndian.Uint64(in[24:]) >> 12) & low_51_bit_mask,
+			(binary.LittleEndian.Uint64(in[24:32]) >> 12) & low_51_bit_mask,
 		},
 	}
 
