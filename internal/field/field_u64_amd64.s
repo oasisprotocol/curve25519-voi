@@ -61,20 +61,20 @@
 	ADDQ   DX, SI                \ // r00 += (r40 >> 51) *19
 	ANDQ   AX, R14               \ // r40 &= mask51
 
-// func feMul_AMD64(out, a, b *FieldElement, useBMI2 uint64)
+// func feMul_AMD64(out, a, b *FieldElement, useBMI2 bool)
 //
 // WARNING: You probably not have a CPU without BMI2.  If you edit this
 // routine in a meaningful way, the non-BMI2 case needs to be manually
 // tested by editing field_u64_amd64.go.
-TEXT ·feMul_AMD64(SB), NOSPLIT|NOFRAME, $0-32
+TEXT ·feMul_AMD64(SB), NOSPLIT|NOFRAME, $0-25
 	MOVQ a+8(FP), BX
 	MOVQ b+16(FP), CX
 
 	// Pick the appropriate implementation, based on if the caller thinks
 	// BMI2 is supported or not.
-	MOVQ  useBMI2+24(FP), DX
-	TESTQ DX, DX
-	JZ    mul_vanilla
+	MOVBQZX useBMI2+24(FP), DX
+	TESTQ   DX, DX
+	JZ      mul_vanilla
 
 	//
 	// This codepath uses BMI2 to shave off a number of instructions,
@@ -346,7 +346,7 @@ mul_reduce:
 	MOVQ R14, 32(DI)
 	RET
 
-// func fePow2k_AMD64(out *FieldElement, k uint64, useBMI2 uint64)
+// func fePow2k_AMD64(out *FieldElement, k uint64, useBMI2 bool)
 //
 // Note: This is changed from squaring to support any power-of-two greater
 // than zero, and to write the output out in-place.
@@ -354,15 +354,15 @@ mul_reduce:
 // WARNING: You probably not have a CPU without BMI2.  If you edit this
 // routine in a meaningful way, the non-BMI2 case needs to be manually
 // tested by editing field_u64_amd64.go.
-TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-24
+TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ out+0(FP), BX
 	MOVQ k+8(FP), CX
 
 	// Pick the appropriate implementation, based on if the caller thinks
 	// BMI2 is supported or not.
-	MOVQ  useBMI2+16(FP), DX
-	TESTQ DX, DX
-	JZ    pow2k_loop_vanilla
+	MOVBQZX useBMI2+16(FP), DX
+	TESTQ   DX, DX
+	JZ      pow2k_loop_vanilla
 
 	// This codepath uses BMI2 to shave off a number of instructions,
 	// for a slight performance gain.  While it would be ideal to have

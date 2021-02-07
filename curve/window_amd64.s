@@ -39,21 +39,21 @@
 // Additionally this version opts to use a loop, instead of unrolling
 // one, for better maintainability.
 
-// func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *byte, xabs uint64)
-TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-24
+// func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *byte, xabs uint8)
+TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
 	// y_plus_x, y_minus_x, xy2d
-	MOVQ   xabs+16(FP), AX
-	MOVD   AX, X14
-	PSHUFD $0x00, X14, X14
-	PXOR   X0, X0
-	PXOR   X1, X1
-	PXOR   X2, X2
-	PXOR   X3, X3
-	PXOR   X4, X4
-	PXOR   X5, X5
+	MOVBQZX xabs+16(FP), AX
+	MOVD    AX, X14
+	PSHUFD  $0x00, X14, X14
+	PXOR    X0, X0
+	PXOR    X1, X1
+	PXOR    X2, X2
+	PXOR    X3, X3
+	PXOR    X4, X4
+	PXOR    X5, X5
 
 	// 0
 	MOVQ    $0, AX
@@ -106,25 +106,25 @@ aniels_lookup_loop:
 
 	RET
 
-// func lookupProjectiveNiels(table, out *projectiveNielsPoint, xabs uint64)
-TEXT ·lookupProjectiveNiels(SB), NOSPLIT|NOFRAME, $0-24
+// func lookupProjectiveNiels(table, out *projectiveNielsPoint, xabs int8)
+TEXT ·lookupProjectiveNiels(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
 	// Y_plus_X, Y_minus_X, Z, T2d
-	MOVQ   xabs+16(FP), AX
-	MOVD   AX, X14
-	PSHUFD $0x00, X14, X14
-	PXOR   X0, X0
-	PXOR   X1, X1
-	PXOR   X2, X2
-	PXOR   X3, X3
-	PXOR   X4, X4
-	PXOR   X5, X5
-	PXOR   X6, X6
-	PXOR   X7, X7
-	PXOR   X8, X8
-	PXOR   X9, X9
+	MOVBQZX xabs+16(FP), AX
+	MOVD    AX, X14
+	PSHUFD  $0x00, X14, X14
+	PXOR    X0, X0
+	PXOR    X1, X1
+	PXOR    X2, X2
+	PXOR    X3, X3
+	PXOR    X4, X4
+	PXOR    X5, X5
+	PXOR    X6, X6
+	PXOR    X7, X7
+	PXOR    X8, X8
+	PXOR    X9, X9
 
 	// 0
 	MOVQ       $0, AX

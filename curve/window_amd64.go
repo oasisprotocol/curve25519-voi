@@ -32,7 +32,7 @@
 package curve
 
 //go:noescape
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint64)
+func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8)
 
 //go:noescape
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint64)
+func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8)

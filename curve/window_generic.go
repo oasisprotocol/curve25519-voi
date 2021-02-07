@@ -33,7 +33,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
 
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint64) {
+func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8) {
 	out.identity()
 	for j := 1; j < 9; j++ {
 		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
@@ -42,7 +42,7 @@ func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projecti
 	}
 }
 
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint64) {
+func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
 	*out = identityAffineNielsPacked
 	for j := 1; j < 9; j++ {
 		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
