@@ -39,8 +39,8 @@
 // Additionally this version opts to use a loop, instead of unrolling
 // one, for better maintainability.
 
-// func fastLookupAffineNiels_SSE2(table, out *byte, xabs uint64)
-TEXT ·fastLookupAffineNiels_SSE2(SB), NOSPLIT|NOFRAME, $0-24
+// func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *byte, xabs uint64)
+TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-24
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
@@ -106,8 +106,8 @@ aniels_lookup_loop:
 
 	RET
 
-// func fastLookupProjectiveNiels_SSE2(table, out *projectiveNielsPoint, xabs uint64)
-TEXT ·fastLookupProjectiveNiels_SSE2(SB), NOSPLIT|NOFRAME, $0-24
+// func lookupProjectiveNiels(table, out *projectiveNielsPoint, xabs uint64)
+TEXT ·lookupProjectiveNiels(SB), NOSPLIT|NOFRAME, $0-24
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
