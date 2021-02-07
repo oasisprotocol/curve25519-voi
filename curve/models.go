@@ -32,6 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/internal/field"
 
+//nolint:unused,deadcode,varcheck
 var identityAffineNielsPacked = [96]byte{
 	// y_plus_x = 1
 	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -87,6 +88,7 @@ func (p *affineNielsPoint) identity() {
 	p.xy2d.Zero()
 }
 
+//nolint: unused
 func (p *projectiveNielsPoint) identity() {
 	p.Y_plus_X.One()
 	p.Y_minus_X.One()

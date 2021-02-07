@@ -30,8 +30,6 @@
 
 package curve
 
-import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
-
 // This has a mountain of duplicated code because having generics is too
 // much to ask for currently.
 
@@ -44,17 +42,7 @@ func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint 
 
 	// Set t = 0 * P = identity
 	var t projectiveNielsPoint
-	switch useAssembly {
-	case true:
-		tbl.fastLookup(&t, xabs)
-	case false:
-		t.identity()
-		for j := 1; j < 9; j++ {
-			// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-			c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-			t.conditionalAssign(&tbl[j-1], c)
-		}
-	}
+	lookupProjectiveNiels(tbl, &t, uint64(xabs))
 	// Now t == |x| * P.
 
 	negMask := int(byte(xmask & 1))
@@ -97,17 +85,7 @@ func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 
 	// Set t = 0 * P = identity
 	var tPacked [96]byte
-	switch useAssembly {
-	case true:
-		tbl.fastLookup(&tPacked, xabs)
-	case false:
-		tPacked = identityAffineNielsPacked
-		for j := 1; j < 9; j++ {
-			// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-			c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-			subtle.MoveConditionalBytesx96(&tPacked, &tbl[j-1], uint64(c))
-		}
-	}
+	lookupAffineNiels(tbl, &tPacked, uint64(xabs))
 	// Now t == |x| * P.
 
 	// Unpack t.

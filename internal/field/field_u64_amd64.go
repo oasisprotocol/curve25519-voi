@@ -27,26 +27,30 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build !amd64 purego forcenoasm
+// +build amd64,!purego,!forcenoasm
 
-package curve
+package field
 
-import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
+import "golang.org/x/sys/cpu"
 
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint64) {
-	out.identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		out.conditionalAssign(&table[j-1], c)
-	}
+var useBMI2 uint64
+
+//go:noescape
+func feMul_AMD64(out, a, b *FieldElement, useBMI2 uint64)
+
+//go:noescape
+func fePow2k_AMD64(out *FieldElement, k uint, useBMI2 uint64)
+
+func feMul(out, a, b *FieldElement) {
+	feMul_AMD64(out, a, b, useBMI2)
 }
 
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint64) {
-	*out = identityAffineNielsPacked
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		subtle.MoveConditionalBytesx96(out, &table[j-1], uint64(c))
+func fePow2k(out *FieldElement, k uint) {
+	fePow2k_AMD64(out, k, useBMI2)
+}
+
+func init() {
+	if cpu.Initialized && cpu.X86.HasBMI2 {
+		useBMI2 = 1
 	}
 }

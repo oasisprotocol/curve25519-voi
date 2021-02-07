@@ -27,26 +27,15 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build !amd64 purego forcenoasm
+// +build !amd64 purego forcenoasm !amd64,force64bit
+// +build !force32bit
 
-package curve
+package field
 
-import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
-
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint64) {
-	out.identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		out.conditionalAssign(&table[j-1], c)
-	}
+func feMul(fe, a, b *FieldElement) {
+	feMulGeneric(fe, a, b)
 }
 
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint64) {
-	*out = identityAffineNielsPacked
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		subtle.MoveConditionalBytesx96(out, &table[j-1], uint64(c))
-	}
+func fePow2k(fe *FieldElement, k uint) {
+	fePow2kGeneric(fe, k)
 }

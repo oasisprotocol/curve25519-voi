@@ -218,6 +218,7 @@ func BenchmarkVerifyBatch(b *testing.B) {
 func benchmarkVerifyBatchIter(b *testing.B, n int) {
 	var opts Options
 	pks, sigs, messages := testBatchInit(b, rand.Reader, n, &opts)
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
