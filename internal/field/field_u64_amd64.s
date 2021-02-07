@@ -76,13 +76,8 @@ TEXT ·feMul_AMD64(SB), NOSPLIT|NOFRAME, $0-25
 	TESTQ   DX, DX
 	JZ      mul_vanilla
 
-	//
 	// This codepath uses BMI2 to shave off a number of instructions,
-	// for a slight performance gain.  While it would be ideal to have
-	// this in a separate function, the overhead of having to call the
-	// appropriate routine based on the current CPU features, renders
-	// having a separate codepath pointless.
-	//
+	// for a slight performance gain.
 
 	// r0 = a0*b0
 	// r1 = a1*b0
@@ -365,10 +360,7 @@ TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-17
 	JZ      pow2k_loop_vanilla
 
 	// This codepath uses BMI2 to shave off a number of instructions,
-	// for a slight performance gain.  While it would be ideal to have
-	// this in a separate function, the overhead of having to call the
-	// appropriate routine based on the current CPU features, renders
-	// having a separate codepath pointless.
+	// for a slight performance gain.
 
 pow2k_loop_bmi2:
 
