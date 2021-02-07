@@ -90,14 +90,19 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		hrams = make([]*scalar.Scalar, num)
 		h     = sha512.New()
 		hash  [64]byte
+
+		aStore    = make([]curve.EdwardsPoint, num)
+		rStore    = make([]curve.EdwardsPoint, num)
+		sStore    = make([]scalar.Scalar, num)
+		hramStore = make([]scalar.Scalar, num)
 	)
 	for i := 0; i < num; i++ {
 		// Regardless of if unpacking is successful, this needs to add
 		// entries to each slice to simplify the serial path.
-		As[i] = new(curve.EdwardsPoint)
-		Rs[i] = new(curve.EdwardsPoint)
-		Ss[i] = new(scalar.Scalar)
-		hrams[i] = new(scalar.Scalar)
+		As[i] = &aStore[i]
+		Rs[i] = &rStore[i]
+		Ss[i] = &sStore[i]
+		hrams[i] = &hramStore[i]
 
 		if valid[i] = vOpts.unpackPublicKey(publicKeys[i], As[i]); !valid[i] {
 			allValid = false
@@ -176,13 +181,14 @@ func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*sc
 	// equivalent Rust iterator based version.
 
 	// Select a random 128-bit scalar for each signature.
-	zs := make([]*scalar.Scalar, 0, num)
+	zs := make([]*scalar.Scalar, num)
+	zStore := make([]scalar.Scalar, num)
 	for i := 0; i < num; i++ {
-		var z scalar.Scalar
+		z := &zStore[i]
 		if err := z.Random(rand); err != nil {
 			return false
 		}
-		zs = append(zs, &z)
+		zs[i] = z
 	}
 
 	// Compute the basepoint coefficient, sum(s[i]z[i]) (mod l).
@@ -194,11 +200,12 @@ func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*sc
 	}
 
 	// Multiple each H(R || A || M) by the random value.
-	zhrams := make([]*scalar.Scalar, 0, num)
+	zhrams := make([]*scalar.Scalar, num)
+	zhramStore := make([]scalar.Scalar, num)
 	for i := range zs {
-		var zhram scalar.Scalar
+		zhram := &zhramStore[i]
 		zhram.Mul(zs[i], hrams[i])
-		zhrams = append(zhrams, &zhram)
+		zhrams[i] = zhram
 	}
 
 	// Collect all the scalars/points to pass into the final multiscalar

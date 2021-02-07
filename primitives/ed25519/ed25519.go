@@ -517,11 +517,7 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
 
-	var digest [64]byte
-	h := sha512.New()
-	_, _ = h.Write(seed)
-	h.Sum(digest[:0])
-
+	digest := sha512.Sum512(seed)
 	digest[0] &= 248
 	digest[31] &= 127
 	digest[31] |= 64
