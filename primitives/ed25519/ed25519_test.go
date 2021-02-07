@@ -286,6 +286,7 @@ func testMalleability(t *testing.T) {
 func BenchmarkKeyGeneration(b *testing.B) {
 	var zero zeroReader
 	b.Run("voi", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if _, _, err := GenerateKey(zero); err != nil {
 				b.Fatal(err)
@@ -293,6 +294,7 @@ func BenchmarkKeyGeneration(b *testing.B) {
 		}
 	})
 	b.Run("stdlib", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if _, _, err := stded.GenerateKey(zero); err != nil {
 				b.Fatal(err)
@@ -310,11 +312,13 @@ func BenchmarkSigning(b *testing.B) {
 	message := []byte("Hello, world!")
 
 	b.Run("voi", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			Sign(priv, message)
 		}
 	})
 	b.Run("stdlib", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			stded.Sign(stded.PrivateKey(priv), message)
 		}
@@ -331,6 +335,7 @@ func BenchmarkVerification(b *testing.B) {
 	signature := Sign(priv, message)
 
 	b.Run("voi", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if !Verify(pub, message, signature) {
 				b.Fatalf("verification failed")
@@ -342,6 +347,7 @@ func BenchmarkVerification(b *testing.B) {
 		// default is also slower because of the additional checks.
 		//
 		// Benchmark with the StdLib profile to get a better comparison.
+		b.ReportAllocs()
 		opts := &Options{
 			Verify: VerifyOptionsStdLib,
 		}
@@ -352,6 +358,7 @@ func BenchmarkVerification(b *testing.B) {
 		}
 	})
 	b.Run("stdlib", func(b *testing.B) {
+		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			if !stded.Verify(stded.PublicKey(pub), message, signature) {
 				b.Fatalf("verification failed")
