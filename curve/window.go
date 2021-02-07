@@ -38,11 +38,11 @@ type projectiveNielsPointLookupTable [8]projectiveNielsPoint
 func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint {
 	// Compute xabs = |x|
 	xmask := x >> 7
-	xabs := (x + xmask) ^ xmask
+	xabs := uint8((x + xmask) ^ xmask)
 
 	// Set t = 0 * P = identity
 	var t projectiveNielsPoint
-	lookupProjectiveNiels(tbl, &t, uint64(xabs))
+	lookupProjectiveNiels(tbl, &t, xabs)
 	// Now t == |x| * P.
 
 	negMask := int(byte(xmask & 1))
@@ -81,11 +81,11 @@ type packedAffineNielsPointLookupTable [8][96]byte
 func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 	// Compute xabs = |x|
 	xmask := x >> 7
-	xabs := (x + xmask) ^ xmask
+	xabs := uint8((x + xmask) ^ xmask)
 
 	// Set t = 0 * P = identity
 	var tPacked [96]byte
-	lookupAffineNiels(tbl, &tPacked, uint64(xabs))
+	lookupAffineNiels(tbl, &tPacked, xabs)
 	// Now t == |x| * P.
 
 	// Unpack t.
