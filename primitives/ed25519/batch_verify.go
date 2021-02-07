@@ -183,9 +183,20 @@ func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*sc
 	// Select a random 128-bit scalar for each signature.
 	zs := make([]*scalar.Scalar, num)
 	zStore := make([]scalar.Scalar, num)
+	var scalarBytes [scalar.ScalarWideSize]byte
 	for i := 0; i < num; i++ {
+		// An inquisitive reader would ask why this doesn't just do
+		// `z.Random(rand)`, and instead, opts to duplicate the code.
+		//
+		// Go's escape analysis fails to realize that `scalarBytes`
+		// doesn't escape, so doing this saves n-1 allocations,
+		// which can be quite large, especially as the batch size
+		// increases.
 		z := &zStore[i]
-		if err := z.Random(rand); err != nil {
+		if _, err := io.ReadFull(rand, scalarBytes[:]); err != nil {
+			return false
+		}
+		if err := z.FromBytesModOrderWide(scalarBytes[:]); err != nil {
 			return false
 		}
 		zs[i] = z
