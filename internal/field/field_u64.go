@@ -79,6 +79,10 @@ func (fe *FieldElement) Sub(a, b *FieldElement) {
 
 // Mul computes `a * b`.
 func (fe *FieldElement) Mul(a, b *FieldElement) {
+	feMul(fe, a, b)
+}
+
+func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
 	a0, a1, a2, a3, a4 := a.inner[0], a.inner[1], a.inner[2], a.inner[3], a.inner[4]
 	b0, b1, b2, b3, b4 := b.inner[0], b.inner[1], b.inner[2], b.inner[3], b.inner[4]
 
@@ -440,6 +444,10 @@ func (fe *FieldElement) Pow2k(k uint) {
 		panic("internal/field/u64: k out of bounds")
 	}
 
+	fePow2k(fe, k)
+}
+
+func fePow2kGeneric(fe *FieldElement, k uint) { //nolint:unused,deadcode
 	a0, a1, a2, a3, a4 := fe.inner[0], fe.inner[1], fe.inner[2], fe.inner[3], fe.inner[4]
 
 	for {
@@ -583,7 +591,7 @@ func (fe *FieldElement) Pow2k(k uint) {
 
 // Square computes `self^2`.
 func (fe *FieldElement) Square() {
-	fe.Pow2k(1)
+	fePow2k(fe, 1)
 }
 
 // Square2 computes `2*self^2`.

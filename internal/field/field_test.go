@@ -370,3 +370,29 @@ func testConstantsSqrtConstantsSign(t *testing.T) {
 		t.Fatalf("invSqrtM1 * SQRT_M1 != -1 (Got: %v)", signTestSqrt)
 	}
 }
+
+func BenchmarkFieldElement(b *testing.B) {
+	b.Run("Mul", benchMul)
+	b.Run("Square", benchSquare)
+}
+
+func benchMul(b *testing.B) {
+	var y FieldElement
+	x := One()
+	y.Add(&x, &x)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.Mul(&x, &y)
+	}
+}
+
+func benchSquare(b *testing.B) {
+	x := One()
+	x.Add(&x, &x)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.Square()
+	}
+}
