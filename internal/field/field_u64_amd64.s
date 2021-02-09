@@ -7,7 +7,7 @@
 
 #include "textflag.h"
 
-// These routines are based on the ristretto25519 package by
+// These routines are based on the ristretto255 package by
 // George Tankersley.  The changes made are as follows:
 //
 //  * Abstract out the reduction and carry into a macro.
