@@ -31,45 +31,44 @@
 
 package field
 
-import "golang.org/x/sys/cpu"
+import "testing"
 
-var useBMI2 bool
-
-// In an ideal world, this would have the assembly language implementations
-// split into separate routines based on which instructions are used, like
-// this:
-//
-// func feMul(out, a, b *FieldElement) {
-//     if useBMI2 {
-//        feMul_BMI2(out, a, b)
-//     } else {
-//        feMul_AMD64(out, a, b)
-//     }
-// }
-//
-// However, the compiler will inline what we do now, and will NOT inline
-// the cleaner version of the code.  The extra overhead of an extra
-// function call obliterates the gains made by using BMI2 in the
-// first place.
-//
-// Since we have control over our assembly language code, and do not have
-// control over the inliner (because you know, that would be useful),
-// things are done this way.
-
-//go:noescape
-func feMul_AMD64(out, a, b *FieldElement, useBMI2 bool)
-
-//go:noescape
-func fePow2k_AMD64(out *FieldElement, k uint, useBMI2 bool)
-
-func feMul(out, a, b *FieldElement) {
-	feMul_AMD64(out, a, b, useBMI2)
+func TestFeMulAsm(t *testing.T) {
+	t.Run("FeMul/mul", func(t *testing.T) {
+		testFeMul(t, false)
+	})
+	t.Run("FePow2k/mul", func(t *testing.T) {
+		testFePow2k(t, false)
+	})
+	if useBMI2 {
+		t.Run("FeMul/mulx", func(t *testing.T) {
+			testFeMul(t, true)
+		})
+		t.Run("FePow2k/mulx", func(t *testing.T) {
+			testFePow2k(t, true)
+		})
+	}
 }
 
-func fePow2k(out *FieldElement, k uint) {
-	fePow2k_AMD64(out, k, useBMI2)
+func testFeMul(t *testing.T, useBMI2 bool) {
+	// Just do the same tests as feMul for now.
+	a, asq := testConstants["A"], testConstants["ASQ"]
+
+	var shouldBeAsq FieldElement
+	feMul_AMD64(&shouldBeAsq, a, a, useBMI2)
+
+	if shouldBeAsq.Equal(asq) != 1 {
+		t.Fatalf("a * a != asq (Got: %v)", shouldBeAsq)
+	}
 }
 
-func init() {
-	useBMI2 = cpu.Initialized && cpu.X86.HasBMI2
+func testFePow2k(t *testing.T, useBMI2 bool) {
+	a, ap16 := testConstants["A"], testConstants["AP16"]
+
+	shouldBeAp16 := *a
+	fePow2k_AMD64(&shouldBeAp16, 4, useBMI2)
+
+	if shouldBeAp16.Equal(ap16) != 1 {
+		t.Fatalf("a ^ (2^4) != ap16 (Got: %v)", shouldBeAp16)
+	}
 }

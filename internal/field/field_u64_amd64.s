@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64,!purego,!forcenoasm
+// +build amd64,!purego,!forcenoasm,!force32bit
 
 #include "textflag.h"
 
@@ -62,10 +62,6 @@
 	ANDQ   AX, R14               \ // r40 &= mask51
 
 // func feMul_AMD64(out, a, b *FieldElement, useBMI2 bool)
-//
-// WARNING: You probably not have a CPU without BMI2.  If you edit this
-// routine in a meaningful way, the non-BMI2 case needs to be manually
-// tested by editing field_u64_amd64.go.
 TEXT ·feMul_AMD64(SB), NOSPLIT|NOFRAME, $0-25
 	MOVQ a+8(FP), BX
 	MOVQ b+16(FP), CX
@@ -345,10 +341,6 @@ mul_reduce:
 //
 // Note: This is changed from squaring to support any power-of-two greater
 // than zero, and to write the output out in-place.
-//
-// WARNING: You probably not have a CPU without BMI2.  If you edit this
-// routine in a meaningful way, the non-BMI2 case needs to be manually
-// tested by editing field_u64_amd64.go.
 TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ out+0(FP), BX
 	MOVQ k+8(FP), CX
