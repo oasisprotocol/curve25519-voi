@@ -18,8 +18,9 @@
 
 // reduce64 reduces the intermediaries stored in rsi, rbp, r8 .. r15.
 //
-// Inputs:   rsi, rbp, r8 .. r15.
+// Inputs:   rsi, rbp, r8 .. r15
 // Clobbers: rax, rdx
+// Outputs:  rsi, r8, r10, r12, r14
 #define reduce64() \
 	MOVQ   $2251799813685247, AX \ // (1<<51) - 1
 	SHLQ   $13, SI, BP           \ // r01 = shld with r00
