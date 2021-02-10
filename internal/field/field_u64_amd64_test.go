@@ -108,9 +108,10 @@ func (x FieldElement) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(generateFieldElement(rand))
 }
 
-// isInBounds returns whether the element is within the expected bit size bounds
-// after a light reduction.
-func isInBounds(x *FieldElement) bool {
+// isInAsmBounds returns whether the element is within the expected bit
+// size bounds after a light reduction, based on the behavior of
+// the amd64 specific assembly multiply/pow2k routines.
+func isInAsmBounds(x *FieldElement) bool {
 	return bits.Len64(x.inner[0]) <= 52 &&
 		bits.Len64(x.inner[1]) <= 51 &&
 		bits.Len64(x.inner[2]) <= 51 &&
@@ -139,15 +140,23 @@ func testFeMul(t *testing.T, useBMI2 bool) {
 	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
 		var t1, t2, t3, t1Asm, t2Asm, t3Asm FieldElement
 
-		// Note: The generic code is more relaxed about the
-		// reduction/carry after the multiply, than the
-		// assembly implementation is.
+		// Note: The coefficients are allowed to grow up to 2^54
+		// between reductions, which is what the generic mul
+		// implementation does.
+		//
+		// The assembly reduces to 2^[51,52], which is different,
+		// but still correct as the shorter coefficients will not
+		// cause overflows.
+		//
+		// Attempts were made to make the assembly match the
+		// generic code exactly, but it ended up being slightly
+		// slower.
 
 		// Compute t1 = (x+y)*z
 		t1.Add(&x, &y)
 		feMul_AMD64(&t1Asm, &t1, &z, useBMI2)
 		feMulGeneric(&t1, &t1, &z)
-		if t1.Equal(&t1Asm) != 1 || !isInBounds(&t1Asm) {
+		if t1.Equal(&t1Asm) != 1 || !isInAsmBounds(&t1Asm) {
 			return false
 		}
 
@@ -156,10 +165,10 @@ func testFeMul(t *testing.T, useBMI2 bool) {
 		feMul_AMD64(&t3Asm, &y, &z, useBMI2)
 		feMulGeneric(&t2, &x, &z)
 		feMulGeneric(&t3, &y, &z)
-		if t2.Equal(&t2Asm) != 1 || !isInBounds(&t2Asm) {
+		if t2.Equal(&t2Asm) != 1 || !isInAsmBounds(&t2Asm) {
 			return false
 		}
-		if t3.Equal(&t3Asm) != 1 || !isInBounds(&t3Asm) {
+		if t3.Equal(&t3Asm) != 1 || !isInAsmBounds(&t3Asm) {
 			return false
 		}
 		t2.Add(&t2, &t3)
