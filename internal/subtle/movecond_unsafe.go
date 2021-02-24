@@ -37,9 +37,9 @@ import (
 	"unsafe"
 )
 
-var unalignedOk bool // nolint: unused
+var unalignedOk bool //nolint: unused
 
-func MoveConditionalBytesx96(out, in *[96]byte, flag uint64) { // nolint: unused,deadcode
+func MoveConditionalBytesx96(out, in *[96]byte, flag uint64) { //nolint:unused,deadcode
 	inp := unsafe.Pointer(&in[0])
 	outp := unsafe.Pointer(&out[0])
 
@@ -65,7 +65,7 @@ func MoveConditionalBytesx96(out, in *[96]byte, flag uint64) { // nolint: unused
 	subtle.ConstantTimeCopy(int(flag), out[:], in[:])
 }
 
-func moveConditionalBytes64(outp, inp unsafe.Pointer, flag uint64) { // nolint: unused
+func moveConditionalBytes64(outp, inp unsafe.Pointer, flag uint64) { //nolint:unused
 	inq, outq := (*[12]uint64)(inp), (*[12]uint64)(outp)
 
 	var (
@@ -86,7 +86,7 @@ func moveConditionalBytes64(outp, inp unsafe.Pointer, flag uint64) { // nolint: 
 	outq[11] = (outq[11] & nb) | (inq[11] & b)
 }
 
-func moveConditionalBytes32(outp, inp unsafe.Pointer, flag uint64) { // nolint: unused
+func moveConditionalBytes32(outp, inp unsafe.Pointer, flag uint64) { //nolint:unused
 	inq, outq := (*[24]uint32)(inp), (*[24]uint32)(outp)
 
 	var (

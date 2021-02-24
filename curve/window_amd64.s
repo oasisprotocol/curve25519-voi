@@ -26,7 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64,!purego,!forcenoasm
+// +build amd64,!purego,!forcenoasm,!force32bit
 
 #include "textflag.h"
 
@@ -195,4 +195,78 @@ pniels_lookup_loop:
 	MOVOU X8, 128(R15)
 	MOVOU X9, 144(R15)
 
+	RET
+
+// func lookupCached(table, out *cachedPoint, xabs int8)
+TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-17
+	MOVQ table+0(FP), R14
+	MOVQ out+8(FP), R15
+
+	MOVBQZX      xabs+16(FP), AX
+	VMOVD        AX, X14
+	VPBROADCASTD X14, Y14
+	VPXOR        Y0, Y0, Y0
+	VPXOR        Y1, Y1, Y1
+	VPXOR        Y2, Y2, Y2
+	VPXOR        Y3, Y3, Y3
+	VPXOR        Y4, Y4, Y4
+
+	// 0
+	//
+	// Note: This assumes that `out` is pre-populated with the identity
+	// point in cached form, since it is annoying to create on the fly.
+	MOVD         $0, AX
+	VMOVD        AX, X15
+	VPBROADCASTD X15, Y15
+	VPCMPEQD     Y14, Y15, Y15
+	VMOVDQU      0(R15), Y5
+	VMOVDQU      32(R15), Y6
+	VMOVDQU      64(R15), Y7
+	VMOVDQU      96(R15), Y8
+	VMOVDQU      128(R15), Y9
+	VPAND        Y15, Y5, Y5
+	VPAND        Y15, Y6, Y6
+	VPAND        Y15, Y7, Y7
+	VPAND        Y15, Y8, Y8
+	VPAND        Y15, Y9, Y9
+	VPOR         Y0, Y5, Y0
+	VPOR         Y1, Y6, Y1
+	VPOR         Y2, Y7, Y2
+	VPOR         Y3, Y8, Y3
+	VPOR         Y4, Y9, Y4
+
+	// 1 .. 8
+	MOVQ $1, AX
+
+cached_lookup_loop:
+	VMOVD        AX, X15
+	VPBROADCASTD X15, Y15
+	VPCMPEQD     Y14, Y15, Y15
+	VMOVDQU      0(R14), Y5
+	VMOVDQU      32(R14), Y6
+	VMOVDQU      64(R14), Y7
+	VMOVDQU      96(R14), Y8
+	VMOVDQU      128(R14), Y9
+	VPAND        Y15, Y5, Y5
+	VPAND        Y15, Y6, Y6
+	VPAND        Y15, Y7, Y7
+	VPAND        Y15, Y8, Y8
+	VPAND        Y15, Y9, Y9
+	VPOR         Y0, Y5, Y0
+	VPOR         Y1, Y6, Y1
+	VPOR         Y2, Y7, Y2
+	VPOR         Y3, Y8, Y3
+	VPOR         Y4, Y9, Y4
+	ADDQ         $160, R14
+	INCQ         AX
+	CMPQ         AX, $8
+	JLE          cached_lookup_loop
+
+	VMOVDQU Y0, 0(R15)
+	VMOVDQU Y1, 32(R15)
+	VMOVDQU Y2, 64(R15)
+	VMOVDQU Y3, 96(R15)
+	VMOVDQU Y4, 128(R15)
+
+	VZEROUPPER
 	RET

@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Oglev Andreev. All rights reserved.
+// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
 // Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,55 +28,28 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build !amd64 purego forcenoasm force32bit
+
 package curve
 
-import (
-	"testing"
+import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-)
+func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+	edwardsMulGeneric(out, point, scalar)
+}
 
-func testEdwardsMultiscalarMulPippengerVartime(t *testing.T) {
-	n := 512
-	x, y := scalar.NewFromUint64(2128506), scalar.NewFromUint64(4443282)
-	x.Invert()
-	y.Invert()
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+	edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+}
 
-	points := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(1 + uint64(i))
+func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	edwardsMultiscalarMulStrausGeneric(out, scalars, points)
+}
 
-		var point EdwardsPoint
-		point.Mul(&ED25519_BASEPOINT_POINT, &tmp)
-		points = append(points, &point)
-	}
+func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
+}
 
-	scalars := make([]*scalar.Scalar, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(uint64(i))
-		tmp.Mul(&tmp, &y)
-		tmp.Add(&x, &tmp)
-		scalars = append(scalars, &tmp)
-	}
-
-	premultiplied := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		var point EdwardsPoint
-		point.Mul(points[i], scalars[i])
-		premultiplied = append(premultiplied, &point)
-	}
-
-	for n > 0 {
-		var control EdwardsPoint
-		control.Sum(premultiplied[:n])
-
-		var subject EdwardsPoint
-		edwardsMultiscalarMulPippengerVartime(&subject, scalars[:n], points[:n])
-
-		if subject.Equal(&control) == 0 {
-			t.Fatalf("multiscalarMulPippengerVartime(scalars[:%d], points[:%d] != control (Got: %v)", n, n, subject)
-		}
-
-		n = n / 2
-	}
+func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
 }

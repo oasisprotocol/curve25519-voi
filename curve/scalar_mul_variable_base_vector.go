@@ -1,5 +1,5 @@
-// Copyright (c) 2019 Oglev Andreev. All rights reserved.
-// Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
+// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
+// Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -28,55 +28,38 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64,!purego,!forcenoasm,!force32bit
+
 package curve
 
-import (
-	"testing"
+import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-)
+func edwardsMulVector(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+	// Construct a lookup table of [P,2P,3P,4P,5P,6P,7P,8P]
+	lookupTable := newCachedPointLookupTable(point)
 
-func testEdwardsMultiscalarMulPippengerVartime(t *testing.T) {
-	n := 512
-	x, y := scalar.NewFromUint64(2128506), scalar.NewFromUint64(4443282)
-	x.Invert()
-	y.Invert()
-
-	points := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(1 + uint64(i))
-
-		var point EdwardsPoint
-		point.Mul(&ED25519_BASEPOINT_POINT, &tmp)
-		points = append(points, &point)
+	// Setting s = scalar, compute
+	//
+	//    s = s_0 + s_1*16^1 + ... + s_63*16^63,
+	//
+	// with `-8 ≤ s_i < 8` for `0 ≤ i < 63` and `-8 ≤ s_63 ≤ 8`.
+	scalarDigits := scalar.ToRadix16()
+	// Compute s*P as
+	//
+	//    s*P = P*(s_0 +   s_1*16^1 +   s_2*16^2 + ... +   s_63*16^63)
+	//    s*P =  P*s_0 + P*s_1*16^1 + P*s_2*16^2 + ... + P*s_63*16^63
+	//    s*P = P*s_0 + 16*(P*s_1 + 16*(P*s_2 + 16*( ... + P*s_63)...))
+	//
+	// We sum right-to-left.
+	var (
+		q   extendedPoint
+		tmp cachedPoint
+	)
+	q.identity()
+	for i := 63; i >= 0; i-- {
+		q.mulByPow2(4)
+		tmp = lookupTable.lookup(scalarDigits[i])
+		q.addExtendedCached(&q, &tmp)
 	}
-
-	scalars := make([]*scalar.Scalar, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(uint64(i))
-		tmp.Mul(&tmp, &y)
-		tmp.Add(&x, &tmp)
-		scalars = append(scalars, &tmp)
-	}
-
-	premultiplied := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		var point EdwardsPoint
-		point.Mul(points[i], scalars[i])
-		premultiplied = append(premultiplied, &point)
-	}
-
-	for n > 0 {
-		var control EdwardsPoint
-		control.Sum(premultiplied[:n])
-
-		var subject EdwardsPoint
-		edwardsMultiscalarMulPippengerVartime(&subject, scalars[:n], points[:n])
-
-		if subject.Equal(&control) == 0 {
-			t.Fatalf("multiscalarMulPippengerVartime(scalars[:%d], points[:%d] != control (Got: %v)", n, n, subject)
-		}
-
-		n = n / 2
-	}
+	out.fromExtended(&q)
 }

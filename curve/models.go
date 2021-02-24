@@ -88,7 +88,7 @@ func (p *affineNielsPoint) identity() {
 	p.xy2d.Zero()
 }
 
-//nolint: unused
+//nolint:unused
 func (p *projectiveNielsPoint) identity() {
 	p.Y_plus_X.One()
 	p.Y_minus_X.One()
@@ -118,7 +118,7 @@ func (p *projectivePoint) debugIsValid() bool {
 	return lhs.Equal(&rhs) == 1
 }
 
-//nolint: unused
+//nolint:unused
 func (p *projectiveNielsPoint) conditionalSelect(a, b *projectiveNielsPoint, choice int) {
 	p.Y_plus_X.ConditionalSelect(&a.Y_plus_X, &b.Y_plus_X, choice)
 	p.Y_minus_X.ConditionalSelect(&a.Y_minus_X, &b.Y_minus_X, choice)
@@ -133,7 +133,7 @@ func (p *projectiveNielsPoint) conditionalAssign(other *projectiveNielsPoint, ch
 	p.T2d.ConditionalAssign(&other.T2d, choice)
 }
 
-//nolint: unused
+//nolint:unused
 func (p *affineNielsPoint) conditionalSelect(a, b *affineNielsPoint, choice int) {
 	p.y_plus_x.ConditionalSelect(&a.y_plus_x, &b.y_plus_x, choice)
 	p.y_minus_x.ConditionalSelect(&a.y_minus_x, &b.y_minus_x, choice)

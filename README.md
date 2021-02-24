@@ -56,9 +56,9 @@ getting into.  Stability of the mid-level API is currently NOT
 guaranteed.
 
 The curve25519-dalek crate has a series of nice vectorized backends
-written using SIMD intrinsics.  Go has no SIMD intrinsics, and the
-assembly dialect is anything but nice, and thus they are currently
-omitted.
+written using SIMD intrinsics.  While Go has no SIMD intrinsics, and
+the assembly dialect is anything but nice, the AVX2 backend is also
+present in this implementation.
 
 Memory sanitization while maintaining reasonable performance in Go is
 a hard/unsolved problem, and this package makes no attempts to do so.

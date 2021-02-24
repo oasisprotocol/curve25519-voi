@@ -602,6 +602,11 @@ func (fe *FieldElement) Square2() {
 	}
 }
 
+// UnsafeInner exposes the inner limbs to allow for the vector implementation.
+func (fe *FieldElement) UnsafeInner() *[5]uint64 {
+	return &fe.inner
+}
+
 // NewFieldElement51 constructs a field element from its raw component limbs.
 func NewFieldElement51(l0, l1, l2, l3, l4 uint64) FieldElement {
 	return FieldElement{

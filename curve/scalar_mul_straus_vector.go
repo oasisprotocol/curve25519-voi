@@ -28,56 +28,68 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64,!purego,!forcenoasm,!force32bit
+
 package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
-	aNaf := a.NonAdjacentForm(5)
-	bNaf := b.NonAdjacentForm(8)
+func edwardsMultiscalarMulStrausVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	lookupTables := make([]cachedPointLookupTable, 0, len(points))
+	for _, point := range points {
+		lookupTables = append(lookupTables, newCachedPointLookupTable(point))
+	}
 
-	// Find the starting index.
-	var i int
-	for j := 255; j >= 0; j-- {
-		i = j
-		if aNaf[i] != 0 || bNaf[i] != 0 {
-			break
+	// TODO: In theory this should be sanitized.
+	scalarDigitsVec := make([][64]int8, 0, len(scalars))
+	for _, scalar := range scalars {
+		scalarDigitsVec = append(scalarDigitsVec, scalar.ToRadix16())
+	}
+
+	var q extendedPoint
+	q.identity()
+
+	for i := 63; i >= 0; i-- {
+		q.mulByPow2(4)
+		for j := 0; j < len(points); j++ {
+			// R_i = s_{i,j} * P_i
+			R_i := lookupTables[j].lookup(scalarDigitsVec[j][i])
+			// Q = Q + R_i
+			q.addExtendedCached(&q, &R_i)
 		}
 	}
 
-	tableA := newProjectiveNielsPointNafLookupTable(A)
-	tableB := &constAFFINE_ODD_MULTIPLES_OF_BASEPOINT
+	out.fromExtended(&q)
+}
 
-	var r projectivePoint
-	r.identity()
-
-	var t completedPoint
-	for {
-		t.double(&r)
-
-		if aNaf[i] > 0 {
-			pt := tableA.lookup(uint8(aNaf[i]))
-			t.addCompletedProjectiveNiels(&t, &pt)
-		} else if aNaf[i] < 0 {
-			pt := tableA.lookup(uint8(-aNaf[i]))
-			t.subCompletedProjectiveNiels(&t, &pt)
-		}
-
-		if bNaf[i] > 0 {
-			pt := tableB.lookup(uint8(bNaf[i]))
-			t.addCompletedAffineNiels(&t, &pt)
-		} else if bNaf[i] < 0 {
-			pt := tableB.lookup(uint8(-bNaf[i]))
-			t.subCompletedAffineNiels(&t, &pt)
-		}
-
-		r.fromCompleted(&t)
-
-		if i == 0 {
-			break
-		}
-		i--
+func edwardsMultiscalarMulStrausVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	lookupTables := make([]cachedPointNafLookupTable, 0, len(points))
+	for _, point := range points {
+		lookupTables = append(lookupTables, newCachedPointNafLookupTable(point))
 	}
 
-	out.fromProjective(&r)
+	nafs := make([][256]int8, 0, len(scalars))
+	for _, scalar := range scalars {
+		nafs = append(nafs, scalar.NonAdjacentForm(5))
+	}
+
+	var q extendedPoint
+	q.identity()
+
+	for i := 255; i >= 0; i-- {
+		q.double()
+
+		for j := 0; j < len(points); j++ {
+			naf_i := nafs[j][i]
+			if naf_i > 0 {
+				pt := lookupTables[j].lookup(uint8(naf_i))
+				q.addExtendedCached(&q, &pt)
+			} else if naf_i < 0 {
+				pt := lookupTables[j].lookup(uint8(-naf_i))
+				q.subExtendedCached(&q, &pt)
+			}
+		}
+	}
+
+	out.fromExtended(&q)
 }
