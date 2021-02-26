@@ -160,7 +160,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		switch vOpts.CofactorlessVerify {
 		case true:
-			valid[i] = R.Equal(Rs[i]) == 1
+			valid[i] = pointsEqualCompressed(&R, Rs[i])
 		case false:
 			var rDiff curve.EdwardsPoint
 			rDiff.Sub(&R, Rs[i])
