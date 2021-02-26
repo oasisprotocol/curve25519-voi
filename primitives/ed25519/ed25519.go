@@ -494,7 +494,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// For the purpose of compatibility, support the old way of doing
 	// things, though this is now considered unwise.
 	if vOpts.CofactorlessVerify {
-		return checkR.Equal(&R) == 1, nil
+		return pointsEqualCompressed(&R, &checkR), nil
 	}
 
 	// Check that [8]R == [8](SB - H(R,A,m)A)).  Note that this actually
@@ -611,4 +611,12 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
+}
+
+func pointsEqualCompressed(a, b *curve.EdwardsPoint) bool {
+	var aCompressed, bCompressed curve.CompressedEdwardsY
+	aCompressed.FromEdwardsPoint(a)
+	bCompressed.FromEdwardsPoint(b)
+
+	return aCompressed.Equal(&bCompressed) == 1
 }
