@@ -213,6 +213,15 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	return sXoZ.Equal(&oXsZ) & sYoZ.Equal(&oYsZ)
 }
 
+// EqualCompresedY returns 1 iff the point is equal to the compressed
+// point, 0 otherwise.  This function will execute in constant time.
+func (p *EdwardsPoint) EqualCompressedY(other *CompressedEdwardsY) int {
+	var pCompressed CompressedEdwardsY
+	pCompressed.FromEdwardsPoint(p)
+
+	return other.Equal(&pCompressed)
+}
+
 // double adds the point to itself.
 func (p *EdwardsPoint) double() {
 	var pProjective projectivePoint

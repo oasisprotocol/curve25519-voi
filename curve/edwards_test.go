@@ -577,9 +577,7 @@ func testAffineNielsConversionClearsDenominators(t *testing.T) {
 }
 
 func (p *EdwardsPoint) testEqualCompressedY(s string) bool {
-	var compressed CompressedEdwardsY
-	compressed.FromEdwardsPoint(p)
-	return compressed.Equal(edwardsPointTestPoints[s]) == 1
+	return p.EqualCompressedY(edwardsPointTestPoints[s]) == 1
 }
 
 func (p *affineNielsPoint) testEqual(other *affineNielsPoint) bool {
