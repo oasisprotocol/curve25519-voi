@@ -32,9 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-// Mul computes `point * scalar` in constant-time (variable-base scalar
-// multiplication).
-func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) {
+func edwardsMulGeneric(out, point *EdwardsPoint, scalar *scalar.Scalar) {
 	// Construct a lookup table of [P,2P,3P,4P,5P,6P,7P,8P]
 	lookupTable := newProjectiveNielsPointLookupTable(point)
 	// Setting s = scalar, compute
@@ -75,5 +73,5 @@ func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) {
 		tmp1.addEdwardsProjectiveNiels(&tmp3, &tmp)
 		// Now tmp1 = s_i*P + 16*(prev) in P1xP1 coords
 	}
-	p.fromCompleted(&tmp1)
+	out.fromCompleted(&tmp1)
 }

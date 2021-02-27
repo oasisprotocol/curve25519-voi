@@ -168,3 +168,27 @@ type affineNielsPointNafLookupTable [64]affineNielsPoint
 func (tbl *affineNielsPointNafLookupTable) lookup(x uint8) affineNielsPoint {
 	return tbl[x/2]
 }
+
+func newAffineNielsPointNafLookupTable(ep *EdwardsPoint) affineNielsPointNafLookupTable { //nolint:unused,deadcode
+	var epANiels affineNielsPoint
+	epANiels.fromEdwards(ep)
+
+	var Ai [64]affineNielsPoint
+	for i := range Ai {
+		Ai[i] = epANiels
+	}
+
+	A2 := *ep
+	A2.double()
+	for i := 0; i < 7; i++ {
+		var (
+			tmp  completedPoint
+			tmp2 EdwardsPoint
+		)
+		tmp.addEdwardsAffineNiels(&A2, &Ai[i])
+		tmp2.fromCompleted(&tmp)
+		Ai[i+1].fromEdwards(&tmp2)
+	}
+
+	return affineNielsPointNafLookupTable(Ai)
+}

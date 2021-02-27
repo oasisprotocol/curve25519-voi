@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Oglev Andreev. All rights reserved.
+// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
 // Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,55 +28,55 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64,!purego,!forcenoasm,!force32bit
+
 package curve
 
-import (
-	"testing"
+import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-)
+func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+	aNaf := a.NonAdjacentForm(5)
+	bNaf := b.NonAdjacentForm(8)
 
-func testEdwardsMultiscalarMulPippengerVartime(t *testing.T) {
-	n := 512
-	x, y := scalar.NewFromUint64(2128506), scalar.NewFromUint64(4443282)
-	x.Invert()
-	y.Invert()
-
-	points := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(1 + uint64(i))
-
-		var point EdwardsPoint
-		point.Mul(&ED25519_BASEPOINT_POINT, &tmp)
-		points = append(points, &point)
+	// Find the starting index.
+	var i int
+	for j := 255; j >= 0; j-- {
+		i = j
+		if aNaf[i] != 0 || bNaf[i] != 0 {
+			break
+		}
 	}
 
-	scalars := make([]*scalar.Scalar, 0, n)
-	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(uint64(i))
-		tmp.Mul(&tmp, &y)
-		tmp.Add(&x, &tmp)
-		scalars = append(scalars, &tmp)
-	}
+	tableA := newCachedPointNafLookupTable(A)
+	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
 
-	premultiplied := make([]*EdwardsPoint, 0, n)
-	for i := 0; i < n; i++ {
-		var point EdwardsPoint
-		point.Mul(points[i], scalars[i])
-		premultiplied = append(premultiplied, &point)
-	}
+	var q extendedPoint
+	q.identity()
 
-	for n > 0 {
-		var control EdwardsPoint
-		control.Sum(premultiplied[:n])
+	for {
+		q.double()
 
-		var subject EdwardsPoint
-		edwardsMultiscalarMulPippengerVartime(&subject, scalars[:n], points[:n])
-
-		if subject.Equal(&control) == 0 {
-			t.Fatalf("multiscalarMulPippengerVartime(scalars[:%d], points[:%d] != control (Got: %v)", n, n, subject)
+		if aNaf[i] > 0 {
+			pt := tableA.lookup(uint8(aNaf[i]))
+			q.addExtendedCached(&q, &pt)
+		} else if aNaf[i] < 0 {
+			pt := tableA.lookup(uint8(-aNaf[i]))
+			q.subExtendedCached(&q, &pt)
 		}
 
-		n = n / 2
+		if bNaf[i] > 0 {
+			pt := tableB.lookup(uint8(bNaf[i]))
+			q.addExtendedCached(&q, &pt)
+		} else if bNaf[i] < 0 {
+			pt := tableB.lookup(uint8(-bNaf[i]))
+			q.subExtendedCached(&q, &pt)
+		}
+
+		if i == 0 {
+			break
+		}
+		i--
 	}
+
+	out.fromExtended(&q)
 }

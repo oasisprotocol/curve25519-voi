@@ -32,7 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func (p *EdwardsPoint) multiscalarMulStraus(scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
 	lookupTables := make([]projectiveNielsPointLookupTable, 0, len(points))
 	for _, point := range points {
 		lookupTables = append(lookupTables, newProjectiveNielsPointLookupTable(point))
@@ -44,22 +44,22 @@ func (p *EdwardsPoint) multiscalarMulStraus(scalars []*scalar.Scalar, points []*
 		scalarDigitsVec = append(scalarDigitsVec, scalar.ToRadix16())
 	}
 
-	p.Identity()
+	out.Identity()
 
 	var sum completedPoint
 	for i := 63; i >= 0; i-- {
-		p.mulByPow2(4)
+		out.mulByPow2(4)
 		for j := 0; j < len(points); j++ {
 			// R_i = s_{i,j} * P_i
 			R_i := lookupTables[j].lookup(scalarDigitsVec[j][i])
 			// Q = Q + R_i
-			sum.addEdwardsProjectiveNiels(p, &R_i)
-			p.fromCompleted(&sum)
+			sum.addEdwardsProjectiveNiels(out, &R_i)
+			out.fromCompleted(&sum)
 		}
 	}
 }
 
-func (p *EdwardsPoint) multiscalarMulStrausVartime(scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
 	lookupTables := make([]projectiveNielsPointNafLookupTable, 0, len(points))
 	for _, point := range points {
 		lookupTables = append(lookupTables, newProjectiveNielsPointNafLookupTable(point))
@@ -91,5 +91,5 @@ func (p *EdwardsPoint) multiscalarMulStrausVartime(scalars []*scalar.Scalar, poi
 		r.fromCompleted(&t)
 	}
 
-	p.fromProjective(&r)
+	out.fromProjective(&r)
 }

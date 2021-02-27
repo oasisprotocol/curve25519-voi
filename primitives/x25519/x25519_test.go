@@ -229,7 +229,7 @@ func BenchmarkScalarMult(b *testing.B) {
 		})
 	}
 	b.Run("xcrypto", func(b *testing.B) {
-		benchScalarMult(b, xcurve.ScalarMult) //nolint: staticcheck
+		benchScalarMult(b, xcurve.ScalarMult) //nolint:staticcheck
 	})
 }
 

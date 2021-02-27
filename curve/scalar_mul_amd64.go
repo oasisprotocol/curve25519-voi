@@ -1,3 +1,4 @@
+// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
 // Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,11 +32,49 @@
 
 package curve
 
-//go:noescape
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8)
+import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-//go:noescape
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8)
+func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+	switch supportsVectorizedEdwards {
+	case true:
+		edwardsMulVector(out, point, scalar)
+	case false:
+		edwardsMulGeneric(out, point, scalar)
+	}
+}
 
-//go:noescape
-func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+	switch supportsVectorizedEdwards {
+	case true:
+		edwardsDoubleScalarMulBasepointVartimeVector(out, a, A, b)
+	case false:
+		edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+	}
+}
+
+func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	switch supportsVectorizedEdwards {
+	case true:
+		edwardsMultiscalarMulStrausVector(out, scalars, points)
+	case false:
+		edwardsMultiscalarMulStrausGeneric(out, scalars, points)
+	}
+}
+
+func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	switch supportsVectorizedEdwards {
+	case true:
+		edwardsMultiscalarMulStrausVartimeVector(out, scalars, points)
+	case false:
+		edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
+	}
+}
+
+func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+	switch supportsVectorizedEdwards {
+	case true:
+		edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
+	case false:
+		edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
+	}
+}

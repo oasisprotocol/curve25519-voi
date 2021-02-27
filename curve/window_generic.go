@@ -27,7 +27,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build !amd64 purego forcenoasm
+// +build !amd64 purego forcenoasm force32bit
 
 package curve
 

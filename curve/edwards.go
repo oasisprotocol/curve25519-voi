@@ -213,6 +213,15 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	return sXoZ.Equal(&oXsZ) & sYoZ.Equal(&oYsZ)
 }
 
+// EqualCompresedY returns 1 iff the point is equal to the compressed
+// point, 0 otherwise.  This function will execute in constant time.
+func (p *EdwardsPoint) EqualCompressedY(other *CompressedEdwardsY) int {
+	var pCompressed CompressedEdwardsY
+	pCompressed.FromEdwardsPoint(p)
+
+	return other.Equal(&pCompressed)
+}
+
 // double adds the point to itself.
 func (p *EdwardsPoint) double() {
 	var pProjective projectivePoint
@@ -257,6 +266,18 @@ func (p *EdwardsPoint) Neg() {
 	p.inner.T.Neg()
 }
 
+// Mul computes `point * scalar` in constant-time (variable-base scalar
+// multiplication).
+func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) {
+	edwardsMul(p, point, scalar)
+}
+
+// DoubleScalarMulBasepointVartime computes (aA + bB) in variable time,
+// where B is the Ed25519 basepoint.
+func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+	edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
+}
+
 // MultiscalarMul computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
 // in constant-time.
 //
@@ -267,7 +288,7 @@ func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*Edward
 	}
 
 	// There is only one constant-time implementation of this, so use it.
-	p.multiscalarMulStraus(scalars, points)
+	edwardsMultiscalarMulStraus(p, scalars, points)
 }
 
 // MultiscalarMulVartime computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
@@ -281,9 +302,9 @@ func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []
 	}
 
 	if size < 190 {
-		p.multiscalarMulStrausVartime(scalars, points)
+		edwardsMultiscalarMulStrausVartime(p, scalars, points)
 	} else {
-		p.multiscalarMulPippengerVartime(scalars, points)
+		edwardsMultiscalarMulPippengerVartime(p, scalars, points)
 	}
 }
 

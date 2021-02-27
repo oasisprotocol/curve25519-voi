@@ -28,11 +28,13 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// +build amd64,!purego,!forcenoasm,!force32bit
+
 package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
 	size := len(scalars)
 
 	// Digit width in bits. As digit width grows,
@@ -59,26 +61,27 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 		optScalars = append(optScalars, scalar.ToRadix2w(w))
 	}
 
-	optPoints := make([]projectiveNielsPoint, size)
+	optPoints := make([]cachedPoint, size)
 	for i, point := range points {
-		optPoints[i].fromEdwards(point)
+		var ep extendedPoint
+		ep.fromEdwards(point)
+		optPoints[i].fromExtended(&ep)
 	}
 
 	// Prepare 2^w/2 buckets.
 	// buckets[i] corresponds to a multiplication factor (i+1).
-	buckets := make([]EdwardsPoint, bucketsCount)
+	buckets := make([]extendedPoint, bucketsCount)
 	for i := range buckets {
-		buckets[i].Identity()
+		buckets[i].identity()
 	}
 
 	// TODO/perf: Compared to using an interator this results in 1 more
 	// allocation, that should probably be eliminated.
-	var tmp completedPoint
-	columns := make([]EdwardsPoint, digitsCount)
+	columns := make([]extendedPoint, digitsCount)
 	for idx := int(digitsCount - 1); idx >= 0; idx-- {
 		// Clear the buckets when processing another digit.
 		for i := 0; i < bucketsCount; i++ {
-			buckets[i].Identity()
+			buckets[i].identity()
 		}
 
 		// Iterate over pairs of (point, scalar)
@@ -89,12 +92,10 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 			digit := int16(optScalars[i][idx])
 			if digit > 0 {
 				b := uint(digit - 1)
-				tmp.addEdwardsProjectiveNiels(&buckets[b], &optPoints[i])
-				buckets[b].fromCompleted(&tmp)
+				buckets[b].addExtendedCached(&buckets[b], &optPoints[i])
 			} else if digit < 0 {
 				b := uint(-digit - 1)
-				tmp.subEdwardsProjectiveNiels(&buckets[b], &optPoints[i])
-				buckets[b].fromCompleted(&tmp)
+				buckets[b].subExtendedCached(&buckets[b], &optPoints[i])
 			}
 		}
 
@@ -110,8 +111,11 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 		bucketsIntermediateSum := buckets[bucketsCount-1]
 		bucketsSum := buckets[bucketsCount-1]
 		for i := int((bucketsCount - 1) - 1); i >= 0; i-- {
-			bucketsIntermediateSum.Add(&bucketsIntermediateSum, &buckets[i])
-			bucketsSum.Add(&bucketsSum, &bucketsIntermediateSum)
+			var cp cachedPoint
+			cp.fromExtended(&buckets[i])
+			bucketsIntermediateSum.addExtendedCached(&bucketsIntermediateSum, &cp)
+			cp.fromExtended(&bucketsIntermediateSum)
+			bucketsSum.addExtendedCached(&bucketsSum, &cp)
 		}
 
 		columns[idx] = bucketsSum
@@ -123,8 +127,10 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
 		sumMul := sum
 		sumMul.mulByPow2(w)
-		sum.Add(&sumMul, &columns[i])
+		var cp cachedPoint
+		cp.fromExtended(&columns[i])
+		sum.addExtendedCached(&sumMul, &cp)
 	}
 
-	*out = sum
+	out.fromExtended(&sum)
 }
