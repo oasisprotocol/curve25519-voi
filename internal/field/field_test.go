@@ -34,7 +34,7 @@ import "testing"
 
 func mustFeFromBytes(b []byte) *FieldElement {
 	var fe FieldElement
-	if err := fe.FromBytes(b); err != nil {
+	if _, err := fe.SetBytes(b); err != nil {
 		panic("mustFeFromBytes: " + err.Error())
 	}
 	return &fe
@@ -90,7 +90,7 @@ func TestFieldElement(t *testing.T) {
 	t.Run("SqrtRatioI", testSqrtRatioI)
 	t.Run("PowP58", testPowP58)
 	t.Run("Equal", testEqual)
-	t.Run("FromBytes/HighBitIsIgnored", testFromBytesHighBitIsIgnored)
+	t.Run("SetBytes/HighBitIsIgnored", testSetBytesHighBitIsIgnored)
 	t.Run("ConditionalNegate", testConditionalNegate)
 	t.Run("ToBytes/EncodingIsCanonical", testToBytesEncodingIsCanonical)
 	t.Run("Constants/SqrtM1", testConstantsSqrtMinusOne)
@@ -111,8 +111,8 @@ func testMul(t *testing.T) {
 func testSquare(t *testing.T) {
 	a, asq := testConstants["A"], testConstants["ASQ"]
 
-	shouldBeAsq := *a
-	shouldBeAsq.Square()
+	var shouldBeAsq FieldElement
+	shouldBeAsq.Square(a)
 
 	if shouldBeAsq.Equal(asq) != 1 {
 		t.Fatalf("a.Square() != asq (Got: %v)", shouldBeAsq)
@@ -125,8 +125,8 @@ func testSquare2(t *testing.T) {
 	var asq2 FieldElement
 	asq2.Add(asq, asq)
 
-	shouldBeAsq2 := *a
-	shouldBeAsq2.Square2()
+	var shouldBeAsq2 FieldElement
+	shouldBeAsq2.Square2(a)
 
 	if shouldBeAsq2.Equal(&asq2) != 1 {
 		t.Fatalf("a.Square2() != asq + asq (Got: %v)", shouldBeAsq2)
@@ -136,18 +136,17 @@ func testSquare2(t *testing.T) {
 func testInvert(t *testing.T) {
 	a, ainv := testConstants["A"], testConstants["AINV"]
 
-	shouldBeInverse := *a
-	shouldBeInverse.Invert()
+	var shouldBeInverse FieldElement
+	shouldBeInverse.Invert(a)
 
 	if shouldBeInverse.Equal(ainv) != 1 {
 		t.Fatalf("a.Invert() != ainv (Got: %v)", shouldBeInverse)
 	}
 
-	one := One()
 	var shouldBeOne FieldElement
 	shouldBeOne.Mul(a, &shouldBeInverse)
 
-	if shouldBeOne.Equal(&one) != 1 {
+	if shouldBeOne.Equal(&One) != 1 {
 		t.Fatalf("a.Invert() * a != 1 (Got: %v)", shouldBeOne)
 	}
 }
@@ -173,8 +172,8 @@ func testBatchInvertConsistency(t *testing.T) {
 
 	BatchInvert(ainvList)
 	for i, v := range aList {
-		expected := *v
-		expected.Invert()
+		var expected FieldElement
+		expected.Invert(v)
 		if ainvList[i].Equal(&expected) != 1 {
 			t.Fatalf("aList[%d].Invert() != ainvList[%d] (Got: %v, %v)", i, i, expected, ainvList[i])
 		}
@@ -188,13 +187,12 @@ func testBatchInvertEmpty(t *testing.T) {
 
 func testSqrtRatioI(t *testing.T) {
 	var zero, two, two_i, four, sqrt FieldElement
-	one := One()
-	two.Add(&one, &one)
+	two.Add(&One, &One)
 	two_i.Mul(&two, &SQRT_M1)
 	four.Add(&two, &two)
 
 	// 0/0 should return (1, 0) since u is 0
-	choice := sqrt.SqrtRatioI(&zero, &zero)
+	_, choice := sqrt.SqrtRatioI(&zero, &zero)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(0, 0) choice != 1")
 	}
@@ -206,7 +204,7 @@ func testSqrtRatioI(t *testing.T) {
 	}
 
 	// 1/0 should return (0, 0) since v is 0, u is nonzero
-	choice = sqrt.SqrtRatioI(&one, &zero)
+	_, choice = sqrt.SqrtRatioI(&One, &zero)
 	if choice != 0 {
 		t.Fatalf("sqrt.RatioI(1, 0) choice != 0")
 	}
@@ -218,12 +216,12 @@ func testSqrtRatioI(t *testing.T) {
 	}
 
 	// 2/1 is nonsquare, so we expect (0, sqrt(i*2))
-	choice = sqrt.SqrtRatioI(&two, &one)
+	_, choice = sqrt.SqrtRatioI(&two, &One)
 	if choice != 0 {
 		t.Fatalf("sqrt.RatioI(2, 1) choice != 0")
 	}
-	sqrtSquared := sqrt
-	sqrtSquared.Square()
+	var sqrtSquared FieldElement
+	sqrtSquared.Square(&sqrt)
 	if sqrtSquared.Equal(&two_i) != 1 {
 		t.Fatalf("sqrtRatioI(2, 1) sqrt^2 != 2 * i (Got: %v)", sqrtSquared)
 	}
@@ -232,12 +230,11 @@ func testSqrtRatioI(t *testing.T) {
 	}
 
 	// 4/1 is square, so we expect (1, sqrt(4))
-	choice = sqrt.SqrtRatioI(&four, &one)
+	_, choice = sqrt.SqrtRatioI(&four, &One)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(4, 1) choice != 1")
 	}
-	sqrtSquared = sqrt
-	sqrtSquared.Square()
+	sqrtSquared.Square(&sqrt)
 	if sqrtSquared.Equal(&four) != 1 {
 		t.Fatalf("sqrtRatioI(4, 1) sqrt^2 != 4 * i (Got: %v)", sqrtSquared)
 	}
@@ -246,14 +243,14 @@ func testSqrtRatioI(t *testing.T) {
 	}
 
 	// 1/4 is square, so we expect (1, 1/sqrt(4))
-	choice = sqrt.SqrtRatioI(&one, &four)
+	_, choice = sqrt.SqrtRatioI(&One, &four)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(4, 1) choice != 1")
 	}
-	tmp := sqrt
-	tmp.Square()
+	var tmp FieldElement
+	tmp.Square(&sqrt)
 	tmp.Mul(&tmp, &four)
-	if tmp.Equal(&one) != 1 {
+	if tmp.Equal(&One) != 1 {
 		t.Fatalf("sqrtRatioI(4, 1) sqrt^2 * 4 != 1 (Got: %v)", tmp)
 	}
 	if sqrt.IsNegative() != 0 {
@@ -283,7 +280,7 @@ func testEqual(t *testing.T) {
 	}
 }
 
-func testFromBytesHighBitIsIgnored(t *testing.T) {
+func testSetBytesHighBitIsIgnored(t *testing.T) {
 	// Notice that the last element has the high bit set, which
 	// should be ignored.
 	bBytes := [FieldElementSize]byte{
@@ -294,15 +291,15 @@ func testFromBytesHighBitIsIgnored(t *testing.T) {
 	}
 
 	var withHighBitSet, withoutHighBitSet FieldElement
-	if err := withHighBitSet.FromBytes(bBytes[:]); err != nil {
-		t.Fatalf("withHighBitSet.FromBytes(): %v", err)
+	if _, err := withHighBitSet.SetBytes(bBytes[:]); err != nil {
+		t.Fatalf("withHighBitSet SetBytes(): %v", err)
 	}
 
 	clearedBytes := bBytes
 	clearedBytes[31] &= 127
 
-	if err := withoutHighBitSet.FromBytes(bBytes[:]); err != nil {
-		t.Fatalf("withoutHighBitSet.FromBytes(): %v", err)
+	if _, err := withoutHighBitSet.SetBytes(bBytes[:]); err != nil {
+		t.Fatalf("withoutHighBitSet SetBytes(): %v", err)
 	}
 
 	if withHighBitSet.Equal(&withoutHighBitSet) != 1 {
@@ -311,19 +308,17 @@ func testFromBytesHighBitIsIgnored(t *testing.T) {
 }
 
 func testConditionalNegate(t *testing.T) {
-	one, minusOne := One(), MinusOne()
-
-	x := one
+	x := One
 	x.ConditionalNegate(1)
-	if x.Equal(&minusOne) != 1 {
+	if x.Equal(&MinusOne) != 1 {
 		t.Fatalf("x.ConditionalNegate(1) != -1 (Got: %v)", x)
 	}
 	x.ConditionalNegate(0)
-	if x.Equal(&minusOne) != 1 {
+	if x.Equal(&MinusOne) != 1 {
 		t.Fatalf("x.ConditionalNegate(0) != -1 (Got: %v)", x)
 	}
 	x.ConditionalNegate(1)
-	if x.Equal(&one) != 1 {
+	if x.Equal(&One) != 1 {
 		t.Fatalf("x.ConditionalNegate(1) != 1 (Got: %v)", x)
 	}
 }
@@ -338,8 +333,8 @@ func testToBytesEncodingIsCanonical(t *testing.T) {
 	}
 
 	var one FieldElement
-	if err := one.FromBytes(oneEncodedWronglyBytes[:]); err != nil {
-		t.Fatalf("one.FromBytes(): %v", err)
+	if _, err := one.SetBytes(oneEncodedWronglyBytes[:]); err != nil {
+		t.Fatalf("one SetBytes(): %v", err)
 	}
 
 	var oneBytes, expectedOneBytes [FieldElementSize]byte
@@ -355,9 +350,8 @@ func testToBytesEncodingIsCanonical(t *testing.T) {
 
 func testConstantsSqrtMinusOne(t *testing.T) {
 	var sqrtM1Sq FieldElement
-	minusOne := MinusOne()
 	sqrtM1Sq.Mul(&SQRT_M1, &SQRT_M1)
-	if minusOne.Equal(&sqrtM1Sq) != 1 {
+	if MinusOne.Equal(&sqrtM1Sq) != 1 {
 		t.Fatalf("SQRT_M1 * SQRT_M1 != -1")
 	}
 	if SQRT_M1.IsNegative() != 0 {
@@ -367,13 +361,13 @@ func testConstantsSqrtMinusOne(t *testing.T) {
 
 func testConstantsSqrtConstantsSign(t *testing.T) {
 	var signTestSqrt FieldElement
-	minusOne, invSqrtM1 := MinusOne(), MinusOne()
-	wasNonZeroSquare := invSqrtM1.InvSqrt()
+	invSqrtM1 := MinusOne
+	_, wasNonZeroSquare := invSqrtM1.InvSqrt()
 	if wasNonZeroSquare != 1 {
 		t.Fatalf("-1.InvSqrt() wasNonZeroSquare != 1")
 	}
 	signTestSqrt.Mul(&invSqrtM1, &SQRT_M1)
-	if signTestSqrt.Equal(&minusOne) != 1 {
+	if signTestSqrt.Equal(&MinusOne) != 1 {
 		t.Fatalf("invSqrtM1 * SQRT_M1 != -1 (Got: %v)", signTestSqrt)
 	}
 }
@@ -384,8 +378,8 @@ func BenchmarkFieldElement(b *testing.B) {
 }
 
 func benchMul(b *testing.B) {
-	var y FieldElement
-	x := One()
+	var x, y FieldElement
+	x.One()
 	y.Add(&x, &x)
 
 	b.ResetTimer()
@@ -395,11 +389,12 @@ func benchMul(b *testing.B) {
 }
 
 func benchSquare(b *testing.B) {
-	x := One()
+	var x FieldElement
+	x.One()
 	x.Add(&x, &x)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x.Square()
+		x.Square(&x)
 	}
 }

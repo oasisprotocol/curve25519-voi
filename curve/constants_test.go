@@ -97,8 +97,8 @@ func testConstantsSqrtAdMinusOne(t *testing.T) {
 	adMinusOne.Mul(&a, &constEDWARDS_D)
 	adMinusOne.Add(&adMinusOne, &a)
 
-	shouldBeAdMinusOne := constSQRT_AD_MINUS_ONE
-	shouldBeAdMinusOne.Square()
+	var shouldBeAdMinusOne field.FieldElement
+	shouldBeAdMinusOne.Square(&constSQRT_AD_MINUS_ONE)
 
 	if shouldBeAdMinusOne.Equal(&adMinusOne) != 1 {
 		t.Fatalf("should_be_ad_minus_one != ad_minus_one (Got: %v, %v)", shouldBeAdMinusOne, adMinusOne)

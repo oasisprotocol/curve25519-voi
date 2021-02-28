@@ -58,7 +58,8 @@ func (p *MontgomeryPoint) FromBytes(in []byte) error {
 // will execute in constant-time.
 func (p *MontgomeryPoint) Equal(other *MontgomeryPoint) int {
 	var selfFe, otherFe field.FieldElement
-	_, _ = selfFe.FromBytes(p[:]), otherFe.FromBytes(other[:])
+	_, _ = selfFe.SetBytes(p[:])
+	_, _ = otherFe.SetBytes(other[:])
 
 	return selfFe.Equal(&otherFe)
 }
@@ -77,7 +78,7 @@ func (p *MontgomeryPoint) FromEdwards(edwardsPoint *EdwardsPoint) {
 	var U, W, u field.FieldElement
 	U.Add(&edwardsPoint.inner.Z, &edwardsPoint.inner.Y)
 	W.Sub(&edwardsPoint.inner.Z, &edwardsPoint.inner.Y)
-	W.Invert()
+	W.Invert(&W)
 	u.Mul(&U, &W)
 
 	_ = u.ToBytes(p[:])
@@ -87,10 +88,10 @@ func (p *MontgomeryPoint) FromEdwards(edwardsPoint *EdwardsPoint) {
 func (p *MontgomeryPoint) Mul(point *MontgomeryPoint, scalar *scalar.Scalar) {
 	// Algorithm 8 of Costello-Smith 2017.
 	var affineU field.FieldElement
-	_ = affineU.FromBytes(point[:])
+	_, _ = affineU.SetBytes(point[:])
 	var x0, x1 montgomeryProjectivePoint
 	x0.identity()
-	x1.U = affineU
+	x1.U.Set(&affineU)
 	x1.W.One()
 
 	bits := scalar.Bits()
@@ -108,9 +109,8 @@ func (p *MontgomeryPoint) Mul(point *MontgomeryPoint, scalar *scalar.Scalar) {
 
 func (p *MontgomeryPoint) fromProjective(pp *montgomeryProjectivePoint) {
 	// Dehomogenize the projective point to affine coordinates.
-	var u field.FieldElement
-	wInv := pp.W
-	wInv.Invert()
+	var u, wInv field.FieldElement
+	wInv.Invert(&pp.W)
 	u.Mul(&pp.U, &wInv)
 
 	_ = u.ToBytes(p[:])
@@ -123,9 +123,9 @@ func montgomeryDifferentialAddAndDouble(P, Q *montgomeryProjectivePoint, affine_
 	t2.Add(&Q.U, &Q.W)
 	t3.Sub(&Q.U, &Q.W)
 
-	t4, t5 := t0, t1
-	t4.Square() // (U_P + W_P)^2 = U_P^2 + 2 U_P W_P + W_P^2
-	t5.Square() // (U_P - W_P)^2 = U_P^2 - 2 U_P W_P + W_P^2
+	var t4, t5 field.FieldElement
+	t4.Square(&t0) // (U_P + W_P)^2 = U_P^2 + 2 U_P W_P + W_P^2
+	t5.Square(&t1) // (U_P - W_P)^2 = U_P^2 - 2 U_P W_P + W_P^2
 
 	var t6 field.FieldElement
 	t6.Sub(&t4, &t5) // 4 U_P W_P
@@ -140,8 +140,8 @@ func montgomeryDifferentialAddAndDouble(P, Q *montgomeryProjectivePoint, affine_
 	Q.U.Add(&t7, &t8) // 2 (U_P U_Q - W_P W_Q): t9
 	Q.W.Sub(&t7, &t8) // 2 (W_P U_Q - U_P W_Q): t10
 
-	Q.U.Square() // 4 (U_P U_Q - W_P W_Q)^2: t11
-	Q.W.Square() // 4 (W_P U_Q - U_P W_Q)^2: t12
+	Q.U.Square(&Q.U) // 4 (U_P U_Q - W_P W_Q)^2: t11
+	Q.W.Square(&Q.W) // 4 (W_P U_Q - U_P W_Q)^2: t12
 
 	P.W.Mul(&constAPLUS2_OVER_FOUR, &t6) // (A + 2) U_P U_Q: t13
 
@@ -191,17 +191,16 @@ func (p *EdwardsPoint) FromMontgomery(montgomeryU *MontgomeryPoint, sign uint8) 
 	// Since this is nonsquare mod p, u = -1 corresponds to a point
 	// on the twist, not the curve, so we can reject it early.
 	var u field.FieldElement
-	_ = u.FromBytes(montgomeryU[:])
-	one, minusOne := field.One(), field.MinusOne()
+	_, _ = u.SetBytes(montgomeryU[:])
 
-	if u.Equal(&minusOne) == 1 {
+	if u.Equal(&field.MinusOne) == 1 {
 		return errUCoordinateOnTwist
 	}
 
 	var uMinusOne, uPlusOne, y field.FieldElement
-	uMinusOne.Sub(&u, &one)
-	uPlusOne.Add(&u, &one)
-	uPlusOne.Invert()
+	uMinusOne.Sub(&u, &field.One)
+	uPlusOne.Add(&u, &field.One)
+	uPlusOne.Invert(&uPlusOne)
 	y.Mul(&uMinusOne, &uPlusOne)
 
 	var yBytes CompressedEdwardsY

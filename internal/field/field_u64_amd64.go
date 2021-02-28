@@ -60,14 +60,14 @@ var useBMI2 bool
 func feMul_AMD64(out, a, b *FieldElement, useBMI2 bool)
 
 //go:noescape
-func fePow2k_AMD64(out *FieldElement, k uint, useBMI2 bool)
+func fePow2k_AMD64(out, a *FieldElement, k uint, useBMI2 bool)
 
 func feMul(out, a, b *FieldElement) {
 	feMul_AMD64(out, a, b, useBMI2)
 }
 
-func fePow2k(out *FieldElement, k uint) {
-	fePow2k_AMD64(out, k, useBMI2)
+func fePow2k(out, a *FieldElement, k uint) {
+	fePow2k_AMD64(out, a, k, useBMI2)
 }
 
 func init() {

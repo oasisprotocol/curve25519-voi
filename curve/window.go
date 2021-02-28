@@ -90,9 +90,9 @@ func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 
 	// Unpack t.
 	var t affineNielsPoint
-	_ = t.y_plus_x.FromBytes(tPacked[0:32])
-	_ = t.y_minus_x.FromBytes(tPacked[32:64])
-	_ = t.xy2d.FromBytes(tPacked[64:96])
+	_, _ = t.y_plus_x.SetBytes(tPacked[0:32])
+	_, _ = t.y_minus_x.SetBytes(tPacked[32:64])
+	_, _ = t.xy2d.SetBytes(tPacked[64:96])
 
 	negMask := int(byte(xmask & 1))
 	t.conditionalNegate(negMask)

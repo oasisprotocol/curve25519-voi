@@ -69,10 +69,10 @@ func (p *CompressedRistretto) FromRistrettoPoint(ristrettoPoint *RistrettoPoint)
 	u2.Mul(&X, &Y)
 
 	// Ignore return value since this is always square.
-	invsqrt := u2
-	invsqrt.Square()
+	var invsqrt field.FieldElement
+	invsqrt.Square(&u2)
 	invsqrt.Mul(&u1, &invsqrt)
-	_ = invsqrt.InvSqrt()
+	_, _ = invsqrt.InvSqrt()
 	var i1, i2, zInv field.FieldElement
 	i1.Mul(&invsqrt, &u1)
 	i2.Mul(&invsqrt, &u2)
@@ -146,7 +146,7 @@ func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
 		s           field.FieldElement
 		sBytesCheck [field.FieldElementSize]byte
 	)
-	if err := s.FromBytes(compressed[:]); err != nil {
+	if _, err := s.SetBytes(compressed[:]); err != nil {
 		return fmt.Errorf("curve/ristretto: failed to deserialize s: %w", err)
 	}
 	_ = s.ToBytes(sBytesCheck[:])
@@ -158,29 +158,23 @@ func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
 	}
 
 	// Step 2. Compute (X:Y:Z:T).
-	var (
-		one    = field.One()
-		ss     = s
-		u1, u2 field.FieldElement
-	)
-	ss.Square()
-	u1.Sub(&one, &ss) // 1 + as^2
-	u2.Add(&one, &ss) // 1 - as^2 where a = -1
-	u1Sqr, u2Sqr := u1, u2
-	u1Sqr.Square()
-	u2Sqr.Square()
+	var u1, u2, ss, u1Sqr, u2Sqr field.FieldElement
+	ss.Square(&s)
+	u1.Sub(&field.One, &ss) // 1 + as^2
+	u2.Add(&field.One, &ss) // 1 - as^2 where a = -1
+	u1Sqr.Square(&u1)
+	u2Sqr.Square(&u2)
 
 	// v == ad(1+as^2)^2 - (1-as^2)^2 where d=-121665/121666
-	v := constEDWARDS_D
-	v.Neg()
+	var v field.FieldElement
+	v.Neg(&constEDWARDS_D)
 	v.Mul(&v, &u1Sqr)
 	v.Sub(&v, &u2Sqr)
 
 	var I field.FieldElement
 	I.Mul(&v, &u2Sqr)
-	ok := I.InvSqrt() // 1/sqrt(v*u_2^2)
+	_, ok := I.InvSqrt() // 1/sqrt(v*u_2^2)
 
-	_ = ok
 	var Dx, Dy field.FieldElement
 	Dx.Mul(&I, &u2) // 1/sqrt(v)
 	Dy.Mul(&Dx, &v)
@@ -204,7 +198,7 @@ func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
 		return fmt.Errorf("curve/ristretto: s is is not a valid point")
 	}
 
-	p.inner = EdwardsPoint{edwardsPointInner{x, y, one, t}}
+	p.inner = EdwardsPoint{edwardsPointInner{x, y, field.One, t}}
 
 	return nil
 }
@@ -237,11 +231,11 @@ func (p *RistrettoPoint) FromUniformBytes(in []byte) error {
 		r_1, r_2 field.FieldElement
 		R_1, R_2 RistrettoPoint
 	)
-	if err := r_1.FromBytes(in[:32]); err != nil {
+	if _, err := r_1.SetBytes(in[:32]); err != nil {
 		return fmt.Errorf("curve/ristretto: failed to deserialize r_1: %w", err)
 	}
 	R_1.elligatorRistrettoFlavor(&r_1)
-	if err := r_2.FromBytes(in[32:]); err != nil {
+	if _, err := r_2.SetBytes(in[32:]); err != nil {
 		return fmt.Errorf("curve/ristretto: failed to deserialize r_2: %w", err)
 	}
 	R_2.elligatorRistrettoFlavor(&r_2)
@@ -335,13 +329,12 @@ func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *Ri
 
 func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	c := constMINUS_ONE
-	one := field.One()
 
-	r := *r_0
-	r.Square()
+	var r field.FieldElement
+	r.Square(r_0)
 	r.Mul(&field.SQRT_M1, &r)
 	var N_s field.FieldElement
-	N_s.Add(&r, &one)
+	N_s.Add(&r, &field.One)
 	N_s.Mul(&N_s, &constONE_MINUS_EDWARDS_D_SQUARED)
 	var D, tmp field.FieldElement
 	tmp.Add(&r, &constEDWARDS_D)
@@ -350,7 +343,7 @@ func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	D.Mul(&D, &tmp)
 
 	var s, s_prime field.FieldElement
-	Ns_D_is_sq := s.SqrtRatioI(&N_s, &D)
+	_, Ns_D_is_sq := s.SqrtRatioI(&N_s, &D)
 	s_prime.Mul(&s, r_0)
 	s_prime_is_pos := s_prime.IsNegative() ^ 1
 	s_prime.ConditionalNegate(s_prime_is_pos)
@@ -361,20 +354,20 @@ func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	c.ConditionalAssign(&r, Ns_D_is_not_sq)
 
 	var N_t field.FieldElement
-	N_t.Sub(&r, &one)
+	N_t.Sub(&r, &field.One)
 	N_t.Mul(&c, &N_t)
 	N_t.Mul(&N_t, &constEDWARDS_D_MINUS_ONE_SQUARED)
 	N_t.Sub(&N_t, &D)
 
-	s_sq := s
-	s_sq.Square()
+	var s_sq field.FieldElement
+	s_sq.Square(&s)
 
 	var cp completedPoint
 	cp.X.Add(&s, &s)
 	cp.X.Mul(&cp.X, &D)
 	cp.Z.Mul(&N_t, &constSQRT_AD_MINUS_ONE)
-	cp.Y.Sub(&one, &s_sq)
-	cp.T.Add(&one, &s_sq)
+	cp.Y.Sub(&field.One, &s_sq)
+	cp.T.Add(&field.One, &s_sq)
 
 	// The conversion from W_i is exactly the conversion from P1xP1.
 	p.inner.fromCompleted(&cp)

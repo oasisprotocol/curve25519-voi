@@ -77,9 +77,8 @@ func (p *CompressedEdwardsY) FromBytes(in []byte) error {
 
 // FromEdwardsPoint compresses an Edwards point.
 func (p *CompressedEdwardsY) FromEdwardsPoint(point *EdwardsPoint) {
-	var x, y field.FieldElement
-	recip := point.inner.Z
-	recip.Invert()
+	var x, y, recip field.FieldElement
+	recip.Invert(&point.inner.Z)
 	x.Mul(&point.inner.X, &recip)
 	y.Mul(&point.inner.Y, &recip)
 
@@ -158,17 +157,16 @@ func (p *EdwardsPoint) Identity() {
 // FromCompressedY attempts to decompress a CompressedEdwardsY into an
 // EdwardsPoint.
 func (p *EdwardsPoint) FromCompressedY(compressedY *CompressedEdwardsY) error {
-	var Y, u, v, X field.FieldElement
-	if err := Y.FromBytes(compressedY[:]); err != nil {
+	var Y, Z, YY, u, v, X field.FieldElement
+	if _, err := Y.SetBytes(compressedY[:]); err != nil {
 		return err
 	}
-	Z := field.One()
-	YY := Y
-	YY.Square()
+	Z.One()
+	YY.Square(&Y)
 	u.Sub(&YY, &Z)              // u = y^2 - 1
 	v.Mul(&YY, &constEDWARDS_D) // v = dy^2 + 1
 	v.Add(&v, &Z)
-	isValidYCoord := X.SqrtRatioI(&u, &v)
+	_, isValidYCoord := X.SqrtRatioI(&u, &v)
 
 	if isValidYCoord != 1 {
 		return errNotValidYCoordinate
@@ -179,9 +177,9 @@ func (p *EdwardsPoint) FromCompressedY(compressedY *CompressedEdwardsY) error {
 	compressedSignBit := int(compressedY[31] >> 7)
 	X.ConditionalNegate(compressedSignBit)
 
-	p.inner.X = X
-	p.inner.Y = Y
-	p.inner.Z = Z
+	p.inner.X.Set(&X)
+	p.inner.Y.Set(&Y)
+	p.inner.Z.Set(&Z)
 	p.inner.T.Mul(&X, &Y)
 
 	return nil
@@ -262,8 +260,8 @@ func (p *EdwardsPoint) Sum(values []*EdwardsPoint) {
 
 // Neg computes `-P`.
 func (p *EdwardsPoint) Neg() {
-	p.inner.X.Neg()
-	p.inner.T.Neg()
+	p.inner.X.Neg(&p.inner.X)
+	p.inner.T.Neg(&p.inner.T)
 }
 
 // Mul computes `point * scalar` in constant-time (variable-base scalar

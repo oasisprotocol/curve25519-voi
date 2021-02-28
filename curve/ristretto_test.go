@@ -267,7 +267,7 @@ func testRistrettoElligator(t *testing.T) {
 
 	for i, b := range r0Bytes {
 		var r_0 field.FieldElement
-		_ = r_0.FromBytes(b[:])
+		_, _ = r_0.SetBytes(b[:])
 
 		var q RistrettoPoint
 		q.elligatorRistrettoFlavor(&r_0)

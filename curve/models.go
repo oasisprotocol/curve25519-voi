@@ -99,14 +99,11 @@ func (p *projectiveNielsPoint) identity() {
 func (p *projectivePoint) debugIsValid() bool {
 	// Curve equation is    -x^2 + y^2 = 1 + d*x^2*y^2,
 	// homogenized as (-X^2 + Y^2)*Z^2 = Z^4 + d*X^2*Y^2
-	XX := p.X
-	XX.Square()
-	YY := p.Y
-	YY.Square()
-	ZZ := p.Z
-	ZZ.Square()
-	ZZZZ := ZZ
-	ZZZZ.Square()
+	var XX, YY, ZZ, ZZZZ field.FieldElement
+	XX.Square(&p.X)
+	YY.Square(&p.Y)
+	ZZ.Square(&p.Z)
+	ZZZZ.Square(&ZZ)
 
 	var lhs, rhs field.FieldElement
 	lhs.Sub(&YY, &XX)
@@ -149,8 +146,7 @@ func (p *affineNielsPoint) conditionalAssign(other *affineNielsPoint, choice int
 func (p *EdwardsPoint) fromProjective(pp *projectivePoint) {
 	p.inner.X.Mul(&pp.X, &pp.Z)
 	p.inner.Y.Mul(&pp.Y, &pp.Z)
-	p.inner.Z = pp.Z
-	p.inner.Z.Square()
+	p.inner.Z.Square(&pp.Z)
 	p.inner.T.Mul(&pp.X, &pp.Y)
 }
 
@@ -181,9 +177,8 @@ func (p *projectiveNielsPoint) fromEdwards(ep *EdwardsPoint) {
 }
 
 func (p *affineNielsPoint) fromEdwards(ep *EdwardsPoint) {
-	recip := ep.inner.Z
-	recip.Invert()
-	var x, y, xy field.FieldElement
+	var recip, x, y, xy field.FieldElement
+	recip.Invert(&ep.inner.Z)
 	x.Mul(&ep.inner.X, &recip)
 	y.Mul(&ep.inner.Y, &recip)
 	xy.Mul(&x, &y)
@@ -193,16 +188,12 @@ func (p *affineNielsPoint) fromEdwards(ep *EdwardsPoint) {
 }
 
 func (p *completedPoint) double(pp *projectivePoint) {
-	XX := pp.X
-	XX.Square()
-	YY := pp.Y
-	YY.Square()
-	ZZ2 := pp.Z
-	ZZ2.Square2()
-	var X_plus_Y field.FieldElement
+	var XX, YY, ZZ2, X_plus_Y, X_plus_Y_sq field.FieldElement
+	XX.Square(&pp.X)
+	YY.Square(&pp.Y)
+	ZZ2.Square2(&pp.Z)
 	X_plus_Y.Add(&pp.X, &pp.Y)
-	X_plus_Y_sq := X_plus_Y
-	X_plus_Y_sq.Square()
+	X_plus_Y_sq.Square(&X_plus_Y)
 
 	p.Y.Add(&YY, &XX)
 	p.X.Sub(&X_plus_Y_sq, &p.Y)
@@ -298,12 +289,12 @@ func (p *completedPoint) subCompletedAffineNiels(a *completedPoint, b *affineNie
 
 func (p *projectiveNielsPoint) neg() {
 	p.Y_plus_X, p.Y_minus_X = p.Y_minus_X, p.Y_plus_X
-	p.T2d.Neg()
+	p.T2d.Neg(&p.T2d)
 }
 
 func (p *affineNielsPoint) neg() {
 	p.y_plus_x, p.y_minus_x = p.y_minus_x, p.y_plus_x
-	p.xy2d.Neg()
+	p.xy2d.Neg(&p.xy2d)
 }
 
 func (p *projectiveNielsPoint) conditionalNegate(choice int) {

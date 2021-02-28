@@ -50,17 +50,18 @@ type FieldElement struct {
 	inner                    [5]uint64
 }
 
-// Add computes `a + b`.
-func (fe *FieldElement) Add(a, b *FieldElement) {
+// Add sets `fe = a + b`, and returns fe.
+func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	fe.inner[0] = a.inner[0] + b.inner[0]
 	fe.inner[1] = a.inner[1] + b.inner[1]
 	fe.inner[2] = a.inner[2] + b.inner[2]
 	fe.inner[3] = a.inner[3] + b.inner[3]
 	fe.inner[4] = a.inner[4] + b.inner[4]
+	return fe
 }
 
-// Sub computes `a - b`.
-func (fe *FieldElement) Sub(a, b *FieldElement) {
+// Sub sets `fe = a - b`, and returns fe.
+func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	// To avoid underflow, first add a multiple of p.
 	// Choose 16*p = p << 4 to be larger than 54-bit b.
 	//
@@ -68,7 +69,7 @@ func (fe *FieldElement) Sub(a, b *FieldElement) {
 	// of every FieldElement, we could choose a multiple of p
 	// just bigger than b and avoid having to do a reduction.
 
-	fe.reduce(&[5]uint64{
+	return fe.reduce(&[5]uint64{
 		(a.inner[0] + 36028797018963664) - b.inner[0],
 		(a.inner[1] + 36028797018963952) - b.inner[1],
 		(a.inner[2] + 36028797018963952) - b.inner[2],
@@ -77,9 +78,10 @@ func (fe *FieldElement) Sub(a, b *FieldElement) {
 	})
 }
 
-// Mul computes `a * b`.
-func (fe *FieldElement) Mul(a, b *FieldElement) {
+// Mul sets `fe =a * b`, and returns fe.
+func (fe *FieldElement) Mul(a, b *FieldElement) *FieldElement {
 	feMul(fe, a, b)
+	return fe
 }
 
 func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
@@ -237,15 +239,15 @@ func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
 	// Now fe[i] < 2^(51 + epsilon) for all i.
 }
 
-// Neg computes `-fe`.
-func (fe *FieldElement) Neg() {
+// Neg sets `fe = -t`, and returns fe.
+func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
 	// See commentary in the Sub impl.
-	fe.reduce(&[5]uint64{
-		36028797018963664 - fe.inner[0],
-		36028797018963952 - fe.inner[1],
-		36028797018963952 - fe.inner[2],
-		36028797018963952 - fe.inner[3],
-		36028797018963952 - fe.inner[4],
+	return fe.reduce(&[5]uint64{
+		36028797018963664 - t.inner[0],
+		36028797018963952 - t.inner[1],
+		36028797018963952 - t.inner[2],
+		36028797018963952 - t.inner[3],
+		36028797018963952 - t.inner[4],
 	})
 }
 
@@ -277,19 +279,21 @@ func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
 	fe.inner[4] = subtle.ConstantTimeSelectUint64(choice, other.inner[4], fe.inner[4])
 }
 
-// One sets the field element to one.
-func (fe *FieldElement) One() {
+// One sets the fe to one, and returns fe.
+func (fe *FieldElement) One() *FieldElement {
 	*fe = NewFieldElement51(1, 0, 0, 0, 0)
+	return fe
 }
 
-// MinusOne sets the field element to -1.
-func (fe *FieldElement) MinusOne() {
+// MinusOne sets fe to -1, and returns fe.
+func (fe *FieldElement) MinusOne() *FieldElement {
 	*fe = NewFieldElement51(
 		2251799813685228, 2251799813685247, 2251799813685247, 2251799813685247, 2251799813685247,
 	)
+	return fe
 }
 
-func (fe *FieldElement) reduce(limbs *[5]uint64) {
+func (fe *FieldElement) reduce(limbs *[5]uint64) *FieldElement {
 	// Since the input limbs are bounded by 2^64, the biggest
 	// carry-out is bounded by 2^13.
 	//
@@ -320,18 +324,20 @@ func (fe *FieldElement) reduce(limbs *[5]uint64) {
 	fe.inner[2] = l2 + c1
 	fe.inner[3] = l3 + c2
 	fe.inner[4] = l4 + c3
+
+	return fe
 }
 
-// FromBytes loads a field element from the low 255 bits of a 256 bit input.
+// SetBytes loads a field element from the low 255 bits of a 256 bit input.
 //
 // WARNING: This function does not check that the input used the canonical
 // representative.  It masks the high bit, but it will happily decode
 // 2^255 - 18 to 1.  Applications that require a canonical encoding of
 // every field element should decode, re-encode to the canonical encoding,
 // and check that the input was canonical.
-func (fe *FieldElement) FromBytes(in []byte) error {
+func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
 	if len(in) != FieldElementSize {
-		return fmt.Errorf("internal/field/u64: unexpected input size")
+		return nil, fmt.Errorf("internal/field/u64: unexpected input size")
 	}
 
 	_ = in[31]
@@ -350,7 +356,7 @@ func (fe *FieldElement) FromBytes(in []byte) error {
 		},
 	}
 
-	return nil
+	return fe, nil
 }
 
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
@@ -438,17 +444,18 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 	return nil
 }
 
-// Pow2k computes `self^(2^k)`, given `k > 0`.
-func (fe *FieldElement) Pow2k(k uint) {
+// Pow2k sets `fe = t^(2^k)`, given `k > 0`, and returns fe
+func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
 	if k == 0 {
 		panic("internal/field/u64: k out of bounds")
 	}
 
-	fePow2k(fe, k)
+	fePow2k(fe, t, k)
+	return fe
 }
 
-func fePow2kGeneric(fe *FieldElement, k uint) { //nolint:unused,deadcode
-	a0, a1, a2, a3, a4 := fe.inner[0], fe.inner[1], fe.inner[2], fe.inner[3], fe.inner[4]
+func fePow2kGeneric(fe, t *FieldElement, k uint) { //nolint:unused,deadcode
+	a0, a1, a2, a3, a4 := t.inner[0], t.inner[1], t.inner[2], t.inner[3], t.inner[4]
 
 	for {
 		// Precondition: assume input limbs a[i] are bounded as
@@ -589,17 +596,19 @@ func fePow2kGeneric(fe *FieldElement, k uint) { //nolint:unused,deadcode
 	fe.inner[0], fe.inner[1], fe.inner[2], fe.inner[3], fe.inner[4] = a0, a1, a2, a3, a4
 }
 
-// Square computes `self^2`.
-func (fe *FieldElement) Square() {
-	fePow2k(fe, 1)
+// Square sets `fe = t^2`, and returns fe.
+func (fe *FieldElement) Square(t *FieldElement) *FieldElement {
+	fePow2k(fe, t, 1)
+	return fe
 }
 
-// Square2 computes `2*self^2`.
-func (fe *FieldElement) Square2() {
-	fe.Pow2k(1)
+// Square2 sets `fe = 2*t^2`, and returns fe.
+func (fe *FieldElement) Square2(t *FieldElement) *FieldElement {
+	fePow2k(fe, t, 1)
 	for i := 0; i < 5; i++ {
 		fe.inner[i] *= 2
 	}
+	return fe
 }
 
 // UnsafeInner exposes the inner limbs to allow for the vector implementation.

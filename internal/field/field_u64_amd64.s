@@ -338,17 +338,17 @@ mul_reduce:
 	MOVQ R14, 32(DI)
 	RET
 
-// func fePow2k_AMD64(out *FieldElement, k uint64, useBMI2 bool)
+// func fePow2k_AMD64(out, a *FieldElement, k uint64, useBMI2 bool)
 //
 // Note: This is changed from squaring to support any power-of-two greater
-// than zero, and to write the output out in-place.
-TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-17
-	MOVQ out+0(FP), BX
-	MOVQ k+8(FP), CX
+// than zero.
+TEXT ·fePow2k_AMD64(SB), NOSPLIT|NOFRAME, $0-25
+	MOVQ a+8(FP), BX
+	MOVQ k+16(FP), CX
 
 	// Pick the appropriate implementation, based on if the caller thinks
 	// BMI2 is supported or not.
-	MOVBQZX useBMI2+16(FP), DX
+	MOVBQZX useBMI2+24(FP), DX
 	TESTQ   DX, DX
 	JZ      pow2k_loop_vanilla
 
@@ -426,6 +426,7 @@ pow2k_loop_bmi2:
 	// Reduce.
 	reduce64()
 
+	MOVQ out+0(FP), BX
 	MOVQ SI, 0(BX)
 	MOVQ R8, 8(BX)
 	MOVQ R10, 16(BX)
@@ -533,6 +534,7 @@ pow2k_loop_vanilla:
 	// Reduce
 	reduce64()
 
+	MOVQ out+0(FP), BX
 	MOVQ SI, 0(BX)
 	MOVQ R8, 8(BX)
 	MOVQ R10, 16(BX)

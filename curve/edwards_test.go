@@ -146,7 +146,7 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 	}
 
 	var baseX field.FieldElement
-	if err := baseX.FromBytes(BASE_X_COORD_BYTES); err != nil {
+	if _, err := baseX.SetBytes(BASE_X_COORD_BYTES); err != nil {
 		t.Fatalf("baseX.FromBytes(): %v", err)
 	}
 
@@ -181,10 +181,9 @@ func testEdwardsDecompressionSignHandling(t *testing.T) {
 
 	// Test projective coordinates exactly since we know they should
 	// only differ by a flipped sign.
-	negX := ED25519_BASEPOINT_POINT.inner.X
-	negX.Neg()
-	negT := ED25519_BASEPOINT_POINT.inner.T
-	negT.Neg()
+	var negX, negT field.FieldElement
+	negX.Neg(&ED25519_BASEPOINT_POINT.inner.X)
+	negT.Neg(&ED25519_BASEPOINT_POINT.inner.T)
 	if minusBasepoint.inner.X.Equal(&negX) != 1 {
 		t.Fatalf("minusBasepoint.X != -ED25519_BASEPOINT_POINT.X (Got: %v)", minusBasepoint.inner.X)
 	}
@@ -240,8 +239,8 @@ func testEdwardsEqualsHandlesScaling(t *testing.T) {
 		id1      EdwardsPoint
 	)
 	var two field.FieldElement
-	if err := two.FromBytes(twoBytes[:]); err != nil {
-		t.Fatalf("FromBytes(): %v", err)
+	if _, err := two.SetBytes(twoBytes[:]); err != nil {
+		t.Fatalf("SetBytes(): %v", err)
 	}
 	id1.Identity()
 	var id2 EdwardsPoint

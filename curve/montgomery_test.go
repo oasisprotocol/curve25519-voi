@@ -36,9 +36,8 @@ func testMontgomeryEdwardsPointFromMontgomery(t *testing.T) {
 }
 
 func testMontgomeryEdwardsPointFromMontgomeryRejectsTwist(t *testing.T) {
-	one, minusOne := field.One(), field.MinusOne()
 	var two field.FieldElement
-	two.Add(&one, &one)
+	two.Add(&field.One, &field.One)
 
 	// u = 2 corresponds to a point on the twist.
 	var pM MontgomeryPoint
@@ -52,7 +51,7 @@ func testMontgomeryEdwardsPointFromMontgomeryRejectsTwist(t *testing.T) {
 	// u = -1 corresponds to a point on the twist, but should be
 	// checked explicitly because it's an exceptional point for the
 	// birational map.  For instance, libsignal will accept it.
-	_ = minusOne.ToBytes(pM[:])
+	_ = field.MinusOne.ToBytes(pM[:])
 	if err := p.FromMontgomery(&pM, 0); err == nil {
 		t.Fatalf("FromMontgomery(-1, 0) != error (Got: %v)", p)
 	}

@@ -88,11 +88,11 @@ func testVecNeg(t *testing.T) {
 	var y0, y1, y2, y3 field.FieldElement
 	vec.Split(&y0, &y1, &y2, &y3)
 
-	neg_x0, neg_x1, neg_x2, neg_x3 := *x0, *x1, *x2, *x3
-	neg_x0.Neg()
-	neg_x1.Neg()
-	neg_x2.Neg()
-	neg_x3.Neg()
+	var neg_x0, neg_x1, neg_x2, neg_x3 field.FieldElement
+	neg_x0.Neg(x0)
+	neg_x1.Neg(x1)
+	neg_x2.Neg(x2)
+	neg_x3.Neg(x3)
 
 	if neg_x0.Equal(&y0) != 1 {
 		t.Fatalf("vec[0] != -x0 (Got: %v)", y0)
@@ -122,7 +122,7 @@ func testVecSquareAndNegateD(t *testing.T) {
 	x1sq.Mul(x1, x1)
 	x2sq.Mul(x2, x2)
 	neg_x3sq.Mul(x3, x3)
-	neg_x3sq.Neg()
+	neg_x3sq.Neg(&neg_x3sq)
 
 	if x0sq.Equal(&y0) != 1 {
 		t.Fatalf("vec[0] != x0 * x0 (Got: %v)", y0)
