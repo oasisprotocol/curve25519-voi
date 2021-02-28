@@ -254,7 +254,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 	}
 
 	// Unpack S.
-	if err := S.FromBytesModOrder(sig[32:]); err != nil {
+	if _, err := S.SetBytesModOrder(sig[32:]); err != nil {
 		return false
 	}
 
@@ -341,7 +341,7 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	_, _ = h.Write(extsk[32:])
 	_, _ = h.Write(message)
 	h.Sum(hashr[:0])
-	if err = r.FromBytesModOrderWide(hashr[:]); err != nil {
+	if _, err = r.SetBytesModOrderWide(hashr[:]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize r scalar: %w", err)
 	}
 
@@ -361,13 +361,13 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	_, _ = h.Write(priv[32:])
 	_, _ = h.Write(message)
 	h.Sum(hram[:0])
-	if err = S.FromBytesModOrderWide(hram[:]); err != nil {
+	if _, err = S.SetBytesModOrderWide(hram[:]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
 	}
 
 	// S = H(R,A,m)a
 	var a scalar.Scalar
-	if err = a.FromBytesModOrder(extsk[:32]); err != nil {
+	if _, err = a.SetBytesModOrder(extsk[:32]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize a scalar: %w", err)
 	}
 	S.Mul(&S, &a)
@@ -479,7 +479,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	_, _ = h.Write(publicKey[:])
 	_, _ = h.Write(message)
 	h.Sum(hash[:0])
-	if err = hram.FromBytesModOrderWide(hash[:]); err != nil {
+	if _, err = hram.SetBytesModOrderWide(hash[:]); err != nil {
 		return false, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
 	}
 
@@ -523,7 +523,7 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	digest[31] |= 64
 
 	var a scalar.Scalar
-	if err := a.FromBits(digest[:32]); err != nil {
+	if _, err := a.SetBits(digest[:32]); err != nil {
 		panic("ed25519: failed to deserialize scalar: " + err.Error())
 	}
 

@@ -82,20 +82,20 @@ func testMontgomeryEqual(t *testing.T) {
 }
 
 func testMontgomeryMul(t *testing.T) {
-	var s scalar.Scalar
-	if err := s.Random(rand.Reader); err != nil {
-		t.Fatalf("s.Random(): %v", err)
+	s, err := scalar.New().Random(rand.Reader)
+	if err != nil {
+		t.Fatalf("scalar.New().Random(): %v", err)
 	}
 
-	pEdwards := ED25519_BASEPOINT_TABLE.Mul(&s)
+	pEdwards := ED25519_BASEPOINT_TABLE.Mul(s)
 	var pMontgomery MontgomeryPoint
 	pMontgomery.FromEdwards(&pEdwards)
 
 	var expected EdwardsPoint
-	expected.Mul(&pEdwards, &s)
+	expected.Mul(&pEdwards, s)
 
 	var result MontgomeryPoint
-	result.Mul(&pMontgomery, &s)
+	result.Mul(&pMontgomery, s)
 
 	var expectedMontgomery MontgomeryPoint
 	expectedMontgomery.FromEdwards(&expected)

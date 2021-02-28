@@ -31,61 +31,64 @@
 
 package scalar
 
-// mul computes `a * b` (mod l).
-func (s *unpackedScalar) mul(a, b *unpackedScalar) {
+func newUnpackedScalar() *unpackedScalar {
+	return &unpackedScalar{}
+}
+
+// Mul sets `s = a * b (mod l)`, and returns s.
+func (s *unpackedScalar) Mul(a, b *unpackedScalar) *unpackedScalar {
 	limbs := scalarMulInternal(a, b)
-	s.montgomeryReduce(&limbs)
+	s.MontgomeryReduce(&limbs)
 	limbs = scalarMulInternal(s, &constRR)
-	s.montgomeryReduce(&limbs)
+	return s.MontgomeryReduce(&limbs)
 }
 
-// square computes `a^2` (mod l).
-func (s *unpackedScalar) square() {
-	limbs := s.squareInternal()
-	s.montgomeryReduce(&limbs)
+// Square sets `s = a^2` (mod l)`, and returns s.
+func (s *unpackedScalar) Square(a *unpackedScalar) *unpackedScalar {
+	limbs := a.squareInternal()
+	s.MontgomeryReduce(&limbs)
 	limbs = scalarMulInternal(s, &constRR)
-	s.montgomeryReduce(&limbs)
+	return s.MontgomeryReduce(&limbs)
 }
 
-// montgomeryMul computes `(a * b) / R` (mod l), where R is the Montgomery
-// modulus 2^260.
-func (s *unpackedScalar) montgomeryMul(a, b *unpackedScalar) {
+// MontgomeryMul sets `s = (a * b) / R (mod l)`, where R is the Montgomery
+// modulus 2^260, and returns s.
+func (s *unpackedScalar) MontgomeryMul(a, b *unpackedScalar) *unpackedScalar {
 	limbs := scalarMulInternal(a, b)
-	s.montgomeryReduce(&limbs)
+	return s.MontgomeryReduce(&limbs)
 }
 
-// montgomerySquare computes `(a^2) / R` (mod l), where R is the Montgomery
-// modulus 2^260.
-func (s *unpackedScalar) montgomerySquare() {
-	limbs := s.squareInternal()
-	s.montgomeryReduce(&limbs)
+// MontgomerySquare sets `s = (a^2) / R` (mod l), where R is the Montgomery
+// modulus 2^260, and returns s.
+func (s *unpackedScalar) MontgomerySquare(a *unpackedScalar) *unpackedScalar {
+	limbs := a.squareInternal()
+	return s.MontgomeryReduce(&limbs)
 }
 
-// toMontgomery puts the scalar in to Montgomery form, i.e. computes `a*R (mod l)`.
-func (s *unpackedScalar) toMontgomery() {
-	s.montgomeryMul(s, &constRR)
+// ToMontgomery puts the scalar in to Montgomery form, i.e. computes `a*R (mod l)`,
+// and returns s.
+func (s *unpackedScalar) ToMontgomery(a *unpackedScalar) *unpackedScalar {
+	return s.MontgomeryMul(a, &constRR)
 }
 
-// montgomeryInvert inverts an unpackedScalar in Montgomery form.
-func (us *unpackedScalar) montgomeryInvert() {
+// MontgomeryInvert inverts an unpackedScalar in Montgomery form.
+func (s *unpackedScalar) MontgomeryInvert() {
 	// Uses the addition chain from
 	// https://briansmith.org/ecc-inversion-addition-chains-01#curve25519_scalar_inversion
 	var c1, c10, c100, c11, c101, c111, c1001, c1011, c1111 unpackedScalar
-	c1 = *us
-	c10 = c1
-	c10.montgomerySquare()
-	c100 = c10
-	c100.montgomerySquare()
-	c11.montgomeryMul(&c10, &c1)
-	c101.montgomeryMul(&c10, &c11)
-	c111.montgomeryMul(&c10, &c101)
-	c1001.montgomeryMul(&c10, &c111)
-	c1011.montgomeryMul(&c10, &c1001)
-	c1111.montgomeryMul(&c100, &c1011)
+	c1 = *s
+	c10.MontgomerySquare(&c1)
+	c100.MontgomerySquare(&c10)
+	c11.MontgomeryMul(&c10, &c1)
+	c101.MontgomeryMul(&c10, &c11)
+	c111.MontgomeryMul(&c10, &c101)
+	c1001.MontgomeryMul(&c10, &c111)
+	c1011.MontgomeryMul(&c10, &c1001)
+	c1111.MontgomeryMul(&c100, &c1011)
 
 	// _10000
-	y := us
-	y.montgomeryMul(&c1111, &c1)
+	y := s
+	y.MontgomeryMul(&c1111, &c1)
 
 	// montgomerySquareMultiply used to be just a function local to
 	// montgomeryInvert, but Go's overly primitive escape analysis
@@ -120,16 +123,17 @@ func (us *unpackedScalar) montgomeryInvert() {
 	y.montgomerySquareMultiply(1+2, &c11)
 }
 
-func (us *unpackedScalar) montgomerySquareMultiply(squarings uint, x *unpackedScalar) {
+func (s *unpackedScalar) montgomerySquareMultiply(squarings uint, x *unpackedScalar) {
 	for i := uint(0); i < squarings; i++ {
-		us.montgomerySquare()
+		s.MontgomerySquare(s)
 	}
-	us.montgomeryMul(us, x)
+	s.MontgomeryMul(s, x)
 }
 
-// Invert sets the nonzero scalar to its multiplicative inverse.
-func (us *unpackedScalar) Invert() {
-	us.toMontgomery()
-	us.montgomeryInvert()
-	us.fromMontgomery()
+// Invert sets the s to the multiplicative inverse of the nonzero scalar, and
+// returns s.
+func (s *unpackedScalar) Invert(a *unpackedScalar) *unpackedScalar {
+	aMont := newUnpackedScalar().ToMontgomery(a)
+	aMont.MontgomeryInvert()
+	return s.FromMontgomery(aMont)
 }

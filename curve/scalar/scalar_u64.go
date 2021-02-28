@@ -44,8 +44,8 @@ const low_52_bit_mask uint64 = (1 << 52) - 1
 // unpackedScalar represents a scalar in Z/lZ as 5 52-bit limbs.
 type unpackedScalar [5]uint64
 
-// fromBytes unpacks a 32 byte / 256 bit scalar into 5 52-bit limbs.
-func (s *unpackedScalar) fromBytes(in []byte) {
+// SetBytes unpacks a 32 byte / 256 bit scalar into 5 52-bit limbs.
+func (s *unpackedScalar) SetBytes(in []byte) *unpackedScalar {
 	if len(in) != ScalarSize {
 		panic("curve/scalar/u64: unexpected input size")
 	}
@@ -62,12 +62,14 @@ func (s *unpackedScalar) fromBytes(in []byte) {
 	s[2] = ((words[1] >> 40) | (words[2] << 24)) & low_52_bit_mask
 	s[3] = ((words[2] >> 28) | (words[3] << 36)) & low_52_bit_mask
 	s[4] = (words[3] >> 16) & top_mask
+
+	return s
 }
 
-// fromBytesWide reduces a 64 byte / 512 bit scalar mod l.
-func (s *unpackedScalar) fromBytesWide(in []byte) error {
+// SetBytesWide reduces a 64 byte / 512 bit scalar mod l.
+func (s *unpackedScalar) SetBytesWide(in []byte) (*unpackedScalar, error) {
 	if len(in) != ScalarWideSize {
-		return fmt.Errorf("curve/scalar/u64: unexpected wide input size")
+		return nil, fmt.Errorf("curve/scalar/u64: unexpected wide input size")
 	}
 
 	var words [8]uint64
@@ -87,16 +89,15 @@ func (s *unpackedScalar) fromBytesWide(in []byte) error {
 	hi[3] = ((words[6] >> 32) | (words[7] << 32)) & low_52_bit_mask
 	hi[4] = words[7] >> 20
 
-	lo.montgomeryMul(&lo, &constR)  // (lo * R) / R = lo
-	hi.montgomeryMul(&hi, &constRR) // (hi * R^2) / R = hi * R
+	lo.MontgomeryMul(&lo, &constR)  // (lo * R) / R = lo
+	hi.MontgomeryMul(&hi, &constRR) // (hi * R^2) / R = hi * R
 
-	s.add(&hi, &lo) // (hi * R) + lo
-
-	return nil
+	// (hi * R) + lo
+	return s.Add(&hi, &lo), nil
 }
 
-// toBytes packs the limbs of the scalar into 32 bytes.
-func (s *unpackedScalar) toBytes(out []byte) {
+// ToBytes packs the limbs of the scalar into 32 bytes.
+func (s *unpackedScalar) ToBytes(out []byte) {
 	if len(out) != ScalarSize {
 		panic("curve/scalar/u64: unexpected output size")
 	}
@@ -135,8 +136,8 @@ func (s *unpackedScalar) toBytes(out []byte) {
 	out[31] = byte(s[4] >> 40)
 }
 
-// add computes `a + b` (mod l).
-func (s *unpackedScalar) add(a, b *unpackedScalar) {
+// Add sets `s = a + b (mod l)`, and returns s.
+func (s *unpackedScalar) Add(a, b *unpackedScalar) *unpackedScalar {
 	// a + b
 	var carry uint64
 	for i := 0; i < 5; i++ {
@@ -145,11 +146,11 @@ func (s *unpackedScalar) add(a, b *unpackedScalar) {
 	}
 
 	// subtract l if the sum is >= l
-	s.sub(s, &constL)
+	return s.Sub(s, &constL)
 }
 
-// sub computes `a - b` (mod l).
-func (s *unpackedScalar) sub(a, b *unpackedScalar) {
+// Sub sets `s = a - b (mod l)`, and returns s.
+func (s *unpackedScalar) Sub(a, b *unpackedScalar) *unpackedScalar {
 	// a - b
 	var borrow uint64
 	for i := 0; i < 5; i++ {
@@ -164,6 +165,8 @@ func (s *unpackedScalar) sub(a, b *unpackedScalar) {
 		carry = s[i] + (constL[i] & underflow_mask) + (carry >> 52)
 		s[i] = carry & low_52_bit_mask
 	}
+
+	return s
 }
 
 //
@@ -171,18 +174,18 @@ func (s *unpackedScalar) sub(a, b *unpackedScalar) {
 // implementation is structured as { l0_lo, l0_hi, ... l8_lo, l8_hi }.
 //
 
-// fromMontgomery takes a scalar out of Montgomery form, i.e. computes `a/R (mod l)`.
-func (s *unpackedScalar) fromMontgomery() {
+// FromMontgomery takes a scalar out of Montgomery form, i.e. computes `a/R (mod l)`.
+func (s *unpackedScalar) FromMontgomery(a *unpackedScalar) *unpackedScalar {
 	var limbs [18]uint64
 	for i := 0; i < 5; i++ {
-		limbs[i*2] = s[i]
+		limbs[i*2] = a[i]
 	}
-	s.montgomeryReduce(&limbs)
+	return s.MontgomeryReduce(&limbs)
 }
 
-// montgomeryReduce computes `limbs/R` (mod l), where R is the Montgomery
-// modulus 2^260.
-func (s *unpackedScalar) montgomeryReduce(limbs *[18]uint64) {
+// MontgomeryReduce sets `s = limbs/R (mod l)`, where R is the Montgomery
+// modulus 2^260, and returns s.
+func (s *unpackedScalar) MontgomeryReduce(limbs *[18]uint64) *unpackedScalar {
 	part1 := func(sum_hi, sum_lo uint64) (c_hi, c_lo, p uint64) {
 		var c uint64
 		p = sum_lo * constLFACTOR & ((1 << 52) - 1)
@@ -297,7 +300,7 @@ func (s *unpackedScalar) montgomeryReduce(limbs *[18]uint64) {
 	_, r4, r3 := part2(c_hi, c_lo)
 
 	// result may be >= l, so attempt to subtract l
-	s.sub(&unpackedScalar{r0, r1, r2, r3, r4}, l)
+	return s.Sub(&unpackedScalar{r0, r1, r2, r3, r4}, l)
 }
 
 func (s *unpackedScalar) squareInternal() [18]uint64 {

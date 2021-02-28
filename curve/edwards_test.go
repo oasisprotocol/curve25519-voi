@@ -84,26 +84,24 @@ var edwardsPointTestPoints = map[string]*CompressedEdwardsY{
 var edwardsPointTestScalars = map[string]*scalar.Scalar{
 	// 4493907448824000747700850167940867464579944529806937181821189941592931634714
 	"A": func() *scalar.Scalar {
-		var s scalar.Scalar
-		_ = s.FromCanonicalBytes([]byte{
+		s, _ := scalar.NewFromCanonicalBytes([]byte{
 			0x1a, 0x0e, 0x97, 0x8a, 0x90, 0xf6, 0x62, 0x2d,
 			0x37, 0x47, 0x02, 0x3f, 0x8a, 0xd8, 0x26, 0x4d,
 			0xa7, 0x58, 0xaa, 0x1b, 0x88, 0xe0, 0x40, 0xd1,
 			0x58, 0x9e, 0x7b, 0x7f, 0x23, 0x76, 0xef, 0x09,
 		})
-		return &s
+		return s
 	}(),
 
 	// 2506056684125797857694181776241676200180934651973138769173342316833279714961
 	"B": func() *scalar.Scalar {
-		var s scalar.Scalar
-		_ = s.FromCanonicalBytes([]byte{
+		s, _ := scalar.NewFromCanonicalBytes([]byte{
 			0x91, 0x26, 0x7a, 0xcf, 0x25, 0xc2, 0x09, 0x1b,
 			0xa2, 0x17, 0x74, 0x7b, 0x66, 0xf0, 0xb3, 0x2e,
 			0x9d, 0xf2, 0xa5, 0x67, 0x41, 0xcf, 0xda, 0xc4,
 			0x56, 0xa7, 0xd4, 0xaa, 0xb8, 0x60, 0x8a, 0x05,
 		})
-		return &s
+		return s
 	}(),
 }
 
@@ -267,8 +265,8 @@ func testEdwardsSum(t *testing.T) {
 	s1, s2 := scalar.NewFromUint64(999), scalar.NewFromUint64(333)
 
 	var p1, p2, expected EdwardsPoint
-	p1.Mul(&base, &s1)
-	p2.Mul(&base, &s2)
+	p1.Mul(&base, s1)
+	p2.Mul(&base, s2)
 	expected.Add(&p1, &p2)
 
 	var sum EdwardsPoint
@@ -369,8 +367,7 @@ func testEdwardsBasepointTableMul(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulOne(t *testing.T) {
-	one := scalar.One()
-	bp := ED25519_BASEPOINT_TABLE.Mul(&one)
+	bp := ED25519_BASEPOINT_TABLE.Mul(scalar.One())
 	if !bp.testEqualCompressedY("ED25519_BASEPOINT") {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(1) != ED25519_BASEPOINT (Got: %v)", bp)
 	}
@@ -391,8 +388,7 @@ func testEdwardsBasepointTableMulByBasepointOrder(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulTwo(t *testing.T) {
-	two := scalar.NewFromUint64(2)
-	bp2 := ED25519_BASEPOINT_TABLE.Mul(&two)
+	bp2 := ED25519_BASEPOINT_TABLE.Mul(scalar.NewFromUint64(2))
 	if !bp2.testEqualCompressedY("BASE2") {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(2) != BASE2 (Got: %v)", bp2)
 	}
@@ -432,28 +428,27 @@ func testEdwardsMultiscalarConsistencyIter(t *testing.T, n int) {
 	// followed by some extra hardcoded ones.
 	xs := make([]*scalar.Scalar, 0, n)
 	for i := 0; i < n; i++ {
-		var tmp scalar.Scalar
-		if err := tmp.Random(rand.Reader); err != nil {
-			t.Fatalf("tmp.Random(): %v", err)
+		tmp, err := scalar.New().Random(rand.Reader)
+		if err != nil {
+			t.Fatalf("scalar.New().Random(): %v", err)
 		}
-		xs = append(xs, &tmp)
+		xs = append(xs, tmp)
 	}
 	// The largest scalar allowed by the type system, 2^255-1
-	var biggest scalar.Scalar
-	if err := biggest.FromBits([]byte{
+	biggest, err := scalar.NewFromBits([]byte{
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	}); err != nil {
-		t.Fatalf("FromBits([0xff..]): %v", err)
+	})
+	if err != nil {
+		t.Fatalf("scalar.NewFromBits([0xff..]): %v", err)
 	}
-	xs = append(xs, &biggest)
+	xs = append(xs, biggest)
 	var check scalar.Scalar
 	for _, xi := range xs {
-		var tmp scalar.Scalar
-		tmp.Mul(xi, xi)
-		check.Add(&check, &tmp)
+		tmp := scalar.New().Mul(xi, xi)
+		check.Add(&check, tmp)
 	}
 
 	// Construct points G_i = x_i * B

@@ -38,10 +38,7 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
-var (
-	benchBatchSizes       = []int{1, 2, 4, 8, 16}
-	benchMultiscalarSizes = []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024}
-)
+var benchMultiscalarSizes = []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024}
 
 func BenchmarkEdwards(b *testing.B) {
 	b.Run("Compress", benchEdwardsCompress)
@@ -70,26 +67,24 @@ func benchEdwardsDecompress(b *testing.B) {
 }
 
 func benchEdwardsMul(b *testing.B) {
-	s := scalar.NewFromUint64(897987897)
-	s.Invert()
+	s := scalar.New().Invert(scalar.NewFromUint64(897987897))
 
 	b.ResetTimer()
 
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
-		tmp.Mul(&ED25519_BASEPOINT_POINT, &s)
+		tmp.Mul(&ED25519_BASEPOINT_POINT, s)
 	}
 }
 
 func benchEdwardsBasepointTableMul(b *testing.B) {
-	s := scalar.NewFromUint64(897987897)
-	s.Invert()
+	s := scalar.New().Invert(scalar.NewFromUint64(897987897))
 
 	b.ResetTimer()
 
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
-		tmp = ED25519_BASEPOINT_TABLE.Mul(&s)
+		tmp = ED25519_BASEPOINT_TABLE.Mul(s)
 	}
 	_ = tmp // Shut up compiler.
 }
@@ -170,57 +165,22 @@ func BenchmarkMontgomery(b *testing.B) {
 }
 
 func benchMontgomeryMul(b *testing.B) {
-	s := scalar.NewFromUint64(897987897)
-	s.Invert()
+	s := scalar.New().Invert(scalar.NewFromUint64(897987897))
 
 	b.ResetTimer()
 
 	var tmp MontgomeryPoint
 	for i := 0; i < b.N; i++ {
-		tmp.Mul(&X25519_BASEPOINT, &s)
-	}
-}
-
-func BenchmarkScalar(b *testing.B) {
-	b.Run("Invert", benchScalarInvert)
-	b.Run("BatchInvert", benchScalarBatchInvert)
-}
-
-func benchScalarInvert(b *testing.B) {
-	s := scalar.NewFromUint64(897987897)
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		s.Invert()
-	}
-}
-
-func benchScalarBatchInvertIter(b *testing.B, n int) {
-	scalars := newBenchRandomScalars(b, n)
-
-	b.ResetTimer()
-
-	var s scalar.Scalar
-	for i := 0; i < b.N; i++ {
-		s.BatchInvert(scalars)
-	}
-}
-
-func benchScalarBatchInvert(b *testing.B) {
-	for _, n := range benchBatchSizes {
-		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			benchScalarBatchInvertIter(b, n)
-		})
+		tmp.Mul(&X25519_BASEPOINT, s)
 	}
 }
 
 func newBenchRandomScalar(b *testing.B) *scalar.Scalar {
-	var s scalar.Scalar
-	if err := s.Random(rand.Reader); err != nil {
-		b.Fatalf("s.Random(): %v", err)
+	s, err := scalar.New().Random(rand.Reader)
+	if err != nil {
+		b.Fatalf("scalar.New().Random(): %v", err)
 	}
-	return &s
+	return s
 }
 
 func newBenchRandomScalars(b *testing.B, n int) []*scalar.Scalar {

@@ -38,25 +38,23 @@ import (
 
 func testEdwardsMultiscalarMulPippengerVartime(t *testing.T) {
 	n := 512
-	x, y := scalar.NewFromUint64(2128506), scalar.NewFromUint64(4443282)
-	x.Invert()
-	y.Invert()
+	x := scalar.New().Invert(scalar.NewFromUint64(2128506))
+	y := scalar.New().Invert(scalar.NewFromUint64(4443282))
 
 	points := make([]*EdwardsPoint, 0, n)
 	for i := 0; i < n; i++ {
 		tmp := scalar.NewFromUint64(1 + uint64(i))
 
 		var point EdwardsPoint
-		point.Mul(&ED25519_BASEPOINT_POINT, &tmp)
+		point.Mul(&ED25519_BASEPOINT_POINT, tmp)
 		points = append(points, &point)
 	}
 
 	scalars := make([]*scalar.Scalar, 0, n)
 	for i := 0; i < n; i++ {
-		tmp := scalar.NewFromUint64(uint64(i))
-		tmp.Mul(&tmp, &y)
-		tmp.Add(&x, &tmp)
-		scalars = append(scalars, &tmp)
+		tmp := scalar.New().Mul(scalar.NewFromUint64(uint64(i)), y)
+		tmp.Add(x, tmp)
+		scalars = append(scalars, tmp)
 	}
 
 	premultiplied := make([]*EdwardsPoint, 0, n)

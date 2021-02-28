@@ -51,7 +51,10 @@ const (
 	ScalarWideSize = 64
 )
 
-var errScalarNotCanonical = fmt.Errorf("curve/scalar: representative not canonical")
+var (
+	errScalarNotCanonical  = fmt.Errorf("curve/scalar: representative not canonical")
+	errUnexpectedInputSize = fmt.Errorf("curve/scalar: unexpected input size")
+)
 
 // Scalar holds an integer s < 2^255 which represents an element of
 // Z/L.
@@ -60,182 +63,175 @@ type Scalar struct {
 	inner                    [ScalarSize]byte
 }
 
-// FromBytesModOrder constructs a scalar by reducing a 256-bit
+// Set sets s to t, and returns s.
+func (s *Scalar) Set(t *Scalar) *Scalar {
+	*s = *t
+	return s
+}
+
+// SetUint64 sets s to the given uint64, and returns s.
+func (s *Scalar) SetUint64(x uint64) *Scalar {
+	var sBytes [ScalarSize]byte
+	binary.LittleEndian.PutUint64(sBytes[0:8], x)
+	s.inner = sBytes
+
+	return s
+}
+
+// SetBytesModOrder sets s to the scalar constructed by reducing a 256-bit
 // little-endian integer modulo the group order L.
-func (s *Scalar) FromBytesModOrder(in []byte) error {
+func (s *Scalar) SetBytesModOrder(in []byte) (*Scalar, error) {
 	if len(in) != ScalarSize {
-		return fmt.Errorf("curve/scalar: unexpected input size")
+		return nil, errUnexpectedInputSize
 	}
 
 	// Temporarily allow s_unreduced.bytes > 2^255 ...
 	copy(s.inner[:], in)
 
 	// Then reduce mod the group order.
-	s.Reduce()
-
-	return nil
+	return s.Reduce(s), nil
 }
 
-// FromBytesModOrderWide constructs a scalar by reducing a 512-bit
+// SetBytesModOrderWide sets s to the scalar constructed by reducing a 512-bit
 // little-endian integer modulo the group order L.
-func (s *Scalar) FromBytesModOrderWide(in []byte) error {
-	var us unpackedScalar
-	if err := us.fromBytesWide(in); err != nil {
-		return err
+func (s *Scalar) SetBytesModOrderWide(in []byte) (*Scalar, error) {
+	us, err := newUnpackedScalar().SetBytesWide(in)
+	if err != nil {
+		return nil, err
 	}
 
-	s.pack(&us)
-
-	return nil
+	return s.pack(us), nil
 }
 
-// FromCanonicalBytes attempts to construct a scalar from a canoical byte
-// representation.
-func (s *Scalar) FromCanonicalBytes(in []byte) error {
-	var candidate Scalar
-	if err := candidate.FromBits(in); err != nil {
-		return err
+// SetCanonicalBytes sets s from a canoical byte representation.
+func (s *Scalar) SetCanonicalBytes(in []byte) (*Scalar, error) {
+	candidate, err := New().SetBits(in)
+	if err != nil {
+		return nil, err
 	}
 
 	// Check that the high bit is not set, and that the candidate is
 	// canonical.
 	if in[31]>>7 != 0 || !candidate.IsCanonical() {
-		return errScalarNotCanonical
+		return nil, errScalarNotCanonical
 	}
 
-	*s = candidate
-
-	return nil
+	return s.Set(candidate), nil
 }
 
-// FromBits constructs a scalar from the low 255 bits of a 256-bit integer.
+// SetBits constructs a scalar from the low 255 bits of a 256-bit integer.
 //
 // This function is intended for applications like X25519 which
 // require specific bit-patterns when performing scalar
 // multiplication.
-func (s *Scalar) FromBits(in []byte) error {
+func (s *Scalar) SetBits(in []byte) (*Scalar, error) {
 	if len(in) != ScalarSize {
-		return fmt.Errorf("curve/scalar: unexpected input size")
+		return nil, errUnexpectedInputSize
 	}
 
 	copy(s.inner[:], in)
 	// Ensure that s < 2^255 by masking the high bit
-	s.inner[31] &= 0b0111_1111
+	s.inner[31] &= 0x7f // 0b0111_1111
 
-	return nil
+	return s, nil
 }
 
-// Equal returns 1 iff the scalars are equal, 0 otherwise.
+// Equal returns 1 iff the s and t are equal, 0 otherwise.
 // This function will execute in constant-time.
-func (s *Scalar) Equal(other *Scalar) int {
-	return subtle.ConstantTimeCompareBytes(s.inner[:], other.inner[:])
+func (s *Scalar) Equal(t *Scalar) int {
+	return subtle.ConstantTimeCompareBytes(s.inner[:], t.inner[:])
 }
 
-// Mul computes `a * b` (mod l).
-func (s *Scalar) Mul(a, b *Scalar) {
-	var unpackedS unpackedScalar
-
-	unpackedA, unpackedB := a.unpack(), b.unpack()
-	unpackedS.mul(&unpackedA, &unpackedB)
-	s.pack(&unpackedS)
+// Mul sets `s = a * b (mod l)`, and returns s.
+func (s *Scalar) Mul(a, b *Scalar) *Scalar {
+	unpacked := a.unpack()
+	return s.pack(unpacked.Mul(unpacked, b.unpack()))
 }
 
-// Add computes `a + b` (mod l).
-func (s *Scalar) Add(a, b *Scalar) {
-	var unpackedS unpackedScalar
-	unpackedA, unpackedB := a.unpack(), b.unpack()
+// Add sets `s= a + b (mod l)`, and returns s.
+func (s *Scalar) Add(a, b *Scalar) *Scalar {
+	unpacked := a.unpack()
 
 	// The unpackedScalar.Add function produces reduced outputs
 	// if the inputs are reduced.  However, these inputs may not
 	// be reduced -- they might come from Scalar.FromBits.  So
 	// after computing the sum, we explicitly reduce it mod l
 	// before repacking.
-	unpackedS.add(&unpackedA, &unpackedB)
-	z := scalarMulInternal(&unpackedS, &constR)
-	unpackedS.montgomeryReduce(&z)
-	s.pack(&unpackedS)
+	z := scalarMulInternal(unpacked.Add(unpacked, b.unpack()), &constR)
+	return s.pack(unpacked.MontgomeryReduce(&z))
 }
 
-// Sub computes `a - b` (mod l).
-func (s *Scalar) Sub(a, b *Scalar) {
-	var unpackedS unpackedScalar
-	unpackedA, unpackedB := a.unpack(), b.unpack()
+// Sub sets `s = a - b (mod l)`, and returns s.
+func (s *Scalar) Sub(a, b *Scalar) *Scalar {
+	unpacked, unpackedB := a.unpack(), b.unpack()
 
 	// The unpackedScalar.Sub function requires reduced inputs
 	// and produces reduced output. However, these inputs may not
 	// be reduced -- they might come from Scalar.FromBits.  So
 	// we explicitly reduce the inputs.
-	z := scalarMulInternal(&unpackedA, &constR)
-	unpackedA.montgomeryReduce(&z)
-	z = scalarMulInternal(&unpackedB, &constR)
-	unpackedB.montgomeryReduce(&z)
-	unpackedS.sub(&unpackedA, &unpackedB)
-	s.pack(&unpackedS)
+	z := scalarMulInternal(unpacked, &constR)
+	unpacked.MontgomeryReduce(&z)
+	z = scalarMulInternal(unpackedB, &constR)
+	unpackedB.MontgomeryReduce(&z)
+	return s.pack(unpacked.Sub(unpacked, unpackedB))
 }
 
-// Neg computes `-s`.
-func (s *Scalar) Neg() {
-	var zero unpackedScalar
-	unpackedS := s.unpack()
+// Neg `s = -t`, and returns s.
+func (s *Scalar) Neg(t *Scalar) *Scalar {
+	unpacked := t.unpack()
 
-	z := scalarMulInternal(&unpackedS, &constR)
-	unpackedS.montgomeryReduce(&z)
-	unpackedS.sub(&zero, &unpackedS)
-	s.pack(&unpackedS)
+	z := scalarMulInternal(unpacked, &constR)
+	return s.pack(unpacked.Sub(newUnpackedScalar(), unpacked.MontgomeryReduce(&z)))
 }
 
-// ConditionalSelect sets the scalar to a iff choice == 0 and
-// b iff choice == 1.
+// ConditionalSelect sets s to a iff choice == 0 and b iff choice == 1.
 func (s *Scalar) ConditionalSelect(a, b *Scalar, choice int) {
 	// TODO/perf: This will be kind of slow, consider optimizing it
 	// if the call is used frequently enough to matter.
 
 	// Note: The rust subtle crate has inverted choice behavior for
-	// select vs the go runtime library package.
+	// select vs the Go runtime library package.
 	for i := range s.inner {
 		s.inner[i] = subtle.ConstantTimeSelectByte(choice, b.inner[i], a.inner[i])
 	}
 }
 
-// Product sets the scalar to the product of a slice of scalars.
-func (s *Scalar) Product(values []*Scalar) {
-	s.FromUint64(1)
+// Product sets s to the product of values, and returns s.
+func (s *Scalar) Product(values []*Scalar) *Scalar {
+	product := NewFromUint64(1)
 
 	for _, v := range values {
-		s.Mul(s, v)
+		product.Mul(product, v)
 	}
+
+	return s.Set(product)
 }
 
-// Sum sets the scalar to the sum of a slice of scalars.
-func (s *Scalar) Sum(values []*Scalar) {
-	s.Zero()
+// Sum sets s to the sum of values, and returns s.
+func (s *Scalar) Sum(values []*Scalar) *Scalar {
+	sum := New()
 
 	for _, v := range values {
-		s.Add(s, v)
+		sum.Add(sum, v)
 	}
+
+	return s.Set(sum)
 }
 
-// FromUint64 sets the scalar to the given uint64.
-func (s *Scalar) FromUint64(x uint64) {
-	var sBytes [ScalarSize]byte
-	binary.LittleEndian.PutUint64(sBytes[0:8], x)
-	s.inner = sBytes
-}
-
-// Random sets the scalar to one chosen uniformly at random using entropy
+// Random sets s to a scalar chosen uniformly at random using entropy
 // from the user-provided io.Reader.  If rng is nil, the runtime library's
 // entropy source will be used.
-func (s *Scalar) Random(rng io.Reader) error {
+func (s *Scalar) Random(rng io.Reader) (*Scalar, error) {
 	var scalarBytes [ScalarWideSize]byte
 
 	if rng == nil {
 		rng = rand.Reader
 	}
 	if _, err := io.ReadFull(rng, scalarBytes[:]); err != nil {
-		return fmt.Errorf("curve/scalar: failed to read entropy: %w", err)
+		return nil, fmt.Errorf("curve/scalar: failed to read entropy: %w", err)
 	}
 
-	return s.FromBytesModOrderWide(scalarBytes[:])
+	return s.SetBytesModOrderWide(scalarBytes[:])
 }
 
 // ToBytes packs the scalar into 32 bytes.
@@ -249,83 +245,80 @@ func (s *Scalar) ToBytes(out []byte) error {
 	return nil
 }
 
-// Zero sets the scalar to zero.
-func (s *Scalar) Zero() {
+// Zero sets s to zero, and returns s.
+func (s *Scalar) Zero() *Scalar {
 	for i := range s.inner {
 		s.inner[i] = 0
 	}
+
+	return s
 }
 
-// One sets the scalar to one.
-func (s *Scalar) One() {
+// One sets s to one, and returns s.
+func (s *Scalar) One() *Scalar {
 	s.inner = [ScalarSize]byte{
 		1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
+
+	return s
 }
 
-// Invert sets the nonzero scalar to its multiplicative inverse.
+// Invert sets s to the multiplicative inverse of the nonzero scalar t,
+// and returns s.
 //
 // WARNING: The scalar MUST be nonzero.  If you cannot prove that this is
 // the case you MUST not use this function.
-func (s *Scalar) Invert() {
-	x := s.unpack()
-	x.Invert()
-	s.pack(&x)
+func (s *Scalar) Invert(t *Scalar) *Scalar {
+	return s.pack(newUnpackedScalar().Invert(t.unpack()))
 }
 
 // BatchInvert computes the inverses of slice of `Scalar`s in a batch,
-// and sets the scalar to the product of all inverses.  Each element
-// of the input slice is replaced by its inverse.
+// and sets s to the product of all inverses, and returns s.  Each
+// element of the input slice is replaced by its inverse.
 //
 // WARNING: The input scalars MUST be nonzero.  If you cannot prove
 // that this is the case you MUST not use this function.
-func (s *Scalar) BatchInvert(inputs []*Scalar) {
+func (s *Scalar) BatchInvert(inputs []*Scalar) *Scalar {
 	n := len(inputs)
-	one := func() unpackedScalar {
-		tmp := One()
-		r := tmp.unpack()
-		r.toMontgomery()
-		return r
+	unpackedOne := func() unpackedScalar {
+		us := newUnpackedScalar().ToMontgomery(One().unpack())
+		return *us
 	}()
 
 	// TODO: In theory this should be sanitized.
 	scratch := make([]unpackedScalar, 0, n)
 
 	// Keep an accumulator of all of the previous products.
-	acc := one
+	acc := unpackedOne
 	for i, input := range inputs {
 		scratch = append(scratch, acc)
 
 		// Avoid unnecessary Montgomery multiplication in second pass by
 		// keeping inputs in Montgomery form.
-		tmp := input.unpack()
-		tmp.toMontgomery()
-		inputs[i].pack(&tmp)
-		acc.montgomeryMul(&acc, &tmp)
+		tmp := newUnpackedScalar().ToMontgomery(input.unpack())
+		inputs[i].pack(tmp)
+		acc.MontgomeryMul(&acc, tmp)
 	}
 
 	// Compute the inverse of all products.
-	acc.montgomeryInvert()
-	acc.fromMontgomery()
+	acc.MontgomeryInvert()
+	acc.FromMontgomery(&acc)
 
 	// We need to return the product of all inverses later.
-	var ret Scalar
-	ret.pack(&acc)
+	ret := New().pack(&acc)
 
 	// Pass through the vector backwards to compute the inverses
 	// in place.
 	for i := n - 1; i >= 0; i-- {
 		input, scratch := inputs[i], scratch[i]
-		unpackedInput := input.unpack()
-		var tmp, tmp2 unpackedScalar
-		tmp.montgomeryMul(&acc, &unpackedInput)
-		tmp2.montgomeryMul(&acc, &scratch)
-		inputs[i].pack(&tmp2)
-		acc = tmp
+		tmp := newUnpackedScalar().MontgomeryMul(&acc, input.unpack())
+		tmp2 := newUnpackedScalar().MontgomeryMul(&acc, &scratch)
+		inputs[i].pack(tmp2)
+		acc = *tmp
 	}
 
-	*s = ret
+	return s.Set(ret)
 }
 
 // Bits gets the bits of the scalar.
@@ -506,13 +499,10 @@ func (s *Scalar) ToRadix2w(w uint) [43]int8 {
 	return digits
 }
 
-// Reduce reduces the scalar modulo L.
-func (s *Scalar) Reduce() {
-	var xModL unpackedScalar
-	x := s.unpack()
-	xR := scalarMulInternal(&x, &constR)
-	xModL.montgomeryReduce(&xR)
-	s.pack(&xModL)
+// Reduce reduces t modulo L, and returns s.
+func (s *Scalar) Reduce(t *Scalar) *Scalar {
+	xR := scalarMulInternal(t.unpack(), &constR)
+	return s.pack(newUnpackedScalar().MontgomeryReduce(&xR))
 }
 
 // IsCanonical checks if this scalar is the canonical representative mod L.
@@ -520,46 +510,59 @@ func (s *Scalar) Reduce() {
 // This is intended for uses like input validation, where variable-time code
 // is acceptable.
 func (s *Scalar) IsCanonical() bool {
-	sReduced := *s
-	sReduced.Reduce()
+	sReduced := New().Reduce(s)
 	return bytes.Equal(s.inner[:], sReduced.inner[:])
 }
 
-func (s *Scalar) unpack() unpackedScalar {
-	var us unpackedScalar
-	us.fromBytes(s.inner[:])
-	return us
+func (s *Scalar) unpack() *unpackedScalar {
+	return newUnpackedScalar().SetBytes(s.inner[:])
 }
 
-func (s *Scalar) pack(us *unpackedScalar) {
-	us.toBytes(s.inner[:])
+func (s *Scalar) pack(us *unpackedScalar) *Scalar {
+	us.ToBytes(s.inner[:])
+	return s
+}
+
+// New returns a scalar set to zero.
+func New() *Scalar {
+	return &Scalar{}
+}
+
+// NewFromBytesModOrder constructs a scalar by reducing a 256-bit
+// little-endian integer modulo the group order L.
+func NewFromBytesModOrder(in []byte) (*Scalar, error) {
+	return New().SetBytesModOrder(in)
+}
+
+// NewFromBytesModOrderWide constructs a scalar by reducing a 512-bit
+// little-endian integer modulo the group order L.
+func NewFromBytesModOrderWide(in []byte) (*Scalar, error) {
+	return New().SetBytesModOrderWide(in)
+}
+
+// NewFromCanonicalBytes attempts to construct a scalar from a canoical
+// byte representation.
+func NewFromCanonicalBytes(in []byte) (*Scalar, error) {
+	return New().SetCanonicalBytes(in)
+}
+
+// NewFromBits constructs a scalar from the low 255 bits of a 256-bit integer.
+//
+// This function is intended for applications like X25519 which
+// require specific bit-patterns when performing scalar
+// multiplication.
+func NewFromBits(in []byte) (*Scalar, error) {
+	return New().SetBits(in)
 }
 
 // NewFromUint64 returns a scalar set to the given uint64.
-func NewFromUint64(x uint64) Scalar {
-	var s Scalar
-	s.FromUint64(x)
-	return s
+func NewFromUint64(x uint64) *Scalar {
+	return New().SetUint64(x)
 }
 
 // One returns a scalar set to 1.
-func One() Scalar {
-	var s Scalar
-	s.One()
-	return s
-}
-
-func newScalar(vec []byte) Scalar {
-	if len(vec) != ScalarSize {
-		panic("curve/scalar: invalid constant vector")
-	}
-
-	// Note: This will happily create non-canonical scalars, which is fine
-	// because this is only used to define constants (e.g. L), and for
-	// testing.
-	var s Scalar
-	copy(s.inner[:], vec)
-	return s
+func One() *Scalar {
+	return New().One()
 }
 
 // Omitted:

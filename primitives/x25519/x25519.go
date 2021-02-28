@@ -83,7 +83,7 @@ func ScalarMult(dst, in, base *[32]byte) {
 	clampScalar(ec[:])
 
 	var s scalar.Scalar
-	if err := s.FromBits(ec[:]); err != nil {
+	if _, err := s.SetBits(ec[:]); err != nil {
 		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
@@ -111,7 +111,7 @@ func ScalarBaseMult(dst, in *[32]byte) {
 	clampScalar(ec[:])
 
 	var s scalar.Scalar
-	if err := s.FromBits(ec[:]); err != nil {
+	if _, err := s.SetBits(ec[:]); err != nil {
 		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 

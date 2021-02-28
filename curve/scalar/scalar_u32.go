@@ -68,8 +68,8 @@ const low_29_bit_mask uint32 = (1 << 29) - 1
 // unpackedScalar represents a scalar in Z/lZ as 9 32-bit limbs.
 type unpackedScalar [9]uint32
 
-// fromBytes unpacks a 32 byte / 256 bit scalar into 9 32-bit limbs.
-func (s *unpackedScalar) fromBytes(in []byte) {
+// SetBytes unpacks a 32 byte / 256 bit scalar into 9 32-bit limbs.
+func (s *unpackedScalar) SetBytes(in []byte) *unpackedScalar {
 	if len(in) != ScalarSize {
 		panic("curve/scalar/u32: unexpected input size")
 	}
@@ -90,12 +90,14 @@ func (s *unpackedScalar) fromBytes(in []byte) {
 	s[6] = ((words[5] >> 14) | (words[6] << 18)) & low_29_bit_mask
 	s[7] = ((words[6] >> 11) | (words[7] << 21)) & low_29_bit_mask
 	s[8] = (words[7] >> 8) & top_mask
+
+	return s
 }
 
-// fromBytesWide reduces a 64 byte / 512 bit scalar mod l.
-func (s *unpackedScalar) fromBytesWide(in []byte) error {
+// SetBytesWide reduces a 64 byte / 512 bit scalar mod l.
+func (s *unpackedScalar) SetBytesWide(in []byte) (*unpackedScalar, error) {
 	if len(in) != ScalarWideSize {
-		return fmt.Errorf("curve/scalar/u32: unexpected wide in size")
+		return nil, fmt.Errorf("curve/scalar/u32: unexpected wide in size")
 	}
 
 	var words [16]uint32
@@ -123,16 +125,15 @@ func (s *unpackedScalar) fromBytesWide(in []byte) error {
 	hi[7] = ((words[14] >> 16) | (words[15] << 16)) & low_29_bit_mask
 	hi[8] = words[15] >> 13
 
-	lo.montgomeryMul(&lo, &constR)  // (lo * R) / R = lo
-	hi.montgomeryMul(&hi, &constRR) // (hi * R^2) / R = hi * R
+	lo.MontgomeryMul(&lo, &constR)  // (lo * R) / R = lo
+	hi.MontgomeryMul(&hi, &constRR) // (hi * R^2) / R = hi * R
 
-	s.add(&hi, &lo) // (hi * R) + lo
-
-	return nil
+	// (hi * R) + lo
+	return s.Add(&hi, &lo), nil
 }
 
-// toBytes packs the limbs of the scalar into 32 bytes.
-func (s *unpackedScalar) toBytes(out []byte) {
+// ToBytes packs the limbs of the scalar into 32 bytes.
+func (s *unpackedScalar) ToBytes(out []byte) {
 	if len(out) != ScalarSize {
 		panic("curve/scalar/u32: unexpected out size")
 	}
@@ -171,8 +172,8 @@ func (s *unpackedScalar) toBytes(out []byte) {
 	out[31] = byte(s[8] >> 16)
 }
 
-// add computes `a + b` (mod l).
-func (s *unpackedScalar) add(a, b *unpackedScalar) {
+// Add sets `s = a + b (mod l)`, and returns s.
+func (s *unpackedScalar) Add(a, b *unpackedScalar) *unpackedScalar {
 	// a + b
 	var carry uint32
 	for i := 0; i < 9; i++ {
@@ -181,11 +182,11 @@ func (s *unpackedScalar) add(a, b *unpackedScalar) {
 	}
 
 	// subtract l if the sum is >= l
-	s.sub(s, &constL)
+	return s.Sub(s, &constL)
 }
 
-// sub computes `a - b` (mod l).
-func (s *unpackedScalar) sub(a, b *unpackedScalar) {
+// Sub sets `s = a - b (mod l)`, and returns s.
+func (s *unpackedScalar) Sub(a, b *unpackedScalar) *unpackedScalar {
 	// a - b
 	var borrow uint32
 	for i := 0; i < 9; i++ {
@@ -200,18 +201,23 @@ func (s *unpackedScalar) sub(a, b *unpackedScalar) {
 		carry = (carry >> 29) + s[i] + (constL[i] & underflowMask)
 		s[i] = carry & low_29_bit_mask
 	}
+
+	return s
 }
 
-func (s *unpackedScalar) fromMontgomery() {
+// FromMontgomery takes a scalar out of Montgomery form, i.e. computes `a/R (mod l)`.
+func (s *unpackedScalar) FromMontgomery(a *unpackedScalar) *unpackedScalar {
 	var limbs [17]uint64
 
 	for i := 0; i < 9; i++ {
-		limbs[i] = uint64(s[i])
+		limbs[i] = uint64(a[i])
 	}
-	s.montgomeryReduce(&limbs)
+	return s.MontgomeryReduce(&limbs)
 }
 
-func (s *unpackedScalar) montgomeryReduce(limbs *[17]uint64) {
+// MontgomeryReduce sets `s = limbs/R (mod l)`, where R is the Montgomery
+// modulus 2^260, and returns s.
+func (s *unpackedScalar) MontgomeryReduce(limbs *[17]uint64) *unpackedScalar {
 	part1 := func(sum uint64) (uint64, uint32) {
 		p := uint32(sum) * constLFACTOR & ((1 << 29) - 1)
 		return (sum + m(p, constL[0])) >> 29, p
@@ -252,7 +258,7 @@ func (s *unpackedScalar) montgomeryReduce(limbs *[17]uint64) {
 	carry, r7 = part2(carry + limbs[16] + m(n8, l[8]))
 	r8 = uint32(carry)
 
-	s.sub(&unpackedScalar{r0, r1, r2, r3, r4, r5, r6, r7, r8}, l)
+	return s.Sub(&unpackedScalar{r0, r1, r2, r3, r4, r5, r6, r7, r8}, l)
 }
 
 func (s *unpackedScalar) squareInternal() [17]uint64 {

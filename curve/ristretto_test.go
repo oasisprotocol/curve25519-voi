@@ -57,8 +57,8 @@ func testRistrettoSum(t *testing.T) {
 	s1, s2 := scalar.NewFromUint64(999), scalar.NewFromUint64(333)
 
 	var p1, p2, expected RistrettoPoint
-	p1.Mul(&base, &s1)
-	p2.Mul(&base, &s2)
+	p1.Mul(&base, s1)
+	p2.Mul(&base, s2)
 	expected.Add(&p1, &p2)
 
 	var sum RistrettoPoint
@@ -206,12 +206,12 @@ func testRistrettoFourTorsionBasepoint(t *testing.T) {
 }
 
 func testRistrettoFourTorsionRandom(t *testing.T) {
-	var s scalar.Scalar
-	if err := s.Random(rand.Reader); err != nil {
-		t.Fatalf("s.Random(): %v", err)
+	s, err := scalar.New().Random(rand.Reader)
+	if err != nil {
+		t.Fatalf("scalar.New().Random(): %v", err)
 	}
 
-	p := RISTRETTO_BASEPOINT_TABLE.Mul(&s)
+	p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 	pCoset := p.coset4()
 	for i, pp := range pCoset {
 		if p.Equal(&RistrettoPoint{inner: pp}) != 1 {
@@ -283,12 +283,12 @@ func testRistrettoElligator(t *testing.T) {
 
 func testRistrettoRandomRoundtrip(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		var s scalar.Scalar
-		if err := s.Random(rand.Reader); err != nil {
+		s, err := scalar.New().Random(rand.Reader)
+		if err != nil {
 			t.Fatalf("s.Random(): %v", err)
 		}
 
-		p := RISTRETTO_BASEPOINT_TABLE.Mul(&s)
+		p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 		var compressedP CompressedRistretto
 		compressedP.FromRistrettoPoint(&p)
 
