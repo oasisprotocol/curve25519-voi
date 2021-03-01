@@ -53,14 +53,14 @@ func BenchmarkEdwards(b *testing.B) {
 func benchEdwardsCompress(b *testing.B) {
 	var compressed CompressedEdwardsY
 	for i := 0; i < b.N; i++ {
-		compressed.FromEdwardsPoint(&ED25519_BASEPOINT_POINT)
+		compressed.SetEdwardsPoint(&ED25519_BASEPOINT_POINT)
 	}
 }
 
 func benchEdwardsDecompress(b *testing.B) {
 	var decompressed EdwardsPoint
 	for i := 0; i < b.N; i++ {
-		if err := decompressed.FromCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
+		if _, err := decompressed.SetCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
 			b.Fatalf("FromCompressedY(): %v", err)
 		}
 	}
@@ -94,7 +94,7 @@ func benchEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
 
 	b.ResetTimer()
 
-	var tmp EdwardsPoint
+	var tmp *EdwardsPoint
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		aScalar, bScalar := newBenchRandomScalar(b), newBenchRandomScalar(b)
@@ -126,6 +126,7 @@ func benchEdwardsMultiscalarMulIter(b *testing.B, n int, isVartime bool) {
 func benchEdwardsMultiscalarMul(b *testing.B) {
 	for _, n := range benchMultiscalarSizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			b.ReportAllocs()
 			benchEdwardsMultiscalarMulIter(b, n, false)
 		})
 	}
@@ -134,6 +135,7 @@ func benchEdwardsMultiscalarMul(b *testing.B) {
 func benchEdwardsMultiscalarMulVartime(b *testing.B) {
 	for _, n := range benchMultiscalarSizes {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			b.ReportAllocs()
 			benchEdwardsMultiscalarMulIter(b, n, true)
 		})
 	}
@@ -147,14 +149,14 @@ func BenchmarkRistretto(b *testing.B) {
 func benchRistrettoCompress(b *testing.B) {
 	var compressed CompressedRistretto
 	for i := 0; i < b.N; i++ {
-		compressed.FromRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
+		compressed.SetRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
 	}
 }
 
 func benchRistrettoDecompress(b *testing.B) {
 	var decompressed RistrettoPoint
 	for i := 0; i < b.N; i++ {
-		if err := decompressed.FromCompressed(&RISTRETTO_BASEPOINT_COMPRESSED); err != nil {
+		if _, err := decompressed.SetCompressed(&RISTRETTO_BASEPOINT_COMPRESSED); err != nil {
 			b.Fatalf("FromRistrettoPoint(): %v", err)
 		}
 	}

@@ -46,8 +46,8 @@ func TestConstants(t *testing.T) {
 
 func testConstantsEightTorsion(t *testing.T) {
 	for i, torsionPoint := range EIGHT_TORSION {
-		q := torsionPoint
-		q.mulByPow2(3)
+		var q EdwardsPoint
+		q.mulByPow2(&torsionPoint, 3)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(3).debugIsValid() != true", i)
 		}
@@ -62,8 +62,8 @@ func testConstantsFourTorsion(t *testing.T) {
 		if i%2 != 0 {
 			continue
 		}
-		q := torsionPoint
-		q.mulByPow2(2)
+		var q EdwardsPoint
+		q.mulByPow2(&torsionPoint, 2)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(2).debugIsValid() != true", i)
 		}
@@ -78,8 +78,8 @@ func testConstantsTwoTorsion(t *testing.T) {
 		if i%4 != 0 {
 			continue
 		}
-		q := torsionPoint
-		q.mulByPow2(1)
+		var q EdwardsPoint
+		q.mulByPow2(&torsionPoint, 1)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(1).debugIsValid() != true", i)
 		}

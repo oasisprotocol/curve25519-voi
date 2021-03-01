@@ -64,19 +64,19 @@ var (
 // the sign of x.
 type CompressedEdwardsY [CompressedPointSize]byte
 
-// FromBytes constructs a compressed Edwards point from a byte representation.
-func (p *CompressedEdwardsY) FromBytes(in []byte) error {
+// SetBytes constructs a compressed Edwards point from a byte representation.
+func (p *CompressedEdwardsY) SetBytes(in []byte) (*CompressedEdwardsY, error) {
 	if len(in) != CompressedPointSize {
-		return fmt.Errorf("curve/edwards: unexpected input size")
+		return nil, fmt.Errorf("curve/edwards: unexpected input size")
 	}
 
 	copy(p[:], in)
 
-	return nil
+	return p, nil
 }
 
-// FromEdwardsPoint compresses an Edwards point.
-func (p *CompressedEdwardsY) FromEdwardsPoint(point *EdwardsPoint) {
+// SetEdwardsPoint compresses an Edwards point.
+func (p *CompressedEdwardsY) SetEdwardsPoint(point *EdwardsPoint) *CompressedEdwardsY {
 	var x, y, recip field.FieldElement
 	recip.Invert(&point.inner.Z)
 	x.Mul(&point.inner.X, &recip)
@@ -84,6 +84,8 @@ func (p *CompressedEdwardsY) FromEdwardsPoint(point *EdwardsPoint) {
 
 	_ = y.ToBytes(p[:])
 	p[31] ^= byte(x.IsNegative()) << 7
+
+	return p
 }
 
 // Equal returns 1 iff the compresed points are equal, 0 otherwise.
@@ -93,13 +95,14 @@ func (p *CompressedEdwardsY) Equal(other *CompressedEdwardsY) int {
 }
 
 // Identity sets the compressed point to the identity element.
-func (p *CompressedEdwardsY) Identity() {
+func (p *CompressedEdwardsY) Identity() *CompressedEdwardsY {
 	*p = [CompressedPointSize]byte{
 		1, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
 	}
+	return p
 }
 
 // IsCanonical returns true if p is a canonical encoding in variable-time.
@@ -134,7 +137,23 @@ func (p *CompressedEdwardsY) IsCanonical() bool {
 	return true
 }
 
+// NewCompressedEdwardsY constructs a new compressed Edwards point,
+// set to the identity element.
+func NewCompressedEdwardsY() *CompressedEdwardsY {
+	var p CompressedEdwardsY
+	return p.Identity()
+}
+
+// NewCompressedEdwardsYFromBytes constructs a new compressed Edwards point,
+// set to provided byte representation.
+func NewCompressedEdwardsYFromBytes(in []byte) (*CompressedEdwardsY, error) {
+	var p CompressedEdwardsY
+	return p.SetBytes(in)
+}
+
 // EdwardsPoint represents a point on the Edwards form of Curve25519.
+//
+// The default value is NOT valid and MUST only be used as a receiver.
 type EdwardsPoint struct {
 	inner edwardsPointInner
 }
@@ -147,19 +166,29 @@ type edwardsPointInner struct {
 }
 
 // Identity sets the Edwards point to the identity element.
-func (p *EdwardsPoint) Identity() {
+func (p *EdwardsPoint) Identity() *EdwardsPoint {
 	p.inner.X.Zero()
 	p.inner.Y.One()
 	p.inner.Z.One()
 	p.inner.T.Zero()
+	return p
 }
 
-// FromCompressedY attempts to decompress a CompressedEdwardsY into an
+// Set sets `p = t`, and returns p.
+func (p *EdwardsPoint) Set(t *EdwardsPoint) *EdwardsPoint {
+	p.inner.X.Set(&t.inner.X)
+	p.inner.Y.Set(&t.inner.Y)
+	p.inner.Z.Set(&t.inner.Z)
+	p.inner.T.Set(&t.inner.T)
+	return p
+}
+
+// SetCompressedY attempts to decompress a CompressedEdwardsY into an
 // EdwardsPoint.
-func (p *EdwardsPoint) FromCompressedY(compressedY *CompressedEdwardsY) error {
+func (p *EdwardsPoint) SetCompressedY(compressedY *CompressedEdwardsY) (*EdwardsPoint, error) {
 	var Y, Z, YY, u, v, X field.FieldElement
 	if _, err := Y.SetBytes(compressedY[:]); err != nil {
-		return err
+		return nil, err
 	}
 	Z.One()
 	YY.Square(&Y)
@@ -169,7 +198,7 @@ func (p *EdwardsPoint) FromCompressedY(compressedY *CompressedEdwardsY) error {
 	_, isValidYCoord := X.SqrtRatioI(&u, &v)
 
 	if isValidYCoord != 1 {
-		return errNotValidYCoordinate
+		return nil, errNotValidYCoordinate
 	}
 
 	// field.FieldElement.SqrtRatioI always returns the nonnegative square root,
@@ -182,7 +211,7 @@ func (p *EdwardsPoint) FromCompressedY(compressedY *CompressedEdwardsY) error {
 	p.inner.Z.Set(&Z)
 	p.inner.T.Mul(&X, &Y)
 
-	return nil
+	return p, nil
 }
 
 // ConditionalSelect sets the point to a iff choice == 0 and b iff
@@ -215,128 +244,116 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 // point, 0 otherwise.  This function will execute in constant time.
 func (p *EdwardsPoint) EqualCompressedY(other *CompressedEdwardsY) int {
 	var pCompressed CompressedEdwardsY
-	pCompressed.FromEdwardsPoint(p)
-
-	return other.Equal(&pCompressed)
+	return other.Equal(pCompressed.SetEdwardsPoint(p))
 }
 
-// double adds the point to itself.
-func (p *EdwardsPoint) double() {
-	var pProjective projectivePoint
-	pProjective.fromEdwards(p)
-
-	var sum completedPoint
-	sum.double(&pProjective)
-	p.fromCompleted(&sum)
+// Add sets `p = a + b`, and returns p.
+func (p *EdwardsPoint) Add(a, b *EdwardsPoint) *EdwardsPoint {
+	var (
+		bPNiels projectiveNielsPoint
+		sum     completedPoint
+	)
+	return p.setCompleted(sum.AddEdwardsProjectiveNiels(a, bPNiels.SetEdwards(b)))
 }
 
-// Add computes `a + b`.
-func (p *EdwardsPoint) Add(a, b *EdwardsPoint) {
-	var bPNiels projectiveNielsPoint
-	bPNiels.fromEdwards(b)
-
-	var sum completedPoint
-	sum.addEdwardsProjectiveNiels(a, &bPNiels)
-	p.fromCompleted(&sum)
+// Sub sets `p = a - b`, and returns p.
+func (p *EdwardsPoint) Sub(a, b *EdwardsPoint) *EdwardsPoint {
+	var (
+		bPNiels projectiveNielsPoint
+		diff    completedPoint
+	)
+	return p.setCompleted(diff.SubEdwardsProjectiveNiels(a, bPNiels.SetEdwards(b)))
 }
 
-// Sub computes `a - b`.
-func (p *EdwardsPoint) Sub(a, b *EdwardsPoint) {
-	var bPNiels projectiveNielsPoint
-	bPNiels.fromEdwards(b)
-
-	var diff completedPoint
-	diff.subEdwardsProjectiveNiels(a, &bPNiels)
-	p.fromCompleted(&diff)
-}
-
-// Sum sets the point to the sum of a slice of points.
-func (p *EdwardsPoint) Sum(values []*EdwardsPoint) {
+// Sum sets p to the sum of values, and returns p.
+func (p *EdwardsPoint) Sum(values []*EdwardsPoint) *EdwardsPoint {
 	p.Identity()
 	for _, v := range values {
 		p.Add(p, v)
 	}
+
+	return p
 }
 
-// Neg computes `-P`.
-func (p *EdwardsPoint) Neg() {
-	p.inner.X.Neg(&p.inner.X)
-	p.inner.T.Neg(&p.inner.T)
+// Neg sets `p = -t`, and returns p.
+func (p *EdwardsPoint) Neg(t *EdwardsPoint) *EdwardsPoint {
+	p.inner.X.Neg(&t.inner.X)
+	p.inner.Y.Set(&t.inner.Y)
+	p.inner.Z.Set(&t.inner.Z)
+	p.inner.T.Neg(&t.inner.T)
+	return p
 }
 
-// Mul computes `point * scalar` in constant-time (variable-base scalar
-// multiplication).
-func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) {
-	edwardsMul(p, point, scalar)
+// Mul sets `p = point * scalar` in constant-time (variable-base scalar
+// multiplication), and returns p.
+func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	return edwardsMul(p, point, scalar)
 }
 
-// DoubleScalarMulBasepointVartime computes (aA + bB) in variable time,
-// where B is the Ed25519 basepoint.
-func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
-	edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
+// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// where B is the Ed25519 basepoint, and returns p.
+func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	return edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
 }
 
-// MultiscalarMul computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
-// in constant-time.
+// MultiscalarMul sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
+// in constant-time, and returns p.
 //
 // WARNING: This function will panic if `len(scalars) != len(points)`.
-func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	if len(scalars) != len(points) {
 		panic("curve/edwards: len(scalars) != len(points)")
 	}
 
 	// There is only one constant-time implementation of this, so use it.
-	edwardsMultiscalarMulStraus(p, scalars, points)
+	return edwardsMultiscalarMulStraus(p, scalars, points)
 }
 
-// MultiscalarMulVartime computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
-// in variable-time.
+// MultiscalarMulVartime sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
+// in variable-time, and returns p.
 //
 // WARNING: This function will panic if `len(scalars) != len(points)`.
-func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	size := len(scalars)
 	if size != len(points) {
 		panic("curve/edwards: len(scalars) != len(points)")
 	}
 
 	if size < 190 {
-		edwardsMultiscalarMulStrausVartime(p, scalars, points)
+		return edwardsMultiscalarMulStrausVartime(p, scalars, points)
 	} else {
-		edwardsMultiscalarMulPippengerVartime(p, scalars, points)
+		return edwardsMultiscalarMulPippengerVartime(p, scalars, points)
 	}
 }
 
-// MulByCofactor computes `[8]P`.
-func (p *EdwardsPoint) MulByCofactor() {
-	p.mulByPow2(3)
+// MulByCofactor sets `p = [8]t`, and returns p.
+func (p *EdwardsPoint) MulByCofactor(t *EdwardsPoint) *EdwardsPoint {
+	return p.mulByPow2(t, 3)
 }
 
 // IsSmallOrder returns true if p is in the torsion subgroup `E[8]`.
 func (p *EdwardsPoint) IsSmallOrder() bool {
-	check := *p
-	check.MulByCofactor()
-	return check.IsIdentity()
+	var check EdwardsPoint
+	return check.MulByCofactor(p).IsIdentity()
 }
 
 // IsTorsionFree returns true if p is "torsion-free", i.e., is contained
 // in the prime-order subgroup.
 func (p *EdwardsPoint) IsTorsionFree() bool {
 	var check EdwardsPoint
-	check.Mul(p, &BASEPOINT_ORDER)
-	return check.IsIdentity()
+	return check.Mul(p, &BASEPOINT_ORDER).IsIdentity()
 }
 
 // IsIdentity returns true iff the point is equivalent to the identity element
 // of the curve.
 func (p *EdwardsPoint) IsIdentity() bool {
-	var identity EdwardsPoint
-	identity.Identity()
-	return p.Equal(&identity) == 1
+	var id EdwardsPoint
+	return p.Equal(id.Identity()) == 1
 }
 
 func (p *EdwardsPoint) debugIsValid() bool {
 	var pProjective projectivePoint
-	pProjective.fromEdwards(p)
+	pProjective.SetEdwards(p)
 	pointOnCurve := pProjective.debugIsValid()
 
 	var XY, ZT field.FieldElement
@@ -347,22 +364,37 @@ func (p *EdwardsPoint) debugIsValid() bool {
 	return pointOnCurve && onSegreImage
 }
 
-// mulByPow2 computes `[2^k]P` by successive doublings.  Requires `k > 0`.
-func (p *EdwardsPoint) mulByPow2(k uint) {
+// double sets `p = 2t`, and returns p.
+func (p *EdwardsPoint) double(t *EdwardsPoint) *EdwardsPoint {
+	var (
+		pProjective projectivePoint
+		sum         completedPoint
+	)
+	return p.setCompleted(sum.Double(pProjective.SetEdwards(t)))
+}
+
+// mulByPow2 sets `p = [2^k]t` by successive doublings, and returns p.  Requires `k > 0`.
+func (p *EdwardsPoint) mulByPow2(t *EdwardsPoint, k uint) *EdwardsPoint {
 	if k == 0 {
 		panic("curve/edwards: k out of bounds")
 	}
 
-	var r completedPoint
-	var s projectivePoint
-	s.fromEdwards(p)
+	var (
+		r completedPoint
+		s projectivePoint
+	)
+	s.SetEdwards(t)
 	for i := uint(0); i < k-1; i++ {
-		r.double(&s)
-		s.fromCompleted(&r)
+		s.SetCompleted(r.Double(&s))
 	}
 	// Unroll last iteration so we can directly convert back to an EdwardsPoint.
-	r.double(&s)
-	p.fromCompleted(&r)
+	return p.setCompleted(r.Double(&s))
+}
+
+// NewEdwardsPoint constructs a new Edwards point set to the identity element.
+func NewEdwardsPoint() *EdwardsPoint {
+	var p EdwardsPoint
+	return p.Identity()
 }
 
 // EdwardsBasepointTable defines a precomputed table of multiples of a
@@ -371,6 +403,9 @@ type EdwardsBasepointTable [32]packedAffineNielsPointLookupTable
 
 // Mul constructs a point from a scalar by computing the multiple aB
 // of this basepoint (B).
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
 func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
 	a := scalar.ToRadix16()
 
@@ -379,49 +414,53 @@ func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
 
 	var sum completedPoint
 	for i := 1; i < 64; i = i + 2 {
-		aPt := tbl[i/2].lookup(a[i])
-		sum.addEdwardsAffineNiels(&p, &aPt)
-		p.fromCompleted(&sum)
+		aPt := tbl[i/2].Lookup(a[i])
+		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
 	}
 
-	p.mulByPow2(4)
+	p.mulByPow2(&p, 4)
 
 	for i := 0; i < 64; i = i + 2 {
-		aPt := tbl[i/2].lookup(a[i])
-		sum.addEdwardsAffineNiels(&p, &aPt)
-		p.fromCompleted(&sum)
+		aPt := tbl[i/2].Lookup(a[i])
+		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
 	}
 
 	return p
 }
 
 // Basepoint returns the basepoint of the table.
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
 func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
 	// but as an `affineNielsPoint`, so add identity to convert to extended.
 	var ep EdwardsPoint
 	ep.Identity()
 
-	aPt := tbl[0].lookup(1)
+	aPt := tbl[0].Lookup(1)
 
 	var sum completedPoint
-	sum.addEdwardsAffineNiels(&ep, &aPt)
-	ep.fromCompleted(&sum)
+	ep.setCompleted(sum.AddEdwardsAffineNiels(&ep, &aPt))
 
 	return ep
 }
 
 // NewEdwardsBasepointTable creates a table of precomputed multiples of
 // `basepoint`.
-func NewEdwardsBasepointTable(basepoint *EdwardsPoint) EdwardsBasepointTable {
-	var table EdwardsBasepointTable
-	p := *basepoint
+func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	var (
+		table EdwardsBasepointTable
+		p     EdwardsPoint
+	)
+
+	p.Set(basepoint)
 	for i := 0; i < 32; i++ {
 		table[i] = newPackedAffineNielsPointLookupTable(&p)
-		p.mulByPow2(8)
+		p.mulByPow2(&p, 8)
 	}
 
-	return table
+	return &table
 }
 
 // Omitted:

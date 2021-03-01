@@ -43,15 +43,15 @@ var errUCoordinateOnTwist = fmt.Errorf("curve/montgomery: Montgomery u-coordinat
 // form of Curve25519 or its twist.
 type MontgomeryPoint [MontgomeryPointSize]byte
 
-// FromBytes constructs a Montgomery u-coordinate from a byte representation.
-func (p *MontgomeryPoint) FromBytes(in []byte) error {
+// SetBytes constructs a Montgomery u-coordinate from a byte representation.
+func (p *MontgomeryPoint) SetBytes(in []byte) (*MontgomeryPoint, error) {
 	if len(in) != CompressedPointSize {
-		return fmt.Errorf("curve/montgomery: unexpected input size")
+		return nil, fmt.Errorf("curve/montgomery: unexpected input size")
 	}
 
 	copy(p[:], in)
 
-	return nil
+	return p, nil
 }
 
 // Equal returns 1 iff the points are equal, 0 otherwise.  This function
@@ -64,12 +64,12 @@ func (p *MontgomeryPoint) Equal(other *MontgomeryPoint) int {
 	return selfFe.Equal(&otherFe)
 }
 
-// FromEdwards comverts an EdwardsPoint to a MontgomeryPoint.
+// SetEdwards converts an EdwardsPoint to a MontgomeryPoint.
 //
 // This function has one exceptional case; the identity point of
 // the edwards curve is set to the 2-torsion point (0, 0) on the Montgomery
 // curve.
-func (p *MontgomeryPoint) FromEdwards(edwardsPoint *EdwardsPoint) {
+func (p *MontgomeryPoint) SetEdwards(edwardsPoint *EdwardsPoint) *MontgomeryPoint {
 	// We have u = (1+y)/(1-y) = (Z+Y)/(Z-Y).
 	//
 	// The denominator is zero only when y=1, the identity point of
@@ -82,10 +82,12 @@ func (p *MontgomeryPoint) FromEdwards(edwardsPoint *EdwardsPoint) {
 	u.Mul(&U, &W)
 
 	_ = u.ToBytes(p[:])
+
+	return p
 }
 
-// Mul computes `point * scalar` in constant-time.
-func (p *MontgomeryPoint) Mul(point *MontgomeryPoint, scalar *scalar.Scalar) {
+// Mul sets `p = point * scalar` in constant-time, and returns p.
+func (p *MontgomeryPoint) Mul(point *MontgomeryPoint, scalar *scalar.Scalar) *MontgomeryPoint {
 	// Algorithm 8 of Costello-Smith 2017.
 	var affineU field.FieldElement
 	_, _ = affineU.SetBytes(point[:])
@@ -104,16 +106,23 @@ func (p *MontgomeryPoint) Mul(point *MontgomeryPoint, scalar *scalar.Scalar) {
 	}
 	x0.conditionalSwap(&x1, int(bits[0]))
 
-	p.fromProjective(&x0)
+	return p.fromProjective(&x0)
 }
 
-func (p *MontgomeryPoint) fromProjective(pp *montgomeryProjectivePoint) {
+func (p *MontgomeryPoint) fromProjective(pp *montgomeryProjectivePoint) *MontgomeryPoint {
 	// Dehomogenize the projective point to affine coordinates.
 	var u, wInv field.FieldElement
 	wInv.Invert(&pp.W)
 	u.Mul(&pp.U, &wInv)
 
 	_ = u.ToBytes(p[:])
+
+	return p
+}
+
+// NewMontgomeryPoint constructs a new Montgomery point.
+func NewMontgomeryPoint() *MontgomeryPoint {
+	return &MontgomeryPoint{}
 }
 
 func montgomeryDifferentialAddAndDouble(P, Q *montgomeryProjectivePoint, affine_PmQ *field.FieldElement) {
@@ -164,9 +173,10 @@ type montgomeryProjectivePoint struct {
 	W field.FieldElement
 }
 
-func (p *montgomeryProjectivePoint) identity() {
+func (p *montgomeryProjectivePoint) identity() *montgomeryProjectivePoint {
 	p.U.One()
 	p.W.Zero()
+	return p
 }
 
 func (p *montgomeryProjectivePoint) conditionalSwap(other *montgomeryProjectivePoint, choice int) {
@@ -174,9 +184,9 @@ func (p *montgomeryProjectivePoint) conditionalSwap(other *montgomeryProjectiveP
 	p.W.ConditionalSwap(&other.W, choice)
 }
 
-// FromMontgomery attempts to convert a MontgomeryPoint into an EdwardsPoint
+// SetMontgomery attempts to convert a MontgomeryPoint into an EdwardsPoint
 // using the supplied choice of sign for the EdwardsPoint.
-func (p *EdwardsPoint) FromMontgomery(montgomeryU *MontgomeryPoint, sign uint8) error {
+func (p *EdwardsPoint) SetMontgomery(montgomeryU *MontgomeryPoint, sign uint8) (*EdwardsPoint, error) {
 	// To decompress the Montgomery u coordinate to an
 	// `EdwardsPoint`, we apply the birational map to obtain the
 	// Edwards y coordinate, then do Edwards decompression.
@@ -194,7 +204,7 @@ func (p *EdwardsPoint) FromMontgomery(montgomeryU *MontgomeryPoint, sign uint8) 
 	_, _ = u.SetBytes(montgomeryU[:])
 
 	if u.Equal(&field.MinusOne) == 1 {
-		return errUCoordinateOnTwist
+		return nil, errUCoordinateOnTwist
 	}
 
 	var uMinusOne, uPlusOne, y field.FieldElement
@@ -207,5 +217,5 @@ func (p *EdwardsPoint) FromMontgomery(montgomeryU *MontgomeryPoint, sign uint8) 
 	_ = y.ToBytes(yBytes[:])
 	yBytes[31] ^= sign << 7
 
-	return p.FromCompressedY(&yBytes)
+	return p.SetCompressedY(&yBytes)
 }

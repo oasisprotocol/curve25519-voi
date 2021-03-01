@@ -761,5 +761,3 @@ var constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = cachedPointNafLookupTable8{
 		},
 	},
 }
-
-// var constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = newCachedPointNafLookupTable8(&ED25519_BASEPOINT_POINT)

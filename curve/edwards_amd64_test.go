@@ -190,19 +190,16 @@ func testVecNewSplit(t *testing.T) {
 
 func testVecDoubleExtended(t *testing.T) {
 	doubleEdwardsSerial := func(p *EdwardsPoint) *EdwardsPoint {
-		out := *p
-		out.double()
-		return &out
+		var out EdwardsPoint
+		return out.double(p)
 	}
 
 	doubleEdwardsVector := func(p *EdwardsPoint) *EdwardsPoint {
 		var pExtended extendedPoint
-		pExtended.fromEdwards(p)
-		pExtended.double()
+		pExtended.Double(pExtended.SetEdwards(p))
 
 		var out EdwardsPoint
-		out.fromExtended(&pExtended)
-		return &out
+		return out.setExtended(&pExtended)
 	}
 
 	for _, v := range []struct {
@@ -228,20 +225,18 @@ func testVecAddSubCached(t *testing.T) {
 			aExtended, bExtended, abExtended extendedPoint
 			bCached                          cachedPoint
 		)
-		aExtended.fromEdwards(a)
-		bExtended.fromEdwards(b)
-		bCached.fromExtended(&bExtended)
+		aExtended.SetEdwards(a)
+		bCached.SetExtended(bExtended.SetEdwards(b))
 
 		switch isSub {
 		case false:
-			abExtended.addExtendedCached(&aExtended, &bCached)
+			abExtended.AddExtendedCached(&aExtended, &bCached)
 		case true:
-			abExtended.subExtendedCached(&aExtended, &bCached)
+			abExtended.SubExtendedCached(&aExtended, &bCached)
 		}
 
 		var out EdwardsPoint
-		out.fromExtended(&abExtended)
-		return &out
+		return out.setExtended(&abExtended)
 	}
 
 	addEdwardsVector := func(a, b *EdwardsPoint) *EdwardsPoint {
@@ -296,7 +291,7 @@ func testFieldElementComponents() (x0, x1, x2, x3 *field.FieldElement) {
 	_ = compressedY
 
 	var p EdwardsPoint
-	_ = p.FromCompressedY(compressedY)
+	_, _ = p.SetCompressedY(compressedY)
 
 	return &p.inner.X, &p.inner.Y, &p.inner.Z, &p.inner.T
 }
@@ -308,8 +303,7 @@ func testFieldElement2625x4() fieldElement2625x4 {
 
 func testPoint_id() *EdwardsPoint {
 	var p EdwardsPoint
-	p.Identity()
-	return &p
+	return p.Identity()
 }
 
 func testPoint_kB() *EdwardsPoint {

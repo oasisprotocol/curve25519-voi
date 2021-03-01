@@ -209,10 +209,10 @@ type VerifyOptions struct {
 func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.EdwardsPoint) bool {
 	// Unpack A.
 	var aCompressed curve.CompressedEdwardsY
-	if err := aCompressed.FromBytes(publicKey); err != nil {
+	if _, err := aCompressed.SetBytes(publicKey); err != nil {
 		return false
 	}
-	if err := A.FromCompressedY(&aCompressed); err != nil {
+	if _, err := A.SetCompressedY(&aCompressed); err != nil {
 		return false
 	}
 
@@ -236,10 +236,10 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// Unpack R.
 	var rCompressed curve.CompressedEdwardsY
-	if err := rCompressed.FromBytes(sig[:32]); err != nil {
+	if _, err := rCompressed.SetBytes(sig[:32]); err != nil {
 		return false
 	}
-	if err := R.FromCompressedY(&rCompressed); err != nil {
+	if _, err := R.SetCompressedY(&rCompressed); err != nil {
 		return false
 	}
 
@@ -346,9 +346,9 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	}
 
 	// R = rB
-	var rCompressed curve.CompressedEdwardsY
 	R := curve.ED25519_BASEPOINT_TABLE.Mul(&r)
-	rCompressed.FromEdwardsPoint(&R)
+	var rCompressed curve.CompressedEdwardsY
+	rCompressed.SetEdwardsPoint(&R)
 
 	// S = H(R,A,m)
 	var (
@@ -485,7 +485,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 
 	// SB - H(R,A,m)A
 	var R curve.EdwardsPoint
-	A.Neg()
+	A.Neg(&A)
 	R.DoubleScalarMulBasepointVartime(&hram, &A, &S)
 
 	// There are 2 ways of verifying Ed25519 signatures in the wild, due
@@ -504,8 +504,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// Note: IsSmallOrder multiplies by the cofactor and checks that
 	// the result is the identity element.
 	var rDiff curve.EdwardsPoint
-	rDiff.Sub(&R, &checkR)
-	return rDiff.IsSmallOrder(), nil
+	return rDiff.Sub(&R, &checkR).IsSmallOrder(), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if
@@ -530,7 +529,7 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	A := curve.ED25519_BASEPOINT_TABLE.Mul(&a)
 
 	var aCompressed curve.CompressedEdwardsY
-	aCompressed.FromEdwardsPoint(&A)
+	aCompressed.SetEdwardsPoint(&A)
 
 	privateKey := make([]byte, 0, PrivateKeySize)
 	privateKey = append(privateKey, seed...)
@@ -615,6 +614,6 @@ func scMinimal(scalar []byte) bool {
 
 func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
 	var RCompressed curve.CompressedEdwardsY
-	_ = RCompressed.FromBytes(sig[:32])
+	_, _ = RCompressed.SetBytes(sig[:32])
 	return R.EqualCompressedY(&RCompressed) == 1
 }

@@ -35,7 +35,7 @@ package curve
 
 type projectiveNielsPointLookupTable [8]projectiveNielsPoint
 
-func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint {
+func (tbl *projectiveNielsPointLookupTable) Lookup(x int8) projectiveNielsPoint {
 	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
@@ -46,7 +46,7 @@ func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint 
 	// Now t == |x| * P.
 
 	negMask := int(byte(xmask & 1))
-	t.conditionalNegate(negMask)
+	t.ConditionalNegate(negMask)
 	// Now t == x * P.
 
 	return t
@@ -54,7 +54,7 @@ func (tbl *projectiveNielsPointLookupTable) lookup(x int8) projectiveNielsPoint 
 
 func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLookupTable {
 	var epPNiels projectiveNielsPoint
-	epPNiels.fromEdwards(ep)
+	epPNiels.SetEdwards(ep)
 
 	points := [8]projectiveNielsPoint{
 		epPNiels, epPNiels, epPNiels, epPNiels,
@@ -65,9 +65,7 @@ func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLo
 			tmp  completedPoint
 			tmp2 EdwardsPoint
 		)
-		tmp.addEdwardsProjectiveNiels(ep, &points[j])
-		tmp2.fromCompleted(&tmp)
-		points[j+1].fromEdwards(&tmp2)
+		points[j+1].SetEdwards(tmp2.setCompleted(tmp.AddEdwardsProjectiveNiels(ep, &points[j])))
 	}
 
 	return projectiveNielsPointLookupTable(points)
@@ -78,7 +76,7 @@ func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLo
 // to manipulate with vector instructions.
 type packedAffineNielsPointLookupTable [8][96]byte
 
-func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
+func (tbl *packedAffineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
 	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
@@ -95,7 +93,7 @@ func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 	_, _ = t.xy2d.SetBytes(tPacked[64:96])
 
 	negMask := int(byte(xmask & 1))
-	t.conditionalNegate(negMask)
+	t.ConditionalNegate(negMask)
 	// Now t == x * P.
 
 	return t
@@ -103,7 +101,7 @@ func (tbl *packedAffineNielsPointLookupTable) lookup(x int8) affineNielsPoint {
 
 func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPointLookupTable {
 	var epANiels affineNielsPoint
-	epANiels.fromEdwards(ep)
+	epANiels.SetEdwards(ep)
 
 	points := [8]affineNielsPoint{
 		epANiels, epANiels, epANiels, epANiels,
@@ -114,9 +112,7 @@ func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPoi
 			tmp  completedPoint
 			tmp2 EdwardsPoint
 		)
-		tmp.addEdwardsAffineNiels(ep, &points[j])
-		tmp2.fromCompleted(&tmp)
-		points[j+1].fromEdwards(&tmp2)
+		points[j+1].SetEdwards(tmp2.setCompleted(tmp.AddEdwardsAffineNiels(ep, &points[j])))
 	}
 
 	// Pack the table.  At this point, `points` is equivalent to the table
@@ -134,29 +130,27 @@ func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPoi
 // Holds odd multiples 1A, 3A, ..., 15A of a point A.
 type projectiveNielsPointNafLookupTable [8]projectiveNielsPoint
 
-func (tbl *projectiveNielsPointNafLookupTable) lookup(x uint8) projectiveNielsPoint {
-	return tbl[x/2]
+func (tbl *projectiveNielsPointNafLookupTable) lookup(x uint8) *projectiveNielsPoint {
+	return &tbl[x/2]
 }
 
 func newProjectiveNielsPointNafLookupTable(ep *EdwardsPoint) projectiveNielsPointNafLookupTable {
 	var epPNiels projectiveNielsPoint
-	epPNiels.fromEdwards(ep)
+	epPNiels.SetEdwards(ep)
 
 	Ai := [8]projectiveNielsPoint{
 		epPNiels, epPNiels, epPNiels, epPNiels,
 		epPNiels, epPNiels, epPNiels, epPNiels,
 	}
 
-	A2 := *ep
-	A2.double()
+	var A2 EdwardsPoint
+	A2.double(ep)
 	for i := 0; i < 7; i++ {
 		var (
 			tmp  completedPoint
 			tmp2 EdwardsPoint
 		)
-		tmp.addEdwardsProjectiveNiels(&A2, &Ai[i])
-		tmp2.fromCompleted(&tmp)
-		Ai[i+1].fromEdwards(&tmp2)
+		Ai[i+1].SetEdwards(tmp2.setCompleted(tmp.AddEdwardsProjectiveNiels(&A2, &Ai[i])))
 	}
 
 	return projectiveNielsPointNafLookupTable(Ai)
@@ -165,29 +159,28 @@ func newProjectiveNielsPointNafLookupTable(ep *EdwardsPoint) projectiveNielsPoin
 // Holds stuff up to 8.
 type affineNielsPointNafLookupTable [64]affineNielsPoint
 
-func (tbl *affineNielsPointNafLookupTable) lookup(x uint8) affineNielsPoint {
-	return tbl[x/2]
+func (tbl *affineNielsPointNafLookupTable) lookup(x uint8) *affineNielsPoint {
+	return &tbl[x/2]
 }
 
 func newAffineNielsPointNafLookupTable(ep *EdwardsPoint) affineNielsPointNafLookupTable { //nolint:unused,deadcode
 	var epANiels affineNielsPoint
-	epANiels.fromEdwards(ep)
+	epANiels.SetEdwards(ep)
 
 	var Ai [64]affineNielsPoint
 	for i := range Ai {
 		Ai[i] = epANiels
 	}
 
-	A2 := *ep
-	A2.double()
+	var A2 EdwardsPoint
+	A2.double(ep)
+
 	for i := 0; i < 7; i++ {
 		var (
 			tmp  completedPoint
 			tmp2 EdwardsPoint
 		)
-		tmp.addEdwardsAffineNiels(&A2, &Ai[i])
-		tmp2.fromCompleted(&tmp)
-		Ai[i+1].fromEdwards(&tmp2)
+		Ai[i+1].SetEdwards(tmp2.setCompleted(tmp.AddEdwardsAffineNiels(&A2, &Ai[i])))
 	}
 
 	return affineNielsPointNafLookupTable(Ai)

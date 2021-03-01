@@ -151,8 +151,8 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 	}
 
 	var bp EdwardsPoint
-	if err := bp.FromCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
-		t.Fatalf("bp.FromCompressedY(): %v", err)
+	if _, err := bp.SetCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
+		t.Fatalf("bp.SetCompressedY(): %v", err)
 	}
 	if !bp.debugIsValid() {
 		t.Fatalf("bp.isDebugValid() != true")
@@ -163,7 +163,7 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 		t.Fatalf("baseX != bp.X (Got: %v)", bp.inner.X)
 	}
 	var recompressed CompressedEdwardsY
-	recompressed.FromEdwardsPoint(&bp)
+	recompressed.SetEdwardsPoint(&bp)
 	if recompressed.Equal(&ED25519_BASEPOINT_COMPRESSED) != 1 {
 		t.Fatalf("recompressed != ED25519_BASEPOINT_COMPRESSED")
 	}
@@ -175,8 +175,8 @@ func testEdwardsDecompressionSignHandling(t *testing.T) {
 	copy(minusBasepointBytes[:], ED25519_BASEPOINT_COMPRESSED[:])
 	minusBasepointBytes[31] |= 1 << 7
 	var minusBasepoint EdwardsPoint
-	if err := minusBasepoint.FromCompressedY(&minusBasepointBytes); err != nil {
-		t.Fatalf("minusBasepoint.FromCompressedY(): %v", err)
+	if _, err := minusBasepoint.SetCompressedY(&minusBasepointBytes); err != nil {
+		t.Fatalf("minusBasepoint.SetCompressedY(): %v", err)
 	}
 
 	// Test projective coordinates exactly since we know they should
@@ -208,26 +208,26 @@ func testEdwardsAdd(t *testing.T) {
 }
 
 func testEdwardsAddProjectiveNiels(t *testing.T) {
+	var (
+		bpPNiels     projectiveNielsPoint
+		sumCompleted completedPoint
+		sum          EdwardsPoint
+	)
 	bp := ED25519_BASEPOINT_POINT
-	var bpPNiels projectiveNielsPoint
-	bpPNiels.fromEdwards(&bp)
-	var sumCompleted completedPoint
-	sumCompleted.addEdwardsProjectiveNiels(&bp, &bpPNiels)
-	var sum EdwardsPoint
-	sum.fromCompleted(&sumCompleted)
+	sum.setCompleted(sumCompleted.AddEdwardsProjectiveNiels(&bp, bpPNiels.SetEdwards(&bp)))
 	if !sum.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp + toProjectiveNiels(bp) != BASE2 (Got: %v)", sum)
 	}
 }
 
 func testEdwardsAddAffineNiels(t *testing.T) {
+	var (
+		bpANiels     affineNielsPoint
+		sumCompleted completedPoint
+		sum          EdwardsPoint
+	)
 	bp := ED25519_BASEPOINT_POINT
-	var bpANiels affineNielsPoint
-	bpANiels.fromEdwards(&bp)
-	var sumCompleted completedPoint
-	sumCompleted.addEdwardsAffineNiels(&bp, &bpANiels)
-	var sum EdwardsPoint
-	sum.fromCompleted(&sumCompleted)
+	sum.setCompleted(sumCompleted.AddEdwardsAffineNiels(&bp, bpANiels.SetEdwards(&bp)))
 	if !sum.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp + toAffineNiels(bp) != BASE2 (Got: %v)", sum)
 	}
@@ -394,8 +394,8 @@ func testEdwardsBasepointTableMulTwo(t *testing.T) {
 }
 
 func testEdwardsBasepointPointDoubleVsConstant(t *testing.T) {
-	p := ED25519_BASEPOINT_POINT
-	p.double()
+	var p EdwardsPoint
+	p.double(&ED25519_BASEPOINT_POINT)
 	if !p.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp.double() != BASE2 (Got: %v)", p)
 	}
@@ -406,17 +406,16 @@ func testEdwardsBasepointPointProjectiveExtendedRoundTrip(t *testing.T) {
 		pProjective projectivePoint
 		pp          EdwardsPoint
 	)
-	p := ED25519_BASEPOINT_POINT
-	pProjective.fromEdwards(&p)
-	pp.fromProjective(&pProjective)
+	pProjective.SetEdwards(&ED25519_BASEPOINT_POINT)
+	pp.setProjective(&pProjective)
 	if !pp.testEqualCompressedY("ED25519_BASEPOINT") {
 		t.Fatalf("bp->projective->extended != bp (Got: %v)", pp)
 	}
 }
 
 func testEdwardsBasepointPoint16VsMulByPow2_4(t *testing.T) {
-	bp16 := ED25519_BASEPOINT_POINT
-	bp16.mulByPow2(4)
+	var bp16 EdwardsPoint
+	bp16.mulByPow2(&ED25519_BASEPOINT_POINT, 4)
 	if !bp16.testEqualCompressedY("BASE16") {
 		t.Fatalf("bp.mulByPow2(4) != BASE16 (Got: %v)", bp16)
 	}
@@ -490,8 +489,8 @@ func testEdwardsMultiscalarConsistency(t *testing.T) {
 
 func testEdwardsDoubleScalarMulBasepointVartime(t *testing.T) {
 	var A EdwardsPoint
-	if err := A.FromCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
-		t.Fatalf("A.FromCompressedY(): %v", err)
+	if _, err := A.SetCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
+		t.Fatalf("A.SetCompressedY(): %v", err)
 	}
 
 	var result EdwardsPoint
@@ -507,8 +506,8 @@ func testEdwardsDoubleScalarMulBasepointVartime(t *testing.T) {
 
 func testEdwardsMultiscalarMul(t *testing.T) {
 	var A EdwardsPoint
-	if err := A.FromCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
-		t.Fatalf("A.FromCompressedY(): %v", err)
+	if _, err := A.SetCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
+		t.Fatalf("A.SetCompressedY(): %v", err)
 	}
 
 	var result EdwardsPoint
@@ -523,8 +522,8 @@ func testEdwardsMultiscalarMul(t *testing.T) {
 
 func testEdwardsMultiscalarMulVartime(t *testing.T) {
 	var A EdwardsPoint
-	if err := A.FromCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
-		t.Fatalf("A.FromCompressedY(): %v", err)
+	if _, err := A.SetCompressedY(edwardsPointTestPoints["A_TIMES_BASEPOINT"]); err != nil {
+		t.Fatalf("A.SetCompressedY(): %v", err)
 	}
 
 	var result EdwardsPoint
@@ -539,31 +538,29 @@ func testEdwardsMultiscalarMulVartime(t *testing.T) {
 
 func testAffineNielsConditionalAssign(t *testing.T) {
 	var id, p1, bp affineNielsPoint
-	id.identity()
-	p1.identity()
-	bp.fromEdwards(&ED25519_BASEPOINT_POINT)
+	id.Identity()
+	p1.Identity()
+	bp.SetEdwards(&ED25519_BASEPOINT_POINT)
 
-	p1.conditionalAssign(&bp, 0)
+	p1.ConditionalAssign(&bp, 0)
 	if !p1.testEqual(&id) {
 		t.Fatalf("p1.conditionalAssign(bp, 0) != id")
 	}
-	p1.conditionalAssign(&bp, 1)
+	p1.ConditionalAssign(&bp, 1)
 	if !p1.testEqual(&bp) {
 		t.Fatalf("p1.conditionalAssign(bp, 1) != bp")
 	}
 }
 
 func testAffineNielsConversionClearsDenominators(t *testing.T) {
-	var id EdwardsPoint
+	var (
+		id, also_aB   EdwardsPoint
+		aBAffineNiels affineNielsPoint
+		sum           completedPoint
+	)
 	id.Identity()
-
 	aB := ED25519_BASEPOINT_TABLE.Mul(edwardsPointTestScalars["A"])
-	var aBAffineNiels affineNielsPoint
-	aBAffineNiels.fromEdwards(&aB)
-	var sum completedPoint
-	sum.addEdwardsAffineNiels(&id, &aBAffineNiels)
-	var also_aB EdwardsPoint
-	also_aB.fromCompleted(&sum)
+	also_aB.setCompleted(sum.AddEdwardsAffineNiels(&id, aBAffineNiels.SetEdwards(&aB)))
 
 	if aB.Equal(&also_aB) != 1 {
 		t.Fatalf("aB != also_aB (Got %v %v)", aB, also_aB)

@@ -43,19 +43,19 @@ import (
 // CompressedRistretto represents a Ristretto point in wire format.
 type CompressedRistretto [CompressedPointSize]byte
 
-// FromBytes constructs a compressed Ristretto point from a byte representation.
-func (p *CompressedRistretto) FromBytes(in []byte) error {
+// SetBytes constructs a compressed Ristretto point from a byte representation.
+func (p *CompressedRistretto) SetBytes(in []byte) (*CompressedRistretto, error) {
 	if len(in) != CompressedPointSize {
-		return fmt.Errorf("curve/ristretto: unexpected input size")
+		return nil, fmt.Errorf("curve/ristretto: unexpected input size")
 	}
 
 	copy(p[:], in)
 
-	return nil
+	return p, nil
 }
 
-// FromRistrettoPoint compresses a Ristretto point into a CompressedRistretto.
-func (p *CompressedRistretto) FromRistrettoPoint(ristrettoPoint *RistrettoPoint) {
+// SetRistrettoPoint compresses a Ristretto point into a CompressedRistretto.
+func (p *CompressedRistretto) SetRistrettoPoint(ristrettoPoint *RistrettoPoint) *CompressedRistretto {
 	ip := &ristrettoPoint.inner // Make this look less ugly.
 	X := ip.inner.X
 	Y := ip.inner.Y
@@ -73,12 +73,12 @@ func (p *CompressedRistretto) FromRistrettoPoint(ristrettoPoint *RistrettoPoint)
 	invsqrt.Square(&u2)
 	invsqrt.Mul(&u1, &invsqrt)
 	_, _ = invsqrt.InvSqrt()
-	var i1, i2, zInv field.FieldElement
+	var i1, i2, zInv, denInv field.FieldElement
 	i1.Mul(&invsqrt, &u1)
 	i2.Mul(&invsqrt, &u2)
 	zInv.Mul(&i2, &T)
 	zInv.Mul(&i1, &zInv)
-	denInv := i2
+	denInv.Set(&i2)
 
 	var iX, iY, enchantedDenominator field.FieldElement
 	iX.Mul(&X, &field.SQRT_M1)
@@ -103,6 +103,8 @@ func (p *CompressedRistretto) FromRistrettoPoint(ristrettoPoint *RistrettoPoint)
 	s.ConditionalNegate(sIsNegative)
 
 	_ = s.ToBytes(p[:])
+
+	return p
 }
 
 // Equal returns 1 iff the compressed points are equal, 0 otherwise.
@@ -112,25 +114,42 @@ func (p *CompressedRistretto) Equal(other *CompressedRistretto) int {
 }
 
 // Identity sets the compressed point to the identity element.
-func (p *CompressedRistretto) Identity() {
+func (p *CompressedRistretto) Identity() *CompressedRistretto {
 	for i := range p {
 		p[i] = 0
 	}
+	return p
+}
+
+// NewCompressedRistretto constructs a new compressed Ristretto point,
+// set to the identity element.
+func NewCompressedRistretto() *CompressedRistretto {
+	var p CompressedRistretto
+	return p.Identity()
 }
 
 // RistrettoPoint represents a point in the Ristretto group for Curve25519.
+//
+// The default value is NOT valid and MUST only be used as a receiver.
 type RistrettoPoint struct {
 	inner EdwardsPoint
 }
 
 // Identity sets the Ristretto point to the identity element.
-func (p *RistrettoPoint) Identity() {
+func (p *RistrettoPoint) Identity() *RistrettoPoint {
 	p.inner.Identity()
+	return p
 }
 
-// FromCompressed attempts to decompress a CompressedRistretto into a
+// Set sets `p = t`, and returns p.
+func (p *RistrettoPoint) Set(t *RistrettoPoint) *RistrettoPoint {
+	p.inner.Set(&t.inner)
+	return p
+}
+
+// SetCompressed attempts to decompress a CompressedRistretto into a
 // RistrettoPoint.
-func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
+func (p *RistrettoPoint) SetCompressed(compressed *CompressedRistretto) (*RistrettoPoint, error) {
 	// Step 1. Check s for validity:
 	// 1.a) s must be 32 bytes (we get this from the type system)
 	// 1.b) s < p
@@ -147,14 +166,14 @@ func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
 		sBytesCheck [field.FieldElementSize]byte
 	)
 	if _, err := s.SetBytes(compressed[:]); err != nil {
-		return fmt.Errorf("curve/ristretto: failed to deserialize s: %w", err)
+		return nil, fmt.Errorf("curve/ristretto: failed to deserialize s: %w", err)
 	}
 	_ = s.ToBytes(sBytesCheck[:])
 	sEncodingIsCanonical := subtle.ConstantTimeCompareBytes(compressed[:], sBytesCheck[:])
 	sIsNegative := s.IsNegative()
 
 	if sEncodingIsCanonical != 1 || sIsNegative == 1 {
-		return fmt.Errorf("curve/ristretto: s is not a canonical encoding")
+		return nil, fmt.Errorf("curve/ristretto: s is not a canonical encoding")
 	}
 
 	// Step 2. Compute (X:Y:Z:T).
@@ -195,48 +214,48 @@ func (p *RistrettoPoint) FromCompressed(compressed *CompressedRistretto) error {
 	t.Mul(&x, &y)
 
 	if ok != 1 || t.IsNegative() == 1 || y.IsZero() == 1 {
-		return fmt.Errorf("curve/ristretto: s is is not a valid point")
+		return nil, fmt.Errorf("curve/ristretto: s is is not a valid point")
 	}
 
 	p.inner = EdwardsPoint{edwardsPointInner{x, y, field.One, t}}
 
-	return nil
+	return p, nil
 }
 
-// Random sets the point to one chosen uniformly at random using entropy
+// SetRandom sets the point to one chosen uniformly at random using entropy
 // from the user-provided io.Reader.  If rng is nil, the runtime library's
 // entropy source will be used.
-func (p *RistrettoPoint) Random(rng io.Reader) error {
+func (p *RistrettoPoint) SetRandom(rng io.Reader) (*RistrettoPoint, error) {
 	var pointBytes [RistrettoUniformSize]byte
 
 	if rng == nil {
 		rng = rand.Reader
 	}
 	if _, err := io.ReadFull(rng, pointBytes[:]); err != nil {
-		return fmt.Errorf("curve/ristretto: failed to read entropy: %w", err)
+		return nil, fmt.Errorf("curve/ristretto: failed to read entropy: %w", err)
 	}
 
-	return p.FromUniformBytes(pointBytes[:])
+	return p.SetUniformBytes(pointBytes[:])
 }
 
-// FromUniformBytes sets the point to that from 64 bytes of random
+// SetUniformBytes sets the point to that from 64 bytes of random
 // data.  If the input bytes are uniformly distributed, the resulting point
 // will be uniformly distributed over the group, and its discrete log with
 // respect to other points should be unknown.
-func (p *RistrettoPoint) FromUniformBytes(in []byte) error {
+func (p *RistrettoPoint) SetUniformBytes(in []byte) (*RistrettoPoint, error) {
 	if len(in) != RistrettoUniformSize {
-		return fmt.Errorf("curve/ristretto: unexpected input size")
+		return nil, fmt.Errorf("curve/ristretto: unexpected input size")
 	}
 	var (
 		r_1, r_2 field.FieldElement
 		R_1, R_2 RistrettoPoint
 	)
 	if _, err := r_1.SetBytes(in[:32]); err != nil {
-		return fmt.Errorf("curve/ristretto: failed to deserialize r_1: %w", err)
+		return nil, fmt.Errorf("curve/ristretto: failed to deserialize r_1: %w", err)
 	}
 	R_1.elligatorRistrettoFlavor(&r_1)
 	if _, err := r_2.SetBytes(in[32:]); err != nil {
-		return fmt.Errorf("curve/ristretto: failed to deserialize r_2: %w", err)
+		return nil, fmt.Errorf("curve/ristretto: failed to deserialize r_2: %w", err)
 	}
 	R_2.elligatorRistrettoFlavor(&r_2)
 
@@ -244,7 +263,7 @@ func (p *RistrettoPoint) FromUniformBytes(in []byte) error {
 	// uniform distribution.
 	p.Add(&R_1, &R_2)
 
-	return nil
+	return p, nil
 }
 
 // ConditionalSelect sets the point to a iff choice == 0 and b iff
@@ -266,65 +285,73 @@ func (p *RistrettoPoint) Equal(other *RistrettoPoint) int {
 	return X1Y2.Equal(&Y1X2) | X1X2.Equal(&Y1Y2)
 }
 
-// Add computes `a + b`.
-func (p *RistrettoPoint) Add(a, b *RistrettoPoint) {
+// Add sets `p = a + b`, and returns p.
+func (p *RistrettoPoint) Add(a, b *RistrettoPoint) *RistrettoPoint {
 	p.inner.Add(&a.inner, &b.inner)
+	return p
 }
 
-// Sub computes `a - b`.
-func (p *RistrettoPoint) Sub(a, b *RistrettoPoint) {
+// Sub sets `p = a - b`, and returns p.
+func (p *RistrettoPoint) Sub(a, b *RistrettoPoint) *RistrettoPoint {
 	p.inner.Sub(&a.inner, &b.inner)
+	return p
 }
 
-// Sum sets the point to the sum of a slice of points.
-func (p *RistrettoPoint) Sum(values []*RistrettoPoint) {
+// Sum sets p to the sum of values, and returns p.
+func (p *RistrettoPoint) Sum(values []*RistrettoPoint) *RistrettoPoint {
 	p.Identity()
 	for _, v := range values {
 		p.Add(p, v)
 	}
+	return p
 }
 
-// Neg computes `-P`.
-func (p *RistrettoPoint) Neg() {
-	p.inner.Neg()
+// Neg sets `p = -t`, and returns p.
+func (p *RistrettoPoint) Neg(t *RistrettoPoint) *RistrettoPoint {
+	p.inner.Neg(&t.inner)
+	return p
 }
 
-// Mul computes `point * scalar` in constant-time (variable-base scalar
-// multiplication).
-func (p *RistrettoPoint) Mul(point *RistrettoPoint, scalar *scalar.Scalar) {
+// Mul sets `p = point * scalar` in constant-time (variable-base scalar
+// multiplication), and returns p.
+func (p *RistrettoPoint) Mul(point *RistrettoPoint, scalar *scalar.Scalar) *RistrettoPoint {
 	p.inner.Mul(&point.inner, scalar)
+	return p
 }
 
-// MultiscalarMul computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
-// in constant-time.
+// MultiscalarMul sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
+// in constant-time, and returns p.
 //
 // WARNING: This function will panic if `len(scalars) != len(points)`.
-func (p *RistrettoPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*RistrettoPoint) {
+func (p *RistrettoPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*RistrettoPoint) *RistrettoPoint {
 	edwardsPoints := make([]*EdwardsPoint, 0, len(points))
 	for _, point := range points {
 		edwardsPoints = append(edwardsPoints, &point.inner)
 	}
 
 	p.inner.MultiscalarMul(scalars, edwardsPoints)
+	return p
 }
 
-// MultiscalarMulVartime computes `scalars[0] * points[0] + ... scalars[n] * points[n]`
-// in variable-time.
+// MultiscalarMulVartime sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
+// in variable-time, and returns p.
 //
 // WARNING: This function will panic if `len(scalars) != len(points)`.
-func (p *RistrettoPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []*RistrettoPoint) {
+func (p *RistrettoPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []*RistrettoPoint) *RistrettoPoint {
 	edwardsPoints := make([]*EdwardsPoint, 0, len(points))
 	for _, point := range points {
 		edwardsPoints = append(edwardsPoints, &point.inner)
 	}
 
 	p.inner.MultiscalarMulVartime(scalars, edwardsPoints)
+	return p
 }
 
-// DoubleScalarMulBasepointVartime computes (aA + bB) in variable time,
-// where B is the Ristretto basepoint.
-func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar) {
+// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// where B is the Ristretto basepoint, and returns p.
+func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar) *RistrettoPoint {
 	p.inner.DoubleScalarMulBasepointVartime(a, &A.inner, b)
+	return p
 }
 
 func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
@@ -370,7 +397,7 @@ func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	cp.T.Add(&field.One, &s_sq)
 
 	// The conversion from W_i is exactly the conversion from P1xP1.
-	p.inner.fromCompleted(&cp)
+	p.inner.setCompleted(&cp)
 }
 
 func (p *RistrettoPoint) coset4() [4]EdwardsPoint {
@@ -384,6 +411,12 @@ func (p *RistrettoPoint) coset4() [4]EdwardsPoint {
 	return ret
 }
 
+// NewRistrettoPoint constructs a new Ristretto point set to the identity element.
+func NewRistrettoPoint() *RistrettoPoint {
+	var p RistrettoPoint
+	return p.Identity()
+}
+
 // RistrettoBasepointTable defines a precomputed table of multiples of a
 // basepoint, for accelerating fixed-based scalar multiplication.
 type RistrettoBasepointTable struct {
@@ -392,6 +425,9 @@ type RistrettoBasepointTable struct {
 
 // Mul constructs a point from a scalar by computing the multiple aB
 // of this basepoint (B).
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
 func (tbl *RistrettoBasepointTable) Mul(scalar *scalar.Scalar) RistrettoPoint {
 	return RistrettoPoint{
 		inner: tbl.inner.Mul(scalar),
@@ -399,6 +435,9 @@ func (tbl *RistrettoBasepointTable) Mul(scalar *scalar.Scalar) RistrettoPoint {
 }
 
 // Basepoint returns the basepoint of the table.
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
 func (tbl *RistrettoBasepointTable) Basepoint() RistrettoPoint {
 	return RistrettoPoint{
 		inner: tbl.inner.Basepoint(),
@@ -407,9 +446,9 @@ func (tbl *RistrettoBasepointTable) Basepoint() RistrettoPoint {
 
 // NewRistrettoBasepointTable creates a table of precomputed multiples of
 // `basepoint`.
-func NewRistrettoBasepointTable(basepoint *RistrettoPoint) RistrettoBasepointTable {
-	return RistrettoBasepointTable{
-		inner: NewEdwardsBasepointTable(&basepoint.inner),
+func NewRistrettoBasepointTable(basepoint *RistrettoPoint) *RistrettoBasepointTable {
+	return &RistrettoBasepointTable{
+		inner: *NewEdwardsBasepointTable(&basepoint.inner),
 	}
 }
 
