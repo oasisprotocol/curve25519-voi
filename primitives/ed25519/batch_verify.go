@@ -109,8 +109,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			continue
 		}
 
-		var rCompressed curve.CompressedEdwardsY
-		if valid[i] = vOpts.unpackSignature(sigs[i], &rCompressed, Rs[i], Ss[i]); !valid[i] {
+		if valid[i] = vOpts.unpackSignature(sigs[i], Rs[i], Ss[i]); !valid[i] {
 			allValid = false
 			continue
 		}
@@ -161,15 +160,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		switch vOpts.CofactorlessVerify {
 		case true:
-			// Yes, this is already done once when we unpack all of
-			// the signatures, but allocating a backing store to
-			// save having to do this again is pointless for the
-			// common case, and this call supporting cofactor-less
-			// verification is merely to guard against misuse,
-			// rather than something intended to be efficient.
-			var RCompressed curve.CompressedEdwardsY
-			err = RCompressed.FromBytes(sigs[i][:32])
-			valid[i] = err == nil && R.EqualCompressedY(&RCompressed) == 1
+			valid[i] = cofactorlessVerify(&R, sigs[i])
 		case false:
 			var rDiff curve.EdwardsPoint
 			rDiff.Sub(&R, Rs[i])

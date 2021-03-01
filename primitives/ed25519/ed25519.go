@@ -229,16 +229,17 @@ func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.Edward
 	return true
 }
 
-func (vOpts *VerifyOptions) unpackSignature(sig []byte, rCompressed *curve.CompressedEdwardsY, R *curve.EdwardsPoint, S *scalar.Scalar) bool {
+func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S *scalar.Scalar) bool {
 	if len(sig) != SignatureSize || (sig[63]&224 != 0) {
 		return false
 	}
 
 	// Unpack R.
+	var rCompressed curve.CompressedEdwardsY
 	if err := rCompressed.FromBytes(sig[:32]); err != nil {
 		return false
 	}
-	if err := R.FromCompressedY(rCompressed); err != nil {
+	if err := R.FromCompressedY(&rCompressed); err != nil {
 		return false
 	}
 
@@ -460,11 +461,10 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 
 	// Unpack and ensure the signature is well-formed (R, S).
 	var (
-		checkRCompressed curve.CompressedEdwardsY
-		checkR           curve.EdwardsPoint
-		S                scalar.Scalar
+		checkR curve.EdwardsPoint
+		S      scalar.Scalar
 	)
-	if ok := vOpts.unpackSignature(sig, &checkRCompressed, &checkR, &S); !ok {
+	if ok := vOpts.unpackSignature(sig, &checkR, &S); !ok {
 		return false, nil
 	}
 
@@ -494,7 +494,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// For the purpose of compatibility, support the old way of doing
 	// things, though this is now considered unwise.
 	if vOpts.CofactorlessVerify {
-		return R.EqualCompressedY(&checkRCompressed) == 1, nil
+		return cofactorlessVerify(&R, sig), nil
 	}
 
 	// Check that [8]R == [8](SB - H(R,A,m)A)).  Note that this actually
@@ -611,4 +611,10 @@ func scMinimal(scalar []byte) bool {
 	}
 
 	return true
+}
+
+func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
+	var RCompressed curve.CompressedEdwardsY
+	_ = RCompressed.FromBytes(sig[:32])
+	return R.EqualCompressedY(&RCompressed) == 1
 }
