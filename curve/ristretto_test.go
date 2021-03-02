@@ -57,8 +57,8 @@ func testRistrettoSum(t *testing.T) {
 	s1, s2 := scalar.NewFromUint64(999), scalar.NewFromUint64(333)
 
 	var p1, p2, expected RistrettoPoint
-	p1.Mul(&base, &s1)
-	p2.Mul(&base, &s2)
+	p1.Mul(&base, s1)
+	p2.Mul(&base, s2)
 	expected.Add(&p1, &p2)
 
 	var sum RistrettoPoint
@@ -88,7 +88,7 @@ func testRistrettoDecompressNegativeSFails(t *testing.T) {
 	_ = constEDWARDS_D.ToBytes(bad[:])
 
 	var p RistrettoPoint
-	if err := p.FromCompressed(&bad); err == nil {
+	if _, err := p.SetCompressed(&bad); err == nil {
 		t.Fatalf("FromCompressed(constEDWARDS_D) succeeded")
 	}
 }
@@ -99,7 +99,7 @@ func testRistrettoDecompressId(t *testing.T) {
 		id           RistrettoPoint
 	)
 	compressedId.Identity()
-	if err := id.FromCompressed(&compressedId); err != nil {
+	if _, err := id.SetCompressed(&compressedId); err != nil {
 		t.Fatalf("FromCompressed(compressedId): %v", err)
 	}
 
@@ -109,7 +109,7 @@ func testRistrettoDecompressId(t *testing.T) {
 	var identityInCoset bool
 	for _, p := range id.coset4() {
 		var tmp CompressedEdwardsY
-		tmp.FromEdwardsPoint(&p)
+		tmp.SetEdwardsPoint(&p)
 
 		if tmp.Equal(&compressedEdwardsId) == 1 {
 			identityInCoset = true
@@ -130,7 +130,7 @@ func testRistrettoCompressId(t *testing.T) {
 	compressedId.Identity()
 
 	var cp CompressedRistretto
-	cp.FromRistrettoPoint(&id)
+	cp.SetRistrettoPoint(&id)
 
 	if cp.Equal(&compressedId) != 1 {
 		t.Fatalf("cp != compressedId (Got: %v)", cp)
@@ -164,7 +164,7 @@ func testRistrettoEncodingsOfSmallMultiplesOfBasepoint(t *testing.T) {
 
 	for i, pp := range compressed {
 		var pCompressed CompressedRistretto
-		pCompressed.FromRistrettoPoint(&p)
+		pCompressed.SetRistrettoPoint(&p)
 		if pCompressed.Equal(&pp) != 1 {
 			t.Fatalf("bp * %d != compressed[%d] (Got %v)", i, i, pCompressed)
 		}
@@ -175,20 +175,22 @@ func testRistrettoEncodingsOfSmallMultiplesOfBasepoint(t *testing.T) {
 
 func testRistrettoBasepointRoundtrip(t *testing.T) {
 	var bpCompressedRistretto CompressedRistretto
-	bpCompressedRistretto.FromRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
+	bpCompressedRistretto.SetRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
 
 	var bpRecaf RistrettoPoint
-	_ = bpRecaf.FromCompressed(&bpCompressedRistretto)
+	_, _ = bpRecaf.SetCompressed(&bpCompressedRistretto)
 
 	// Check that bpRecaf differs from bp by a point of order 4.
-	var diff RistrettoPoint
+	var (
+		diff  RistrettoPoint
+		diff4 EdwardsPoint
+	)
 	diff.Sub(&RISTRETTO_BASEPOINT_POINT, &bpRecaf)
-	diff4 := diff.inner
-	diff4.mulByPow2(2)
+	diff4.mulByPow2(&diff.inner, 2)
 
 	var compressedDiff4, compressedEdwardsId CompressedEdwardsY
 	compressedEdwardsId.Identity()
-	compressedDiff4.FromEdwardsPoint(&diff4)
+	compressedDiff4.SetEdwardsPoint(&diff4)
 
 	if compressedDiff4.Equal(&compressedEdwardsId) != 1 {
 		t.Fatalf("diff4 != id (Got: %v)", compressedDiff4)
@@ -206,12 +208,12 @@ func testRistrettoFourTorsionBasepoint(t *testing.T) {
 }
 
 func testRistrettoFourTorsionRandom(t *testing.T) {
-	var s scalar.Scalar
-	if err := s.Random(rand.Reader); err != nil {
-		t.Fatalf("s.Random(): %v", err)
+	s, err := scalar.New().Random(rand.Reader)
+	if err != nil {
+		t.Fatalf("scalar.New().Random(): %v", err)
 	}
 
-	p := RISTRETTO_BASEPOINT_TABLE.Mul(&s)
+	p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 	pCoset := p.coset4()
 	for i, pp := range pCoset {
 		if p.Equal(&RistrettoPoint{inner: pp}) != 1 {
@@ -267,13 +269,13 @@ func testRistrettoElligator(t *testing.T) {
 
 	for i, b := range r0Bytes {
 		var r_0 field.FieldElement
-		_ = r_0.FromBytes(b[:])
+		_, _ = r_0.SetBytes(b[:])
 
 		var q RistrettoPoint
 		q.elligatorRistrettoFlavor(&r_0)
 
 		var qCompressed CompressedRistretto
-		qCompressed.FromRistrettoPoint(&q)
+		qCompressed.SetRistrettoPoint(&q)
 
 		if qCompressed.Equal(&encodedImages[i]) != 1 {
 			t.Fatalf("q != encodedImages[%d] (Got %v)", i, qCompressed)
@@ -283,17 +285,17 @@ func testRistrettoElligator(t *testing.T) {
 
 func testRistrettoRandomRoundtrip(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		var s scalar.Scalar
-		if err := s.Random(rand.Reader); err != nil {
+		s, err := scalar.New().Random(rand.Reader)
+		if err != nil {
 			t.Fatalf("s.Random(): %v", err)
 		}
 
-		p := RISTRETTO_BASEPOINT_TABLE.Mul(&s)
+		p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 		var compressedP CompressedRistretto
-		compressedP.FromRistrettoPoint(&p)
+		compressedP.SetRistrettoPoint(&p)
 
 		var q RistrettoPoint
-		_ = q.FromCompressed(&compressedP)
+		_, _ = q.SetCompressed(&compressedP)
 		if p.Equal(&q) != 1 {
 			t.Fatalf("p != q (Got %v, %v)", p, q)
 		}

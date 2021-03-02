@@ -36,6 +36,6 @@ func feMul(fe, a, b *FieldElement) {
 	feMulGeneric(fe, a, b)
 }
 
-func fePow2k(fe *FieldElement, k uint) {
-	fePow2kGeneric(fe, k)
+func fePow2k(fe, t *FieldElement, k uint) {
+	fePow2kGeneric(fe, t, k)
 }

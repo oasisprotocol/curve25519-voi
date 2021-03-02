@@ -41,19 +41,6 @@ var constEXTENDEDPOINT_IDENTITY = extendedPoint{
 	},
 }
 
-// The identity element as a `cachedPoint`.
-var constCACHEDPOINT_IDENTITY = cachedPoint{
-	inner: fieldElement2625x4{
-		inner: [5][8]uint32{
-			{121647, 121666, 0, 0, 243332, 67108845, 0, 33554431},
-			{67108864, 0, 33554431, 0, 0, 67108863, 0, 33554431},
-			{67108863, 0, 33554431, 0, 0, 67108863, 0, 33554431},
-			{67108863, 0, 33554431, 0, 0, 67108863, 0, 33554431},
-			{67108863, 0, 33554431, 0, 0, 67108863, 0, 33554431},
-		},
-	},
-}
-
 // Odd multiples of the Ed25519 basepoint.
 var constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = cachedPointNafLookupTable8{
 	cachedPoint{
@@ -761,5 +748,3 @@ var constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = cachedPointNafLookupTable8{
 		},
 	},
 }
-
-// var constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = newCachedPointNafLookupTable8(&ED25519_BASEPOINT_POINT)

@@ -34,47 +34,47 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		edwardsMulVector(out, point, scalar)
-	case false:
-		edwardsMulGeneric(out, point, scalar)
+		return edwardsMulVector(out, point, scalar)
+	default:
+		return edwardsMulGeneric(out, point, scalar)
 	}
 }
 
-func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		edwardsDoubleScalarMulBasepointVartimeVector(out, a, A, b)
-	case false:
-		edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+		return edwardsDoubleScalarMulBasepointVartimeVector(out, a, A, b)
+	default:
+		return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
 	}
 }
 
-func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		edwardsMultiscalarMulStrausVector(out, scalars, points)
-	case false:
-		edwardsMultiscalarMulStrausGeneric(out, scalars, points)
+		return edwardsMultiscalarMulStrausVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulStrausGeneric(out, scalars, points)
 	}
 }
 
-func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		edwardsMultiscalarMulStrausVartimeVector(out, scalars, points)
-	case false:
-		edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
+		return edwardsMultiscalarMulStrausVartimeVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
 	}
 }
 
-func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
-	case false:
-		edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
+		return edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
 	}
 }

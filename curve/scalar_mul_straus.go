@@ -32,7 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	lookupTables := make([]projectiveNielsPointLookupTable, 0, len(points))
 	for _, point := range points {
 		lookupTables = append(lookupTables, newProjectiveNielsPointLookupTable(point))
@@ -48,18 +48,19 @@ func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Sca
 
 	var sum completedPoint
 	for i := 63; i >= 0; i-- {
-		out.mulByPow2(4)
+		out.mulByPow2(out, 4)
 		for j := 0; j < len(points); j++ {
 			// R_i = s_{i,j} * P_i
-			R_i := lookupTables[j].lookup(scalarDigitsVec[j][i])
+			R_i := lookupTables[j].Lookup(scalarDigitsVec[j][i])
 			// Q = Q + R_i
-			sum.addEdwardsProjectiveNiels(out, &R_i)
-			out.fromCompleted(&sum)
+			out.setCompleted(sum.AddEdwardsProjectiveNiels(out, &R_i))
 		}
 	}
+
+	return out
 }
 
-func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	lookupTables := make([]projectiveNielsPointNafLookupTable, 0, len(points))
 	for _, point := range points {
 		lookupTables = append(lookupTables, newProjectiveNielsPointNafLookupTable(point))
@@ -71,25 +72,23 @@ func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*sca
 	}
 
 	var r projectivePoint
-	r.identity()
+	r.Identity()
 
 	var t completedPoint
 	for i := 255; i >= 0; i-- {
-		t.double(&r)
+		t.Double(&r)
 
 		for j := 0; j < len(points); j++ {
 			naf_i := nafs[j][i]
 			if naf_i > 0 {
-				pt := lookupTables[j].lookup(uint8(naf_i))
-				t.addCompletedProjectiveNiels(&t, &pt)
+				t.AddCompletedProjectiveNiels(&t, lookupTables[j].lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
-				pt := lookupTables[j].lookup(uint8(-naf_i))
-				t.subCompletedProjectiveNiels(&t, &pt)
+				t.SubCompletedProjectiveNiels(&t, lookupTables[j].lookup(uint8(-naf_i)))
 			}
 		}
 
-		r.fromCompleted(&t)
+		r.SetCompleted(&t)
 	}
 
-	out.fromProjective(&r)
+	return out.setProjective(&r)
 }

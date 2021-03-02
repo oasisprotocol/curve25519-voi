@@ -91,48 +91,54 @@ type extendedPoint struct {
 	inner                    fieldElement2625x4
 }
 
-func (p *EdwardsPoint) fromExtended(ep *extendedPoint) {
+func (p *EdwardsPoint) setExtended(ep *extendedPoint) *EdwardsPoint {
 	ep.inner.Split(&p.inner.X, &p.inner.Y, &p.inner.Z, &p.inner.T)
+	return p
 }
 
-func (p *extendedPoint) fromEdwards(ep *EdwardsPoint) {
+func (p *extendedPoint) SetEdwards(ep *EdwardsPoint) *extendedPoint {
 	p.inner = newFieldElement2625x4(&ep.inner.X, &ep.inner.Y, &ep.inner.Z, &ep.inner.T)
+	return p
 }
 
-//nolint:unused
-func (p *extendedPoint) conditionalSelect(a, b *extendedPoint, choice int) {
+func (p *extendedPoint) ConditionalSelect(a, b *extendedPoint, choice int) {
 	p.inner.ConditionalSelect(&a.inner, &b.inner, choice)
 }
 
-//nolint:unused
-func (p *extendedPoint) conditionalAssign(other *extendedPoint, choice int) {
+func (p *extendedPoint) ConditionalAssign(other *extendedPoint, choice int) {
 	p.inner.ConditionalAssign(&other.inner, choice)
 }
 
 // Note: dalek has the identity point as the default ctor for
 // ExtendedPoint/CachedPoint.
 
-func (p *extendedPoint) identity() {
+func (p *extendedPoint) Identity() *extendedPoint {
 	*p = constEXTENDEDPOINT_IDENTITY
+	return p
 }
 
-func (p *extendedPoint) double() {
+func (p *extendedPoint) Double(t *extendedPoint) *extendedPoint {
 	var tmp1 fieldElement2625x4
-	vecDoubleExtended_Step1_AVX2(&tmp1, p)
+	vecDoubleExtended_Step1_AVX2(&tmp1, t)
 	vecSquareAndNegateD_AVX2(&tmp1)
 
 	var tmp0 fieldElement2625x4
 	vecDoubleExtended_Step2_AVX2(&tmp0, &tmp1)
 	p.inner.Mul(&tmp0, &tmp1)
+
+	return p
 }
 
-func (p *extendedPoint) mulByPow2(k uint) {
-	for i := uint(0); i < k; i++ {
-		p.double()
+func (p *extendedPoint) MulByPow2(t *extendedPoint, k uint) *extendedPoint {
+	// Note: Assumes `k > 0`, but the panic is elided.
+	p.Double(t)
+	for i := uint(0); i < k-1; i++ {
+		p.Double(p)
 	}
+	return p
 }
 
-func (p *extendedPoint) addExtendedCached(a *extendedPoint, b *cachedPoint) {
+func (p *extendedPoint) AddExtendedCached(a *extendedPoint, b *cachedPoint) *extendedPoint {
 	var tmp0 fieldElement2625x4
 	vecAddSubExtendedCached_Step1_AVX2(&tmp0, a)
 	tmp0.Mul(&tmp0, &b.inner)
@@ -140,9 +146,11 @@ func (p *extendedPoint) addExtendedCached(a *extendedPoint, b *cachedPoint) {
 	var tmp1 fieldElement2625x4
 	vecAddSubExtendedCached_Step2_AVX2(&tmp0, &tmp1)
 	p.inner.Mul(&tmp0, &tmp1)
+
+	return p
 }
 
-func (p *extendedPoint) subExtendedCached(a *extendedPoint, b *cachedPoint) {
+func (p *extendedPoint) SubExtendedCached(a *extendedPoint, b *cachedPoint) *extendedPoint {
 	var tmp0, other fieldElement2625x4
 	vecAddSubExtendedCached_Step1_AVX2(&tmp0, a)
 	vecNegateLazyCached_AVX2(&other, b)
@@ -151,6 +159,8 @@ func (p *extendedPoint) subExtendedCached(a *extendedPoint, b *cachedPoint) {
 	var tmp1 fieldElement2625x4
 	vecAddSubExtendedCached_Step2_AVX2(&tmp0, &tmp1)
 	p.inner.Mul(&tmp0, &tmp1)
+
+	return p
 }
 
 type cachedPoint struct {
@@ -158,7 +168,7 @@ type cachedPoint struct {
 	inner                    fieldElement2625x4
 }
 
-func (p *cachedPoint) fromExtended(ep *extendedPoint) {
+func (p *cachedPoint) SetExtended(ep *extendedPoint) *cachedPoint {
 	vecCachedFromExtended_Step1_AVX2(p, ep)
 
 	neg_x := *p
@@ -173,25 +183,22 @@ func (p *cachedPoint) fromExtended(ep *extendedPoint) {
 		p.inner.inner[i][5] = neg_x.inner.inner[i][5] // d_2i
 		p.inner.inner[i][7] = neg_x.inner.inner[i][7] // d_2i_1
 	}
+
+	return p
 }
 
-//nolint:unused
-func (p *cachedPoint) conditionalSelect(a, b *cachedPoint, choice int) {
+func (p *cachedPoint) ConditionalSelect(a, b *cachedPoint, choice int) {
 	p.inner.ConditionalSelect(&a.inner, &b.inner, choice)
 }
 
-func (p *cachedPoint) conditionalAssign(other *cachedPoint, choice int) {
+func (p *cachedPoint) ConditionalAssign(other *cachedPoint, choice int) {
 	p.inner.ConditionalAssign(&other.inner, choice)
 }
 
-func (p *cachedPoint) conditionalNegate(choice int) {
+func (p *cachedPoint) ConditionalNegate(choice int) {
 	var pNeg cachedPoint
 	vecNegateLazyCached_AVX2(&pNeg.inner, p)
-	p.conditionalAssign(&pNeg, choice)
-}
-
-func (p *cachedPoint) identity() {
-	*p = constCACHEDPOINT_IDENTITY
+	p.ConditionalAssign(&pNeg, choice)
 }
 
 type fieldElement2625x4 struct {

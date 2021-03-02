@@ -32,7 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	aNaf := a.NonAdjacentForm(5)
 	bNaf := b.NonAdjacentForm(8)
 
@@ -49,29 +49,25 @@ func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.
 	tableB := &constAFFINE_ODD_MULTIPLES_OF_BASEPOINT
 
 	var r projectivePoint
-	r.identity()
+	r.Identity()
 
 	var t completedPoint
 	for {
-		t.double(&r)
+		t.Double(&r)
 
 		if aNaf[i] > 0 {
-			pt := tableA.lookup(uint8(aNaf[i]))
-			t.addCompletedProjectiveNiels(&t, &pt)
+			t.AddCompletedProjectiveNiels(&t, tableA.lookup(uint8(aNaf[i])))
 		} else if aNaf[i] < 0 {
-			pt := tableA.lookup(uint8(-aNaf[i]))
-			t.subCompletedProjectiveNiels(&t, &pt)
+			t.SubCompletedProjectiveNiels(&t, tableA.lookup(uint8(-aNaf[i])))
 		}
 
 		if bNaf[i] > 0 {
-			pt := tableB.lookup(uint8(bNaf[i]))
-			t.addCompletedAffineNiels(&t, &pt)
+			t.AddCompletedAffineNiels(&t, tableB.lookup(uint8(bNaf[i])))
 		} else if bNaf[i] < 0 {
-			pt := tableB.lookup(uint8(-bNaf[i]))
-			t.subCompletedAffineNiels(&t, &pt)
+			t.SubCompletedAffineNiels(&t, tableB.lookup(uint8(-bNaf[i])))
 		}
 
-		r.fromCompleted(&t)
+		r.SetCompleted(&t)
 
 		if i == 0 {
 			break
@@ -79,5 +75,5 @@ func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.
 		i--
 	}
 
-	out.fromProjective(&r)
+	return out.setProjective(&r)
 }

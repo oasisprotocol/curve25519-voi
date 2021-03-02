@@ -301,13 +301,10 @@ TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-28
 // the result to memory starting at rax.
 //
 // Inputs:   ymm0 .. ymm4, rax
-// Clobbers: ymm0 .. ymm14, rbx, rcx, rdx
+// Clobbers: ymm0 .. ymm14
 #define reduce() \
-	LEAQ     ·reduce_shifts<>(SB), BX     \
-	LEAQ     ·reduce_masks<>(SB), CX      \
-	LEAQ     ·v19<>(SB), DX               \
-	VMOVDQA  0(BX), Y15                   \ // ymm15 = reduce_shifts
-	VMOVDQA  0(CX), Y14                   \ // ymm14 = reduce_masks
+	VMOVDQA  ·reduce_shifts<>(SB), Y15    \ // ymm15 <- reduce_shifts
+	VMOVDQA  ·reduce_masks<>(SB), Y14     \ // ymm14 <- reduce_masks
 	VPXOR    Y12, Y12, Y12                \ // ymm12 = 0
 	                                      \
 	\ // ymm5 .. ymm9 =  c10 ... c98
@@ -345,7 +342,7 @@ TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-28
 	                                      \
 	\ // ymm9 = c9_19
 	VPSHUFD  $0xd8, Y9, Y9                \ // ymm9 = c9_spread
-	VPMULUDQ 0(DX), Y9, Y9                \ // ymm9 = c9_19_spread
+	VPMULUDQ ·v19<>(SB), Y9, Y9           \ // ymm9 = c9_19_spread
 	VPSHUFD  $0xd8, Y9, Y9                \ // ymm9 = c9_19
 	                                      \
 	\ // ymm0 += c9_19
@@ -358,12 +355,9 @@ TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-28
 TEXT ·vecReduce_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 	MOVQ out+0(FP), AX
 
-	LEAQ    ·reduce_shifts<>(SB), BX
-	LEAQ    ·reduce_masks<>(SB), CX
-	LEAQ    ·v19<>(SB), DX
-	VMOVDQA 0(BX), Y15               // ymm15 = reduce_shifts
-	VMOVDQA 0(CX), Y14               // ymm14 = reduce_masks
-	VPXOR   Y12, Y12, Y12            // ymm12 = 0
+	VMOVDQA ·reduce_shifts<>(SB), Y15 // ymm15 <- reduce_shifts
+	VMOVDQA ·reduce_masks<>(SB), Y14  // ymm14 <- reduce_masks
+	VPXOR   Y12, Y12, Y12             // ymm12 = 0
 
 	// ymm0 .. ymm4 = out
 	load_vec(AX)
@@ -377,10 +371,8 @@ TEXT ·vecReduce_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 TEXT ·vecNegate_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 	MOVQ out+0(FP), AX
 
-	LEAQ    ·p_times_16_lo<>(SB), DX
-	LEAQ    ·p_times_16_hi<>(SB), SI
-	VMOVDQA 0(DX), Y15               // ymm15 = P_TIMES_2_LO
-	VMOVDQA 0(SI), Y14               // ymm14 = P_TIMES_2_HI
+	VMOVDQA ·p_times_16_lo<>(SB), Y15 // ymm15 <- P_TIMES_2_LO
+	VMOVDQA ·p_times_16_hi<>(SB), Y14 // ymm14 <- P_TIMES_2_HI
 
 	VPSUBD 0(AX), Y15, Y0   // ymm0 = P_TIMES_2_LO - out0
 	VPSUBD 32(AX), Y14, Y1  // ymm1 = P_TIMES_2_HI - out1
@@ -403,77 +395,73 @@ TEXT ·vecNegate_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 // writes the result to memory starting at rax.
 //
 // Inputs:   ymm0 .. ymm9, rax
-// Clobbers: ymm0 .. ymm14, rbx, rcx, rdx
+// Clobbers: ymm0 .. ymm14
 #define reduce64() \
-	LEAQ     ·low_25_bit_mask<>(SB), BX \ // rbx <- low_25_bit_mask
-	LEAQ     ·low_26_bit_mask<>(SB), CX \ // rcx <- low_26_bit_mask
-	LEAQ     ·v19<>(SB), DX             \ // rdx <- v19
-	                                    \
-	VMOVDQA  0(BX), Y12                 \ // ymm12 <- low_25_bit_mask
-	VMOVDQA  0(CX), Y13                 \ // ymm13 <- low_26_bit_mask
-	VMOVDQA  0(DX), Y14                 \ // ymm14 <- v19
-	                                    \
-	VPSRLQ   $26, Y0, Y10               \ // ymm10 = ymm0 >> 26
-	VPSRLQ   $26, Y4, Y11               \ // ymm11 = ymm4 >> 26
-	VPADDQ   Y1, Y10, Y1                \ // ymm1  = ymm1 + (ymm0 >> 26)
-	VPADDQ   Y5, Y11, Y5                \ // ymm5  = ymm5 + (ymm4 >> 26)
-	VPAND    Y13, Y0, Y0                \ // ymm0  = ymm0 & low_26_bit_mask
-	VPAND    Y13, Y4, Y4                \ // ymm4  = ymm4 & low_26_bit_mask
-	                                    \
-	VPSRLQ   $25, Y1, Y10               \ // ymm10 = ymm1 >> 25
-	VPSRLQ   $25, Y5, Y11               \ // ymm11 = ymm5 >> 25
-	VPADDQ   Y2, Y10, Y2                \ // ymm2  = ymm2 + (ymm1 >> 25)
-	VPADDQ   Y6, Y11, Y6                \ // ymm6  = ymm6 + (ymm5 >> 25)
-	VPAND    Y12, Y1, Y1                \ // ymm1  = ymm1 & low_25_bit_mask
-	VPAND    Y12, Y5, Y5                \ // ymm5  = ymm5 & low_25_bit_mask
-	                                    \
-	VPSRLQ   $26, Y2, Y10               \ // ymm10 = ymm2 >> 26
-	VPSRLQ   $26, Y6, Y11               \ // ymm11 = ymm6 >> 26
-	VPADDQ   Y3, Y10, Y3                \ // ymm3  = ymm3 + (ymm2 >> 26)
-	VPADDQ   Y7, Y11, Y7                \ // ymm7  = ymm7 + (ymm6 >> 26)
-	VPAND    Y13, Y2, Y2                \ // ymm2  = ymm2 & low_26_bit_mask
-	VPAND    Y13, Y6, Y6                \ // ymm6  = ymm6 & low_26_bit_mask
-	                                    \
-	VPSRLQ   $25, Y3, Y10               \ // ymm10 = ymm3 >> 25
-	VPSRLQ   $25, Y7, Y11               \ // ymm11 = ymm7 >> 25
-	VPADDQ   Y4, Y10, Y4                \ // ymm4  = ymm4 + (ymm3 >> 25)
-	VPADDQ   Y8, Y11, Y8                \ // ymm8  = ymm8 + (ymm7 >> 25)
-	VPAND    Y12, Y3, Y3                \ // ymm3  = ymm3 & low_25_bit_mask
-	VPAND    Y12, Y7, Y7                \ // ymm7  = ymm7 & low_25_bit_mask
-	                                    \
-	VPSRLQ   $26, Y4, Y10               \ // ymm10 = ymm4 >> 26
-	VPSRLQ   $26, Y8, Y11               \ // ymm11 = ymm8 >> 26
-	VPADDQ   Y5, Y10, Y5                \ // ymm5  = ymm5 + (ymm4 >> 26)
-	VPADDQ   Y9, Y11, Y9                \ // ymm9  = ymm9 + (ymm8 >> 26)
-	VPAND    Y13, Y4, Y4                \ // ymm4  = ymm4 & low_26_bit_mask
-	VPAND    Y13, Y8, Y8                \ // ymm8  = ymm8 & low_26_bit_mask
-	                                    \
-	VPSRLQ   $25, Y9, Y11               \ // ymm11 = ymm9 >> 25 (c)
-	VPAND    Y12, Y9, Y9                \ // ymm9  = ymm9 & low_25_bit_mask
-	VPAND    Y13, Y11, Y10              \ // ymm10 = ymm11 & low_26_bit_mask (c0)
-	VPSRLQ   $26, Y11, Y11              \ // ymm11 = ymm11 >> 26 (c1)
-	                                    \
-	VPMULUDQ Y14, Y10, Y10              \ // ymm10 *= v19
-	VPMULUDQ Y14, Y11, Y11              \ // ymm11 *= v19
-	                                    \
-	VPADDQ   Y0, Y10, Y0                \ // ymm0 += ymm10
-	VPADDQ   Y1, Y11, Y1                \ // ymm1 += ymm11
-	                                    \
-	VPSRLQ   $26, Y0, Y10               \ // ymm10 = ymm0 >> 26
-	VPADDQ   Y1, Y10, Y1                \ // ymm1  = ymm1 + (ymm0 >> 26)
-	VPAND    Y13, Y0, Y0                \ // ymm0  = ymm0 & low_26_bit_mask
-	                                    \
-	repack_pair(Y0, Y1)                 \
-	repack_pair(Y2, Y3)                 \
-	repack_pair(Y4, Y5)                 \
-	repack_pair(Y6, Y7)                 \
-	repack_pair(Y8, Y9)                 \
-	                                    \
-	VMOVDQU  Y0, 0(AX)                  \
-	VMOVDQU  Y2, 32(AX)                 \
-	VMOVDQU  Y4, 64(AX)                 \
-	VMOVDQU  Y6, 96(AX)                 \
-	VMOVDQU  Y8, 128(AX)                \
+	VMOVDQA  ·low_25_bit_mask<>(SB), Y12 \ // ymm12 <- low_25_bit_mask
+	VMOVDQA  ·low_26_bit_mask<>(SB), Y13 \ // ymm13 <- low_26_bit_mask
+	VMOVDQA  ·v19<>(SB), Y14             \ // ymm14 <- v19
+	                                     \
+	VPSRLQ   $26, Y0, Y10                \ // ymm10 = ymm0 >> 26
+	VPSRLQ   $26, Y4, Y11                \ // ymm11 = ymm4 >> 26
+	VPADDQ   Y1, Y10, Y1                 \ // ymm1  = ymm1 + (ymm0 >> 26)
+	VPADDQ   Y5, Y11, Y5                 \ // ymm5  = ymm5 + (ymm4 >> 26)
+	VPAND    Y13, Y0, Y0                 \ // ymm0  = ymm0 & low_26_bit_mask
+	VPAND    Y13, Y4, Y4                 \ // ymm4  = ymm4 & low_26_bit_mask
+	                                     \
+	VPSRLQ   $25, Y1, Y10                \ // ymm10 = ymm1 >> 25
+	VPSRLQ   $25, Y5, Y11                \ // ymm11 = ymm5 >> 25
+	VPADDQ   Y2, Y10, Y2                 \ // ymm2  = ymm2 + (ymm1 >> 25)
+	VPADDQ   Y6, Y11, Y6                 \ // ymm6  = ymm6 + (ymm5 >> 25)
+	VPAND    Y12, Y1, Y1                 \ // ymm1  = ymm1 & low_25_bit_mask
+	VPAND    Y12, Y5, Y5                 \ // ymm5  = ymm5 & low_25_bit_mask
+	                                     \
+	VPSRLQ   $26, Y2, Y10                \ // ymm10 = ymm2 >> 26
+	VPSRLQ   $26, Y6, Y11                \ // ymm11 = ymm6 >> 26
+	VPADDQ   Y3, Y10, Y3                 \ // ymm3  = ymm3 + (ymm2 >> 26)
+	VPADDQ   Y7, Y11, Y7                 \ // ymm7  = ymm7 + (ymm6 >> 26)
+	VPAND    Y13, Y2, Y2                 \ // ymm2  = ymm2 & low_26_bit_mask
+	VPAND    Y13, Y6, Y6                 \ // ymm6  = ymm6 & low_26_bit_mask
+	                                     \
+	VPSRLQ   $25, Y3, Y10                \ // ymm10 = ymm3 >> 25
+	VPSRLQ   $25, Y7, Y11                \ // ymm11 = ymm7 >> 25
+	VPADDQ   Y4, Y10, Y4                 \ // ymm4  = ymm4 + (ymm3 >> 25)
+	VPADDQ   Y8, Y11, Y8                 \ // ymm8  = ymm8 + (ymm7 >> 25)
+	VPAND    Y12, Y3, Y3                 \ // ymm3  = ymm3 & low_25_bit_mask
+	VPAND    Y12, Y7, Y7                 \ // ymm7  = ymm7 & low_25_bit_mask
+	                                     \
+	VPSRLQ   $26, Y4, Y10                \ // ymm10 = ymm4 >> 26
+	VPSRLQ   $26, Y8, Y11                \ // ymm11 = ymm8 >> 26
+	VPADDQ   Y5, Y10, Y5                 \ // ymm5  = ymm5 + (ymm4 >> 26)
+	VPADDQ   Y9, Y11, Y9                 \ // ymm9  = ymm9 + (ymm8 >> 26)
+	VPAND    Y13, Y4, Y4                 \ // ymm4  = ymm4 & low_26_bit_mask
+	VPAND    Y13, Y8, Y8                 \ // ymm8  = ymm8 & low_26_bit_mask
+	                                     \
+	VPSRLQ   $25, Y9, Y11                \ // ymm11 = ymm9 >> 25 (c)
+	VPAND    Y12, Y9, Y9                 \ // ymm9  = ymm9 & low_25_bit_mask
+	VPAND    Y13, Y11, Y10               \ // ymm10 = ymm11 & low_26_bit_mask (c0)
+	VPSRLQ   $26, Y11, Y11               \ // ymm11 = ymm11 >> 26 (c1)
+	                                     \
+	VPMULUDQ Y14, Y10, Y10               \ // ymm10 *= v19
+	VPMULUDQ Y14, Y11, Y11               \ // ymm11 *= v19
+	                                     \
+	VPADDQ   Y0, Y10, Y0                 \ // ymm0 += ymm10
+	VPADDQ   Y1, Y11, Y1                 \ // ymm1 += ymm11
+	                                     \
+	VPSRLQ   $26, Y0, Y10                \ // ymm10 = ymm0 >> 26
+	VPADDQ   Y1, Y10, Y1                 \ // ymm1  = ymm1 + (ymm0 >> 26)
+	VPAND    Y13, Y0, Y0                 \ // ymm0  = ymm0 & low_26_bit_mask
+	                                     \
+	repack_pair(Y0, Y1)                  \
+	repack_pair(Y2, Y3)                  \
+	repack_pair(Y4, Y5)                  \
+	repack_pair(Y6, Y7)                  \
+	repack_pair(Y8, Y9)                  \
+	                                     \
+	VMOVDQU  Y0, 0(AX)                   \
+	VMOVDQU  Y2, 32(AX)                  \
+	VMOVDQU  Y4, 64(AX)                  \
+	VMOVDQU  Y6, 96(AX)                  \
+	VMOVDQU  Y8, 128(AX)                 \
 
 // unpack_fe unpacks a vector of 32-bit lanes into 64-bit lanes.
 //
@@ -554,7 +542,6 @@ TEXT ·vecMul_AVX2(SB), $992-24
 	MOVQ out+0(FP), AX
 	MOVQ a+8(FP), BX
 	MOVQ b+16(FP), CX
-	LEAQ ·v19<>(SB), DX
 
 	// Align the stack on a 64 byte boundary.
 	MOVQ SP, BP
@@ -580,7 +567,7 @@ TEXT ·vecMul_AVX2(SB), $992-24
 #define Y_7_19 Y13
 #define Y_8_19 Y14
 #define Y_9_19 Y15
-	VMOVDQA  0(DX), Y15      // ymm15 = v19
+	VMOVDQA  ·v19<>(SB), Y15 // ymm15 <- v19
 	VPMULUDQ Y1, Y15, Y1     // ymm1 = y1 * 19
 	VPMULUDQ Y2, Y15, Y2     // ymm2 = y2 * 19
 	VPMULUDQ Y3, Y15, Y3     // ymm3 = y3 * 19
@@ -914,7 +901,6 @@ TEXT ·vecMul_AVX2(SB), $992-24
 // func vecSquareAndNegateD_AVX2(out *fieldElement2625x4)
 TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 	MOVQ out+0(FP), AX
-	LEAQ ·v19<>(SB), DX
 
 	// Align the stack on a 64 byte boundary.
 	MOVQ SP, BP
@@ -932,11 +918,11 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 #define X_3_2 Y12
 #define X_5_2 Y13
 #define X_7_2 Y14
-	VMOVDQA 0(DX), V_19   // ymm15 = v19
-	VPADDD  Y1, Y1, X_1_2 // ymm11 = x1_2
-	VPADDD  Y3, Y3, X_3_2 // ymm12 = x3_2
-	VPADDD  Y5, Y5, X_5_2 // ymm13 = x5_2
-	VPADDD  Y7, Y7, X_7_2 // ymm14 = x7_2
+	VMOVDQA ·v19<>(SB), V_19 // ymm15 <- v19
+	VPADDD  Y1, Y1, X_1_2    // ymm11 = x1_2
+	VPADDD  Y3, Y3, X_3_2    // ymm12 = x3_2
+	VPADDD  Y5, Y5, X_5_2    // ymm13 = x5_2
+	VPADDD  Y7, Y7, X_7_2    // ymm14 = x7_2
 
 	// z0 = m(x1_2,x9_19)
 	// z1 = m(x2,x9_19)
@@ -1181,18 +1167,15 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 
 	// At this point ymm0 .. ymm9 contains the final z0 .. z9, prior
 	// to negating d.
-	LEAQ ·low_p_37<>(SB), BX
-	LEAQ ·even_p_37<>(SB), CX
-	LEAQ ·odd_p_37<>(SB), DX
+	VMOVDQA ·low_p_37<>(SB), Y10  // ymm10 <- low_p_37
+	VMOVDQA ·even_p_37<>(SB), Y14 // ymm14 <- even_p_37
+	VMOVDQA ·odd_p_37<>(SB), Y15  // ymm15 <- odd_p_37
 
-	VMOVDQA 0(BX), Y10   // ymm10 = low_p_37
-	VMOVDQA 0(CX), Y14   // ymm14 = even_p_37
-	VMOVDQA 0(DX), Y15   // ymm15 = odd_p_37
-	VPSUBQ  Y0, Y10, Y10 // ymm10 = low_p_37 - z0
-	VPSUBQ  Y2, Y14, Y11 // ymm11 = even_p_37 - z2
-	VPSUBQ  Y4, Y14, Y12 // ymm12 = even_p_37 - z4
-	VPSUBQ  Y6, Y14, Y13 // ymm13 = even_p_37 - z6
-	VPSUBQ  Y8, Y14, Y14 // ymm14 = even_p_37 - z8
+	VPSUBQ Y0, Y10, Y10 // ymm10 = low_p_37 - z0
+	VPSUBQ Y2, Y14, Y11 // ymm11 = even_p_37 - z2
+	VPSUBQ Y4, Y14, Y12 // ymm12 = even_p_37 - z4
+	VPSUBQ Y6, Y14, Y13 // ymm13 = even_p_37 - z6
+	VPSUBQ Y8, Y14, Y14 // ymm14 = even_p_37 - z8
 
 	VPBLENDD LANES_D64, Y10, Y0, Y0 // y0 = blend(z0, p-x, D_LANES64)
 	VPBLENDD LANES_D64, Y11, Y2, Y2 // y2 = blend(z2, p-x, D_LANES64)
@@ -1287,8 +1270,6 @@ TEXT ·vecDoubleExtended_Step1_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	MOVQ tmp0+0(FP), AX
 	MOVQ tmp1+8(FP), BX
-	LEAQ ·shuffle_AAAA<>(SB), CX
-	LEAQ ·shuffle_BBBB<>(SB), DX
 
 	VPXOR Y15, Y15, Y15
 
@@ -1321,7 +1302,7 @@ TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPBLENDD LANES_D, Y9, Y4, Y4
 
 	// ymm10 .. ymm14 = tmp1.shuffle(Shuffle::AAAA) (S_1)
-	VMOVDQA 0(CX), Y14
+	VMOVDQA ·shuffle_AAAA<>(SB), Y14
 	VPERMD  Y5, Y14, Y10
 	VPERMD  Y6, Y14, Y11
 	VPERMD  Y7, Y14, Y12
@@ -1336,7 +1317,7 @@ TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPADDD Y4, Y14, Y4
 
 	// ymm10 .. ymm14 = tmp1.shuffle(Shuffle::BBBB) (S_2)
-	VMOVDQA 0(DX), Y14
+	VMOVDQA ·shuffle_BBBB<>(SB), Y14
 	VPERMD  Y5, Y14, Y10
 	VPERMD  Y6, Y14, Y11
 	VPERMD  Y7, Y14, Y12
@@ -1358,10 +1339,8 @@ TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPADDD Y4, Y9, Y4
 
 	// ymm10 .. ymm14 = S_2.negate_lazy()
-	LEAQ    ·p_times_2_lo<>(SB), CX
-	LEAQ    ·p_times_2_hi<>(SB), DX
-	VMOVDQA 0(CX), Y9
-	VMOVDQA 0(DX), Y8
+	VMOVDQA ·p_times_2_lo<>(SB), Y9
+	VMOVDQA ·p_times_2_hi<>(SB), Y8
 	VPSUBD  Y10, Y9, Y10
 	VPSUBD  Y11, Y8, Y11
 	VPSUBD  Y12, Y8, Y12
@@ -1382,10 +1361,8 @@ TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPADDD Y3, Y8, Y3
 	VPADDD Y4, Y9, Y4
 
-	LEAQ    ·shuffle_DBBD<>(SB), CX
-	LEAQ    ·shuffle_CACA<>(SB), DX
-	VMOVDQA 0(CX), Y15
-	VMOVDQA 0(DX), Y14
+	VMOVDQA ·shuffle_DBBD<>(SB), Y15
+	VMOVDQA ·shuffle_CACA<>(SB), Y14
 
 	// ymm5 .. ymm9 = tmp0.shuffle(Shuffle::DBBD)
 	VPERMD Y0, Y15, Y5
@@ -1414,13 +1391,11 @@ TEXT ·vecDoubleExtended_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 // in ymm0 .. ymm4 and writes the output to ymm5 .. ymm9.
 //
 // Inputs:   ymm0 .. ymm4
-// Clobbers: ymm10 .. ymm15, rcx, rdx
+// Clobbers: ymm10 .. ymm15
 // Outputs:  ymm5 .. ymm9
 #define diff_sum() \
-	LEAQ     ·p_times_2_lo<>(SB), CX                                     \
-	LEAQ     ·p_times_2_hi<>(SB), DX                                     \
-	VMOVDQA  0(CX), Y15                                                  \ // ymm15 = P_TIMES_2_LO
-	VMOVDQA  0(DX), Y14                                                  \ // ymm14 = P_TIMES_2_HI
+	VMOVDQA  ·p_times_2_lo<>(SB), Y15                                    \ // ymm15 <- P_TIMES_2_LO
+	VMOVDQA  ·p_times_2_hi<>(SB), Y14                                    \ // ymm14 <- P_TIMES_2_HI
 	                                                                     \
 	\ // ymm5 .. ymm9 = self.shuffle(BADC) (tmp1)
 	VPSHUFD  SHUFFLE_BADC, Y0, Y5                                        \
@@ -1478,13 +1453,12 @@ TEXT ·vecAddSubExtendedCached_Step1_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 TEXT ·vecAddSubExtendedCached_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	MOVQ tmp0+0(FP), AX
 	MOVQ tmp1+8(FP), BX
-	LEAQ ·shuffle_ABDC<>(SB), CX
 
 	// ymm0 .. ymm4 = tmp0
 	load_vec(AX)
 
 	// tmp = tmp.shuffle(Shuffle::ABDC)
-	VMOVDQA 0(CX), Y15
+	VMOVDQA ·shuffle_ABDC<>(SB), Y15
 	VPERMD  Y0, Y15, Y0
 	VPERMD  Y1, Y15, Y1
 	VPERMD  Y2, Y15, Y2
@@ -1494,10 +1468,8 @@ TEXT ·vecAddSubExtendedCached_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	// ymm5 .. ymm9 = tmp.diff_sum()
 	diff_sum()
 
-	LEAQ    ·shuffle_ADDA<>(SB), CX
-	LEAQ    ·shuffle_CBCB<>(SB), DX
-	VMOVDQA 0(CX), Y15
-	VMOVDQA 0(DX), Y14
+	VMOVDQA ·shuffle_ADDA<>(SB), Y15
+	VMOVDQA ·shuffle_CBCB<>(SB), Y14
 
 	// let t0 = tmp.shuffle(Shuffle::ADDA)
 	VPERMD Y5, Y15, Y0
@@ -1526,13 +1498,12 @@ TEXT ·vecAddSubExtendedCached_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 TEXT ·vecNegateLazyCached_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	MOVQ out+0(FP), AX
 	MOVQ vec+8(FP), BX
-	LEAQ ·shuffle_BACD<>(SB), CX
 
 	// ymm0 .. ymm4 = vec
 	load_vec(BX)
 
 	// ymm0 .. ymm4 = self.0.shuffle(Shuffle::BACD) (swapped)
-	VMOVDQA 0(CX), Y15
+	VMOVDQA ·shuffle_BACD<>(SB), Y15
 	VPERMD  Y0, Y15, Y0
 	VPERMD  Y1, Y15, Y1
 	VPERMD  Y2, Y15, Y2
@@ -1540,10 +1511,8 @@ TEXT ·vecNegateLazyCached_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPERMD  Y4, Y15, Y4
 
 	// ymm5 .. ymm9 = swapped.negate_lazy()
-	LEAQ    ·p_times_2_lo<>(SB), CX
-	LEAQ    ·p_times_2_hi<>(SB), DX
-	VMOVDQA 0(CX), Y15
-	VMOVDQA 0(DX), Y14
+	VMOVDQA ·p_times_2_lo<>(SB), Y15
+	VMOVDQA ·p_times_2_hi<>(SB), Y14
 	VPSUBD  Y0, Y15, Y5
 	VPSUBD  Y1, Y14, Y6
 	VPSUBD  Y2, Y14, Y7
@@ -1595,8 +1564,7 @@ TEXT ·vecCachedFromExtended_Step1_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VPUNPCKHDQ Y15, Y14, Y9 // ymm8, ymm9 = unpack_pair(ymm14)
 	VPUNPCKLDQ Y15, Y14, Y8
 
-	LEAQ     ·to_cached_scalar<>(SB), DX
-	VMOVDQA  0(DX), Y14
+	VMOVDQA  ·to_cached_scalar<>(SB), Y14
 	VPMULUDQ Y14, Y0, Y0
 	VPMULUDQ Y14, Y1, Y1
 	VPMULUDQ Y14, Y2, Y2

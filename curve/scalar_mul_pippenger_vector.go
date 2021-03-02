@@ -34,7 +34,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	size := len(scalars)
 
 	// Digit width in bits. As digit width grows,
@@ -64,15 +64,14 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 	optPoints := make([]cachedPoint, size)
 	for i, point := range points {
 		var ep extendedPoint
-		ep.fromEdwards(point)
-		optPoints[i].fromExtended(&ep)
+		optPoints[i].SetExtended(ep.SetEdwards(point))
 	}
 
 	// Prepare 2^w/2 buckets.
 	// buckets[i] corresponds to a multiplication factor (i+1).
 	buckets := make([]extendedPoint, bucketsCount)
 	for i := range buckets {
-		buckets[i].identity()
+		buckets[i].Identity()
 	}
 
 	// TODO/perf: Compared to using an interator this results in 1 more
@@ -81,7 +80,7 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 	for idx := int(digitsCount - 1); idx >= 0; idx-- {
 		// Clear the buckets when processing another digit.
 		for i := 0; i < bucketsCount; i++ {
-			buckets[i].identity()
+			buckets[i].Identity()
 		}
 
 		// Iterate over pairs of (point, scalar)
@@ -92,10 +91,10 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 			digit := int16(optScalars[i][idx])
 			if digit > 0 {
 				b := uint(digit - 1)
-				buckets[b].addExtendedCached(&buckets[b], &optPoints[i])
+				buckets[b].AddExtendedCached(&buckets[b], &optPoints[i])
 			} else if digit < 0 {
 				b := uint(-digit - 1)
-				buckets[b].subExtendedCached(&buckets[b], &optPoints[i])
+				buckets[b].SubExtendedCached(&buckets[b], &optPoints[i])
 			}
 		}
 
@@ -112,10 +111,8 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 		bucketsSum := buckets[bucketsCount-1]
 		for i := int((bucketsCount - 1) - 1); i >= 0; i-- {
 			var cp cachedPoint
-			cp.fromExtended(&buckets[i])
-			bucketsIntermediateSum.addExtendedCached(&bucketsIntermediateSum, &cp)
-			cp.fromExtended(&bucketsIntermediateSum)
-			bucketsSum.addExtendedCached(&bucketsSum, &cp)
+			bucketsIntermediateSum.AddExtendedCached(&bucketsIntermediateSum, cp.SetExtended(&buckets[i]))
+			bucketsSum.AddExtendedCached(&bucketsSum, cp.SetExtended(&bucketsIntermediateSum))
 		}
 
 		columns[idx] = bucketsSum
@@ -125,12 +122,12 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 	// the identity element.
 	sum := columns[digitsCount-1]
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
-		sumMul := sum
-		sumMul.mulByPow2(w)
-		var cp cachedPoint
-		cp.fromExtended(&columns[i])
-		sum.addExtendedCached(&sumMul, &cp)
+		var (
+			sumMul extendedPoint
+			cp     cachedPoint
+		)
+		sum.AddExtendedCached(sumMul.MulByPow2(&sum, w), cp.SetExtended(&columns[i]))
 	}
 
-	out.fromExtended(&sum)
+	return out.setExtended(&sum)
 }

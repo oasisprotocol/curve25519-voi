@@ -34,22 +34,22 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) {
-	edwardsMulGeneric(out, point, scalar)
+func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	return edwardsMulGeneric(out, point, scalar)
 }
 
-func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
-	edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
 }
 
-func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
-	edwardsMultiscalarMulStrausGeneric(out, scalars, points)
+func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	return edwardsMultiscalarMulStrausGeneric(out, scalars, points)
 }
 
-func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
-	edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
+func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	return edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
 }
 
-func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
-	edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
+func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
 }

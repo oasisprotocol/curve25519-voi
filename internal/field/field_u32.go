@@ -52,8 +52,8 @@ type FieldElement struct {
 	inner                    [10]uint32
 }
 
-// Add computes `a + b`.
-func (fe *FieldElement) Add(a, b *FieldElement) {
+// Add sets `fe = a + b`, and returns fe.
+func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
 	fe.inner[0] = a.inner[0] + b.inner[0]
 	fe.inner[1] = a.inner[1] + b.inner[1]
 	fe.inner[2] = a.inner[2] + b.inner[2]
@@ -64,12 +64,14 @@ func (fe *FieldElement) Add(a, b *FieldElement) {
 	fe.inner[7] = a.inner[7] + b.inner[7]
 	fe.inner[8] = a.inner[8] + b.inner[8]
 	fe.inner[9] = a.inner[9] + b.inner[9]
+
+	return fe
 }
 
-// Sub computes `a - b`.
-func (fe *FieldElement) Sub(a, b *FieldElement) {
+// Sub sets `fe = a - b`, and returns fe.
+func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	// Compute a - b as ((a + 2^4 * p) - b) to avoid underflow.
-	fe.reduce(&[10]uint64{
+	return fe.reduce(&[10]uint64{
 		uint64((a.inner[0] + (0x3ffffed << 4)) - b.inner[0]),
 		uint64((a.inner[1] + (0x1ffffff << 4)) - b.inner[1]),
 		uint64((a.inner[2] + (0x3ffffff << 4)) - b.inner[2]),
@@ -83,8 +85,8 @@ func (fe *FieldElement) Sub(a, b *FieldElement) {
 	})
 }
 
-// Mul computes `a * b`.
-func (e *FieldElement) Mul(a, b *FieldElement) {
+// Mul sets `fe = a * b`, and returns fe.
+func (fe *FieldElement) Mul(a, b *FieldElement) *FieldElement {
 	x, y := a.inner, b.inner
 
 	// We assume that the input limbs x[i], y[i] are bounded by:
@@ -146,23 +148,23 @@ func (e *FieldElement) Mul(a, b *FieldElement) {
 	z8 := m(x[0], y[8]) + m(x1_2, y[7]) + m(x[2], y[6]) + m(x3_2, y[5]) + m(x[4], y[4]) + m(x5_2, y[3]) + m(x[6], y[2]) + m(x7_2, y[1]) + m(x[8], y[0]) + m(x9_2, y9_19)
 	z9 := m(x[0], y[9]) + m(x[1], y[8]) + m(x[2], y[7]) + m(x[3], y[6]) + m(x[4], y[5]) + m(x[5], y[4]) + m(x[6], y[3]) + m(x[7], y[2]) + m(x[8], y[1]) + m(x[9], y[0])
 
-	e.reduce(&[10]uint64{z0, z1, z2, z3, z4, z5, z6, z7, z8, z9})
+	return fe.reduce(&[10]uint64{z0, z1, z2, z3, z4, z5, z6, z7, z8, z9})
 }
 
-// Neg computes `-fe`.
-func (fe *FieldElement) Neg() {
+// Neg sets `fe = -t`, and returns fe.
+func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
 	// Compute -b as ((2^4 * p) - b) to avoid underflow.
-	fe.reduce(&[10]uint64{
-		uint64((0x3ffffed << 4) - fe.inner[0]),
-		uint64((0x1ffffff << 4) - fe.inner[1]),
-		uint64((0x3ffffff << 4) - fe.inner[2]),
-		uint64((0x1ffffff << 4) - fe.inner[3]),
-		uint64((0x3ffffff << 4) - fe.inner[4]),
-		uint64((0x1ffffff << 4) - fe.inner[5]),
-		uint64((0x3ffffff << 4) - fe.inner[6]),
-		uint64((0x1ffffff << 4) - fe.inner[7]),
-		uint64((0x3ffffff << 4) - fe.inner[8]),
-		uint64((0x1ffffff << 4) - fe.inner[9]),
+	return fe.reduce(&[10]uint64{
+		uint64((0x3ffffed << 4) - t.inner[0]),
+		uint64((0x1ffffff << 4) - t.inner[1]),
+		uint64((0x3ffffff << 4) - t.inner[2]),
+		uint64((0x1ffffff << 4) - t.inner[3]),
+		uint64((0x3ffffff << 4) - t.inner[4]),
+		uint64((0x1ffffff << 4) - t.inner[5]),
+		uint64((0x3ffffff << 4) - t.inner[6]),
+		uint64((0x1ffffff << 4) - t.inner[7]),
+		uint64((0x3ffffff << 4) - t.inner[8]),
+		uint64((0x1ffffff << 4) - t.inner[9]),
 	})
 }
 
@@ -209,20 +211,22 @@ func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
 	fe.inner[9] = subtle.ConstantTimeSelectUint32(choice, other.inner[9], fe.inner[9])
 }
 
-// One sets the field element to one.
-func (fe *FieldElement) One() {
+// One sets fe to one, and returns fe.
+func (fe *FieldElement) One() *FieldElement {
 	*fe = NewFieldElement2625(1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	return fe
 }
 
-// MinusOne sets the field element to -1.
-func (fe *FieldElement) MinusOne() {
+// MinusOne sets fe to -1, and returns fe.
+func (fe *FieldElement) MinusOne() *FieldElement {
 	*fe = NewFieldElement2625(
 		0x3ffffec, 0x1ffffff, 0x3ffffff, 0x1ffffff, 0x3ffffff,
 		0x1ffffff, 0x3ffffff, 0x1ffffff, 0x3ffffff, 0x1ffffff,
 	)
+	return fe
 }
 
-func (fe *FieldElement) reduce(z *[10]uint64) {
+func (fe *FieldElement) reduce(z *[10]uint64) *FieldElement {
 	const (
 		low_25_bit_mask uint64 = (1 << 25) - 1
 		low_26_bit_mask uint64 = (1 << 26) - 1
@@ -278,18 +282,20 @@ func (fe *FieldElement) reduce(z *[10]uint64) {
 	fe.inner[7] = uint32(z[7])
 	fe.inner[8] = uint32(z[8])
 	fe.inner[9] = uint32(z[9])
+
+	return fe
 }
 
-// FromBytes loads a field element from the low 255 bits of a 256 bit input.
+// SetBytes loads a field element from the low 255-bits of a 256-bit input.
 //
 // WARNING: This function does not check that the input used the canonical
 // representative.  It masks the high bit, but it will happily decode
 // 2^255 - 18 to 1.  Applications that require a canonical encoding of
 // every field element should decode, re-encode to the canonical encoding,
 // and check that the input was canonical.
-func (fe *FieldElement) FromBytes(in []byte) error {
+func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
 	if len(in) != FieldElementSize {
-		return fmt.Errorf("internal/field/u32: unexpected in size")
+		return nil, fmt.Errorf("internal/field/u32: unexpected in size")
 	}
 
 	load3 := func(b []byte) uint64 {
@@ -314,7 +320,7 @@ func (fe *FieldElement) FromBytes(in []byte) error {
 
 	fe.reduce(&h)
 
-	return nil
+	return fe, nil
 }
 
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
@@ -422,39 +428,42 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 	return nil
 }
 
-// Pow2k computes `self^(2^k)`, given `k > 0`.
-func (fe *FieldElement) Pow2k(k uint) {
+// Pow2k sets `fe = t^(2^k)`, given `k > 0`, and returns fe.
+func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
 	if k == 0 {
 		panic("internal/field/u32: k out of bounds")
 	}
 
 	var z [10]uint64
-	for {
+
+	// Handle the first squaring separately to save a copy.
+	squareInner(&t.inner, &z)
+	fe.reduce(&z)
+
+	// And do the rest.
+	for ; k > 1; k-- {
 		squareInner(&fe.inner, &z)
 		fe.reduce(&z)
-
-		k--
-		if k == 0 {
-			break
-		}
 	}
+
+	return fe
 }
 
-// Square computes `self^2`.
-func (fe *FieldElement) Square() {
+// Square sets `fe = t^2`, and returns fe.
+func (fe *FieldElement) Square(t *FieldElement) *FieldElement {
 	var z [10]uint64
-	squareInner(&fe.inner, &z)
-	fe.reduce(&z)
+	squareInner(&t.inner, &z)
+	return fe.reduce(&z)
 }
 
-// Square2 computes `2*self^2`.
-func (fe *FieldElement) Square2() {
+// Square2 sets `fe = 2*t^2`, and returns fe.
+func (fe *FieldElement) Square2(t *FieldElement) *FieldElement {
 	var z [10]uint64
-	squareInner(&fe.inner, &z)
+	squareInner(&t.inner, &z)
 	for i := 0; i < 10; i++ {
 		z[i] *= 2
 	}
-	fe.reduce(&z)
+	return fe.reduce(&z)
 }
 
 func squareInner(x *[10]uint32, z *[10]uint64) {

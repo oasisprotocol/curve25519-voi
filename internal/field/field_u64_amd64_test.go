@@ -185,8 +185,8 @@ func testFeMul(t *testing.T, useBMI2 bool) {
 func testFePow2k(t *testing.T, useBMI2 bool) {
 	a, ap16 := testConstants["A"], testConstants["AP16"]
 
-	shouldBeAp16 := *a
-	fePow2k_AMD64(&shouldBeAp16, 4, useBMI2)
+	var shouldBeAp16 FieldElement
+	fePow2k_AMD64(&shouldBeAp16, a, 4, useBMI2)
 
 	if shouldBeAp16.Equal(ap16) != 1 {
 		t.Fatalf("a ^ (2^4) != ap16 (Got: %v)", shouldBeAp16)

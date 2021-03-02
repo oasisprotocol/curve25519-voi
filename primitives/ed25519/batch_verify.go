@@ -125,7 +125,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		_, _ = h.Write(publicKeys[i][:])
 		_, _ = h.Write(messages[i])
 		h.Sum(hash[:0])
-		if err = hrams[i].FromBytesModOrderWide(hash[:]); err != nil {
+		if _, err = hrams[i].SetBytesModOrderWide(hash[:]); err != nil {
 			valid[i], allValid = false, false
 			continue
 		}
@@ -155,7 +155,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		// Instead of calling verifyWithOptionsNoPanic, just do the
 		// final calculation to save some computation.
 		var R curve.EdwardsPoint
-		As[i].Neg()
+		As[i].Neg(As[i])
 		R.DoubleScalarMulBasepointVartime(hrams[i], As[i], Ss[i])
 
 		switch vOpts.CofactorlessVerify {
@@ -163,8 +163,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			valid[i] = cofactorlessVerify(&R, sigs[i])
 		case false:
 			var rDiff curve.EdwardsPoint
-			rDiff.Sub(&R, Rs[i])
-			valid[i] = rDiff.IsSmallOrder()
+			valid[i] = rDiff.Sub(&R, Rs[i]).IsSmallOrder()
 		}
 		if !valid[i] {
 			allValid = false
@@ -196,7 +195,7 @@ func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*sc
 		if _, err := io.ReadFull(rand, scalarBytes[:]); err != nil {
 			return false
 		}
-		if err := z.FromBytesModOrderWide(scalarBytes[:]); err != nil {
+		if _, err := z.SetBytesModOrderWide(scalarBytes[:]); err != nil {
 			return false
 		}
 		zs[i] = z
@@ -222,7 +221,7 @@ func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*sc
 	// Collect all the scalars/points to pass into the final multiscalar
 	// multiply.
 	scalars := make([]*scalar.Scalar, 0, 1+num+num)
-	B_coefficient.Neg()
+	B_coefficient.Neg(&B_coefficient)
 	scalars = append(scalars, &B_coefficient)
 	scalars = append(scalars, zs...)
 	scalars = append(scalars, zhrams...)

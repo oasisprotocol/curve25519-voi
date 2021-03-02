@@ -32,7 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) {
+func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	size := len(scalars)
 
 	// Digit width in bits. As digit width grows,
@@ -61,7 +61,7 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 
 	optPoints := make([]projectiveNielsPoint, size)
 	for i, point := range points {
-		optPoints[i].fromEdwards(point)
+		optPoints[i].SetEdwards(point)
 	}
 
 	// Prepare 2^w/2 buckets.
@@ -89,12 +89,10 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 			digit := int16(optScalars[i][idx])
 			if digit > 0 {
 				b := uint(digit - 1)
-				tmp.addEdwardsProjectiveNiels(&buckets[b], &optPoints[i])
-				buckets[b].fromCompleted(&tmp)
+				buckets[b].setCompleted(tmp.AddEdwardsProjectiveNiels(&buckets[b], &optPoints[i]))
 			} else if digit < 0 {
 				b := uint(-digit - 1)
-				tmp.subEdwardsProjectiveNiels(&buckets[b], &optPoints[i])
-				buckets[b].fromCompleted(&tmp)
+				buckets[b].setCompleted(tmp.SubEdwardsProjectiveNiels(&buckets[b], &optPoints[i]))
 			}
 		}
 
@@ -121,10 +119,10 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 	// the identity element.
 	sum := columns[digitsCount-1]
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
-		sumMul := sum
-		sumMul.mulByPow2(w)
+		var sumMul EdwardsPoint
+		sumMul.mulByPow2(&sum, w)
 		sum.Add(&sumMul, &columns[i])
 	}
 
-	*out = sum
+	return out.Set(&sum)
 }

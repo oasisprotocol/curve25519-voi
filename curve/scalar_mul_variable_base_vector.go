@@ -34,7 +34,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMulVector(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+func edwardsMulVector(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	// Construct a lookup table of [P,2P,3P,4P,5P,6P,7P,8P]
 	lookupTable := newCachedPointLookupTable(point)
 
@@ -55,11 +55,11 @@ func edwardsMulVector(out, point *EdwardsPoint, scalar *scalar.Scalar) {
 		q   extendedPoint
 		tmp cachedPoint
 	)
-	q.identity()
+	q.Identity()
 	for i := 63; i >= 0; i-- {
-		q.mulByPow2(4)
-		tmp = lookupTable.lookup(scalarDigits[i])
-		q.addExtendedCached(&q, &tmp)
+		q.MulByPow2(&q, 4)
+		tmp = lookupTable.Lookup(scalarDigits[i])
+		q.AddExtendedCached(&q, &tmp)
 	}
-	out.fromExtended(&q)
+	return out.setExtended(&q)
 }

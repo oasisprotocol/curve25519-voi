@@ -30,11 +30,15 @@
 
 package scalar
 
-import "testing"
+import (
+	"crypto/rand"
+	"strconv"
+	"testing"
+)
 
 var testConstants = map[string]*Scalar{
 	// x = 2238329342913194256032495932344128051776374960164957527413114840482143558222
-	"X": newScalarP([]byte{
+	"X": newRawScalar([]byte{
 		0x4e, 0x5a, 0xb4, 0x34, 0x5d, 0x47, 0x08, 0x84,
 		0x59, 0x13, 0xb4, 0x64, 0x1b, 0xc2, 0x7d, 0x52,
 		0x52, 0xa5, 0x85, 0x10, 0x1b, 0xcc, 0x42, 0x44,
@@ -42,7 +46,7 @@ var testConstants = map[string]*Scalar{
 	}),
 
 	// 1/x = 6859937278830797291664592131120606308688036382723378951768035303146619657244
-	"XINV": newScalarP([]byte{
+	"XINV": newRawScalar([]byte{
 		0x1c, 0xdc, 0x17, 0xfc, 0xe0, 0xe9, 0xa5, 0xbb,
 		0xd9, 0x24, 0x7e, 0x56, 0xbb, 0x01, 0x63, 0x47,
 		0xbb, 0xba, 0x31, 0xed, 0xd5, 0xa9, 0xbb, 0x96,
@@ -50,7 +54,7 @@ var testConstants = map[string]*Scalar{
 	}),
 
 	// y = 2592331292931086675770238855846338635550719849568364935475441891787804997264
-	"Y": newScalarP([]byte{
+	"Y": newRawScalar([]byte{
 		0x90, 0x76, 0x33, 0xfe, 0x1c, 0x4b, 0x66, 0xa4,
 		0xa2, 0x8d, 0x2d, 0xd7, 0x67, 0x83, 0x86, 0xc3,
 		0x53, 0xd0, 0xde, 0x54, 0x55, 0xd4, 0xfc, 0x9d,
@@ -58,34 +62,36 @@ var testConstants = map[string]*Scalar{
 	}),
 
 	// x*y = 5690045403673944803228348699031245560686958845067437804563560795922180092780
-	"XY": newScalarP([]byte{
+	"XY": newRawScalar([]byte{
 		0x6c, 0x33, 0x74, 0xa1, 0x89, 0x4f, 0x62, 0x21,
 		0x0a, 0xaa, 0x2f, 0xe1, 0x86, 0xa6, 0xf9, 0x2c,
 		0xe0, 0xaa, 0x75, 0xc2, 0x77, 0x95, 0x81, 0xc2,
 		0x95, 0xfc, 0x08, 0x17, 0x9a, 0x73, 0x94, 0x0c,
 	}),
 
-	"LARGEST_ED25519_S": newScalarP([]byte{
+	"LARGEST_ED25519_S": newRawScalar([]byte{
 		0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
 	}),
 
-	"CANONICAL_LARGEST_ED25519_S_PLUS_ONE": newScalarP([]byte{
+	"CANONICAL_LARGEST_ED25519_S_PLUS_ONE": newRawScalar([]byte{
 		0x7e, 0x34, 0x47, 0x75, 0x47, 0x4a, 0x7f, 0x97,
 		0x23, 0xb6, 0x3a, 0x8b, 0xe9, 0x2a, 0xe7, 0x6d,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
 	}),
 
-	"CANONICAL_LARGEST_ED25519_S_MINUS_ONE": newScalarP([]byte{
+	"CANONICAL_LARGEST_ED25519_S_MINUS_ONE": newRawScalar([]byte{
 		0x7c, 0x34, 0x47, 0x75, 0x47, 0x4a, 0x7f, 0x97,
 		0x23, 0xb6, 0x3a, 0x8b, 0xe9, 0x2a, 0xe7, 0x6d,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
 	}),
 }
+
+var benchBatchSizes = []int{1, 2, 4, 8, 16}
 
 func TestScalar(t *testing.T) {
 	t.Run("FuzzerTestcaseReduction", testFuzzerTestcaseReduction)
@@ -125,47 +131,48 @@ func testFuzzerTestcaseReduction(t *testing.T) {
 		134, 171, 119, 216, 180, 128, 178, 62, 171, 132, 32, 62, 34, 119, 104, 193, 47, 215, 181, 250, 14, 207, 172, 93, 75, 207, 211, 103, 144, 204, 56, 14,
 	}
 
-	var a, b, c Scalar
-	if err := a.FromBytesModOrder(aBytes); err != nil {
-		t.Fatalf("a.FromBytesModOrder(aBytes): %v", err)
+	a, err := NewFromBytesModOrder(aBytes)
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrder(aBytes): %v", err)
 	}
-	if err := b.FromBytesModOrder(bBytes); err != nil {
-		t.Fatalf("b.FromBytesModOrder(bBytes): %v", err)
+	b, err := NewFromBytesModOrder(bBytes)
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrder(bBytes): %v", err)
 	}
-	if err := c.FromBytesModOrder(cBytes); err != nil {
-		t.Fatalf("c.FromBytesModOrder(cBytes): %v", err)
+	c, err := NewFromBytesModOrder(cBytes)
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrder(cBytes): %v", err)
 	}
 
 	var tmp [64]byte
 
 	// also_a = (a mod l)
 	copy(tmp[0:32], aBytes)
-	var alsoA Scalar
-	if err := alsoA.FromBytesModOrderWide(tmp[:]); err != nil {
-		t.Fatalf("alsoA.FromBytesModOrderWide(tmp): %v", err)
+	alsoA, err := NewFromBytesModOrderWide(tmp[:])
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrderWide(tmp) (alsoA): %v", err)
 	}
 
 	// also_b = (b mod l)
 	copy(tmp[0:32], bBytes)
-	var alsoB Scalar
-	if err := alsoB.FromBytesModOrderWide(tmp[:]); err != nil {
-		t.Fatalf("alsoB.FromBytesModOrderWide(tmp): %v", err)
+	alsoB, err := NewFromBytesModOrderWide(tmp[:])
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrderWide(tmp) (alsoB): %v", err)
 	}
 
-	var expectedC, alsoExpectedC Scalar
-	expectedC.Mul(&a, &b)
-	alsoExpectedC.Mul(&alsoA, &alsoB)
+	expectedC := New().Mul(a, b)
+	alsoExpectedC := New().Mul(alsoA, alsoB)
 
-	if c.Equal(&expectedC) != 1 {
+	if c.Equal(expectedC) != 1 {
 		t.Fatalf("C != expectedC (Got %v)", expectedC)
 	}
-	if c.Equal(&alsoExpectedC) != 1 {
+	if c.Equal(alsoExpectedC) != 1 {
 		t.Fatalf("C != alsoExpectedC (Got %v)", alsoExpectedC)
 	}
 }
 
 func testNonAdjacentFormTestVector(t *testing.T) {
-	aScalar := newScalar([]byte{
+	aScalar := newRawScalar([]byte{
 		0x1a, 0x0e, 0x97, 0x8a, 0x90, 0xf6, 0x62, 0x2d,
 		0x37, 0x47, 0x02, 0x3f, 0x8a, 0xd8, 0x26, 0x4d,
 		0xa7, 0x58, 0xaa, 0x1b, 0x88, 0xe0, 0x40, 0xd1,
@@ -191,7 +198,7 @@ func testNonAdjacentFormTestVector(t *testing.T) {
 func testNonAdjacentFormRandom(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		var x Scalar
-		if err := x.Random(nil); err != nil {
+		if _, err := x.Random(nil); err != nil {
 			t.Fatalf("x.Random(nil) failed: %v", err)
 		}
 		for _, w := range []uint{5, 6, 7, 8} {
@@ -209,10 +216,10 @@ func testNonAdjacentFormIter(t *testing.T, w uint, x *Scalar) {
 		var digit Scalar
 		y.Add(&y, &y)
 		if naf[i] < 0 {
-			digit.FromUint64(uint64(-naf[i]))
-			digit.Neg()
+			digit.SetUint64(uint64(-naf[i]))
+			digit.Neg(&digit)
 		} else {
-			digit.FromUint64(uint64(naf[i]))
+			digit.SetUint64(uint64(naf[i]))
 		}
 		y.Add(&y, &digit)
 	}
@@ -235,8 +242,7 @@ func testFromUint64(t *testing.T) {
 func testMulByOne(t *testing.T) {
 	x, one := testConstants["X"], One()
 
-	var testScalar Scalar
-	testScalar.Mul(x, &one)
+	testScalar := New().Mul(x, one)
 	if testScalar.Equal(x) != 1 {
 		t.Fatalf("x * 1 != x (Got %v)", testScalar)
 	}
@@ -247,17 +253,15 @@ func testAddReduces(t *testing.T) {
 		testConstants["CANONICAL_LARGEST_ED25519_S_PLUS_ONE"],
 		One()
 
-	var res Scalar
-
 	// Check that the addition works
-	res.Add(s, &one)
-	res.Reduce()
+	res := New().Add(s, one)
+	res.Reduce(res)
 	if res.Equal(sPlusOne) != 1 {
 		t.Fatalf("Reduce(s + 1) != s + 1 (Got %v)", res)
 	}
 
 	// Check that the addition reduces
-	res.Add(s, &one)
+	res.Add(s, one)
 	if res.Equal(sPlusOne) != 1 {
 		t.Fatalf("s + 1 != s  + 1 (Got %v)", res)
 	}
@@ -268,17 +272,15 @@ func testSubReduces(t *testing.T) {
 		testConstants["CANONICAL_LARGEST_ED25519_S_MINUS_ONE"],
 		One()
 
-	var res Scalar
-
 	// Check that the subtraction works
-	res.Sub(s, &one)
-	res.Reduce()
+	res := New().Sub(s, one)
+	res.Reduce(res)
 	if res.Equal(sMinusOne) != 1 {
 		t.Fatalf("Reduce(s - 1) != s - 1 (Got %v)", res)
 	}
 
 	// Check that the subtraction reduces
-	res.Sub(s, &one)
+	res.Sub(s, one)
 	if res.Equal(sMinusOne) != 1 {
 		t.Fatalf("s - 1 != s  + 1 (Got %v)", res)
 	}
@@ -308,62 +310,55 @@ func testOverflowDoesNotOccur(t *testing.T) {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
 	}
 
-	var a, b Scalar
-	if err := a.FromBytesModOrder(largeBytes); err != nil {
-		t.Fatalf("a.FromBytesModOrder(largeBytes): %v", err)
+	a, err := NewFromBytesModOrder(largeBytes)
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrder(largeBytes): %v", err)
 	}
-	if err := b.FromBits(largeBytes); err != nil {
-		t.Fatalf("a.FromBits(largeBytes): %v", err)
-	}
-
-	bReduced := b
-	bReduced.Reduce()
-	if a.Equal(&bReduced) != 1 {
-		t.Fatalf("a != b.Reduce() (Got %v, %v)", a, bReduced)
+	b, err := NewFromBits(largeBytes)
+	if err != nil {
+		t.Fatalf("NewFromBits(largeBytes): %v", err)
 	}
 
-	add3x := func(v *Scalar) Scalar {
-		var res Scalar
-		res.Add(v, v)
-		res.Add(&res, v)
+	bReduced := New().Reduce(b)
+	if a.Equal(bReduced) != 1 {
+		t.Fatalf("a != Reduce(b) (Got %v, %v)", a, bReduced)
+	}
+
+	add3x := func(v *Scalar) *Scalar {
+		res := New().Add(v, v)
+		res.Add(res, v)
 		return res
 	}
-	a3 := add3x(&a)
-	b3 := add3x(&b)
-	if a3.Equal(&b3) != 1 {
+	a3 := add3x(a)
+	b3 := add3x(b)
+	if a3.Equal(b3) != 1 {
 		t.Fatalf("a + a + a != b + b + b (Got %v, %v)", a3, b3)
 	}
 
-	negA, negB := a, b
-	negA.Neg()
-	negB.Neg()
-	if negA.Equal(&negB) != 1 {
+	negA := New().Neg(a)
+	negB := New().Neg(b)
+	if negA.Equal(negB) != 1 {
 		t.Fatalf("-a != -b (Got %v, %v)", negA, negB)
 	}
 
-	sub3x := func(v *Scalar) Scalar {
-		var res Scalar
-		res.Sub(&res, v)
-		res.Sub(&res, v)
-		res.Sub(&res, v)
+	sub3x := func(v *Scalar) *Scalar {
+		res := New().Sub(New(), v)
+		res.Sub(res, v)
+		res.Sub(res, v)
 		return res
 	}
-
-	minusA3 := sub3x(&a)
-	minusB3 := sub3x(&b)
-
-	if minusA3.Equal(&minusB3) != 1 {
+	minusA3 := sub3x(a)
+	minusB3 := sub3x(b)
+	if minusA3.Equal(minusB3) != 1 {
 		t.Fatalf("- a - a - a != - b - b - b (Got %v, %v)", minusA3, minusB3)
 	}
 
-	negA3, negB3 := a3, b3
-	negA3.Neg()
-	negB3.Neg()
-
-	if minusA3.Equal(&negA3) != 1 {
+	negA3 := New().Neg(a3)
+	negB3 := New().Neg(b3)
+	if minusA3.Equal(negA3) != 1 {
 		t.Fatalf("- a -a -a != -(a + a + a) (Got %v, %v)", minusA3, negA3)
 	}
-	if minusB3.Equal(&negB3) != 1 {
+	if minusB3.Equal(negB3) != 1 {
 		t.Fatalf("- b -b -b != -(b + b + b) (Got %v, %v)", minusB3, negB3)
 	}
 }
@@ -371,9 +366,8 @@ func testOverflowDoesNotOccur(t *testing.T) {
 func testAdd(t *testing.T) {
 	one, two := One(), NewFromUint64(2)
 
-	var shouldBeTwo Scalar
-	shouldBeTwo.Add(&one, &one)
-	if shouldBeTwo.Equal(&two) != 1 {
+	shouldBeTwo := New().Add(one, one)
+	if shouldBeTwo.Equal(two) != 1 {
 		t.Fatalf("1 + 1 != 2 (Got %v)", shouldBeTwo)
 	}
 }
@@ -392,8 +386,7 @@ func testProduct(t *testing.T) {
 	// Test that product works for non-empty slices
 	xy := testConstants["XY"]
 
-	var shouldBeXTimesY Scalar
-	shouldBeXTimesY.Product([]*Scalar{
+	shouldBeXTimesY := New().Product([]*Scalar{
 		testConstants["X"],
 		testConstants["Y"],
 	})
@@ -402,14 +395,12 @@ func testProduct(t *testing.T) {
 	}
 
 	// Test that product works for the empty slice
-	one := One()
-	var shouldBeOne Scalar
-	shouldBeOne.Product([]*Scalar{})
-	if shouldBeOne.Equal(&one) != 1 {
+	shouldBeOne := New().Product([]*Scalar{})
+	if shouldBeOne.Equal(One()) != 1 {
 		t.Fatalf("Product([]) != 1 (Got %v)", shouldBeOne)
 	}
 	shouldBeOne.Product(nil)
-	if shouldBeOne.Equal(&one) != 1 {
+	if shouldBeOne.Equal(One()) != 1 {
 		t.Fatalf("Product(nil) != 1 (Got %v)", shouldBeOne)
 	}
 }
@@ -418,20 +409,18 @@ func testSum(t *testing.T) {
 	// Test that sum works for non-empty slices
 	one, two := One(), NewFromUint64(2)
 
-	var shouldBeTwo Scalar
-	shouldBeTwo.Sum([]*Scalar{&one, &one})
-	if shouldBeTwo.Equal(&two) != 1 {
+	shouldBeTwo := New().Sum([]*Scalar{one, one})
+	if shouldBeTwo.Equal(two) != 1 {
 		t.Fatalf("Sum([1, 1]) != 2 (Got %v)", shouldBeTwo)
 	}
 
 	// Test that sum works for empty slices
-	var zero, shouldBeZero Scalar
-	shouldBeZero.Sum([]*Scalar{})
-	if shouldBeZero.Equal(&zero) != 1 {
+	shouldBeZero := New().Sum([]*Scalar{})
+	if shouldBeZero.Equal(New()) != 1 {
 		t.Fatalf("Sum([]) != 0 (Got %v)", shouldBeZero)
 	}
 	shouldBeZero.Sum(nil)
-	if shouldBeZero.Equal(&zero) != 1 {
+	if shouldBeZero.Equal(New()) != 1 {
 		t.Fatalf("Sum(nil) != 0 (Got %v)", shouldBeZero)
 	}
 }
@@ -439,13 +428,10 @@ func testSum(t *testing.T) {
 func testSquare(t *testing.T) {
 	x := testConstants["X"]
 
-	var expected, actual Scalar
-	expected.Mul(x, x)
+	expected := New().Mul(x, x)
 
-	unpacked := x.unpack()
-	unpacked.square()
-	actual.pack(&unpacked)
-	if expected.Equal(&actual) != 1 {
+	actual := New().pack(newUnpackedScalar().Square(x.unpack()))
+	if expected.Equal(actual) != 1 {
 		t.Fatalf("x.Square() != x * x (Got %v)", actual)
 	}
 }
@@ -454,23 +440,23 @@ func testReduce(t *testing.T) {
 	// sage: l = 2^252 + 27742317777372353535851937790883648493
 	// sage: big = 2^256 - 1
 	// sage: repr((big % l).digits(256))
-	canonical_2_256_minus_1 := newScalar([]byte{
+	canonical_2_256_minus_1 := newRawScalar([]byte{
 		28, 149, 152, 141, 116, 49, 236, 214,
 		112, 207, 125, 115, 244, 91, 239, 198,
 		254, 255, 255, 255, 255, 255, 255, 255,
 		255, 255, 255, 255, 255, 255, 255, 15,
 	})
 
-	var biggest Scalar
-	if err := biggest.FromBytesModOrder([]byte{
+	biggest, err := NewFromBytesModOrder([]byte{
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	}); err != nil {
-		t.Fatalf("FromBytesModOrder([0xff...]): %v", err)
+	})
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrder([0xff...]): %v", err)
 	}
-	if biggest.Equal(&canonical_2_256_minus_1) != 1 {
+	if biggest.Equal(canonical_2_256_minus_1) != 1 {
 		t.Fatalf("unexpected biggest: %v", biggest)
 	}
 }
@@ -485,17 +471,17 @@ func testFromBytesModOrderWide(t *testing.T) {
 	}
 	// 3958878930004874126169954872055634648693766179881526445624823978500314864344
 	// = x + 2^256x (mod l)
-	expected := newScalar([]byte{
+	expected := newRawScalar([]byte{
 		216, 154, 179, 139, 210, 121, 2, 71,
 		69, 99, 158, 216, 23, 173, 63, 100,
 		204, 0, 91, 50, 219, 153, 57, 249,
 		28, 82, 31, 197, 100, 165, 192, 8,
 	})
-	var reduced Scalar
-	if err := reduced.FromBytesModOrderWide(bignum[:]); err != nil {
-		t.Fatalf("FromBytesModOrderWide(bignum): %v", err)
+	reduced, err := NewFromBytesModOrderWide(bignum[:])
+	if err != nil {
+		t.Fatalf("NewFromBytesModOrderWide(bignum): %v", err)
 	}
-	if reduced.Equal(&expected) != 1 {
+	if reduced.Equal(expected) != 1 {
 		t.Fatalf("unexpected reduced: %v", reduced)
 	}
 
@@ -503,24 +489,23 @@ func testFromBytesModOrderWide(t *testing.T) {
 	// The original code has this split into two tests, but the latter test
 	// replicates the former.
 
-	var unpackedBignum unpackedScalar
-	if err := unpackedBignum.fromBytesWide(bignum[:]); err != nil {
-		t.Fatalf("FromBytesWide(bignum): %v", err)
+	unpackedBignum, err := newUnpackedScalar().SetBytesWide(bignum[:])
+	if err != nil {
+		t.Fatalf("SetBytesWide(bignum): %v", err)
 	}
 
 	//  (x + 2^256x) * R
-	interim := scalarMulInternal(&unpackedBignum, &constR)
+	interim := scalarMulInternal(unpackedBignum, &constR)
 
 	// ((x + 2^256x) * R) / R  (mod l)
-	var montgomeryReduced unpackedScalar
-	montgomeryReduced.montgomeryReduce(&interim)
+	montgomeryReduced := newUnpackedScalar().MontgomeryReduce(&interim)
 
 	// The Montgomery reduced scalar should match the reduced one, as well as the expected
 	unpackedReduced, unpackedExpected := reduced.unpack(), expected.unpack()
-	if montgomeryReduced != unpackedReduced {
+	if *montgomeryReduced != *unpackedReduced {
 		t.Fatalf("montgomery_reduced != reduced (Got: %v)", montgomeryReduced)
 	}
-	if montgomeryReduced != unpackedExpected {
+	if *montgomeryReduced != *unpackedExpected {
 		t.Fatalf("montgomery_reduced != expected (Got: %v)", montgomeryReduced)
 	}
 }
@@ -528,14 +513,13 @@ func testFromBytesModOrderWide(t *testing.T) {
 func testInvert(t *testing.T) {
 	x, xinv, one := testConstants["X"], testConstants["XINV"], One()
 
-	tmp := *x
-	tmp.Invert()
+	tmp := New().Invert(x)
 	if tmp.Equal(xinv) != 1 {
 		t.Fatalf("x.Invert() != 1/x (Got: %v)", tmp)
 	}
 
-	tmp.Mul(&tmp, x)
-	if tmp.Equal(&one) != 1 {
+	tmp.Mul(tmp, x)
+	if tmp.Equal(one) != 1 {
 		t.Fatalf("x * 1/x != 1 (Got : %v)", tmp)
 	}
 }
@@ -543,13 +527,12 @@ func testInvert(t *testing.T) {
 func testNegTwiceIsIdentity(t *testing.T) {
 	x := testConstants["X"]
 
-	tmp := *x
-	tmp.Neg()
+	tmp := New().Neg(x)
 	if tmp.Equal(x) == 1 {
 		t.Fatalf("-x = x")
 	}
 
-	tmp.Neg()
+	tmp.Neg(tmp)
 	if tmp.Equal(x) != 1 {
 		t.Fatalf("-(-x) != x (Got: %v)", tmp)
 	}
@@ -575,14 +558,14 @@ func testCanonicalDecoding(t *testing.T) {
 	}
 
 	var tmp Scalar
-	if err := tmp.FromCanonicalBytes(canonical_bytes); err != nil {
-		t.Fatalf("FromCanonicalBytes(canonical_bytes): %v", err)
+	if _, err := tmp.SetCanonicalBytes(canonical_bytes); err != nil {
+		t.Fatalf("SetCanonicalBytes(canonical_bytes): %v", err)
 	}
-	if err := tmp.FromCanonicalBytes(non_canonical_bytes_because_unreduced); err == nil {
-		t.Fatalf("FromCanonicalBytes(non_canonical_bytes_because_unreduced)")
+	if _, err := tmp.SetCanonicalBytes(non_canonical_bytes_because_unreduced); err == nil {
+		t.Fatalf("SetCanonicalBytes(non_canonical_bytes_because_unreduced)")
 	}
-	if err := tmp.FromCanonicalBytes(non_canonical_bytes_because_highbit); err == nil {
-		t.Fatalf("FromCanonicalBytes(non_canonical_bytes_because_highbit)")
+	if _, err := tmp.SetCanonicalBytes(non_canonical_bytes_because_highbit); err == nil {
+		t.Fatalf("SetCanonicalBytes(non_canonical_bytes_because_highbit)")
 	}
 
 	// While we're here, test IsCanonical().
@@ -599,14 +582,13 @@ func testCanonicalDecoding(t *testing.T) {
 func testBatchInvertEmpty(t *testing.T) {
 	one := One()
 
-	var tmp Scalar
-	tmp.BatchInvert(nil)
-	if tmp.Equal(&one) != 1 {
+	tmp := New().BatchInvert(nil)
+	if tmp.Equal(one) != 1 {
 		t.Fatalf("BatchInvert(nil) != 1 (Got: %v)", tmp)
 	}
 
 	tmp.BatchInvert([]*Scalar{})
-	if tmp.Equal(&one) != 1 {
+	if tmp.Equal(one) != 1 {
 		t.Fatalf("BatchInvert([]Scalar{}) != 1 (Got: %v)", tmp)
 	}
 }
@@ -616,8 +598,8 @@ func testBatchInvertConsistency(t *testing.T) {
 
 	var v1, v2 []*Scalar
 	for i := 0; i < 16; i++ {
-		tmp1, tmp2 := x, x
-		x.Add(&x, &x)
+		tmp1, tmp2 := *x, *x
+		x.Add(x, x)
 
 		v1 = append(v1, &tmp1)
 		v2 = append(v2, &tmp2)
@@ -625,7 +607,7 @@ func testBatchInvertConsistency(t *testing.T) {
 
 	var expected Scalar
 	expected.Product(v1)
-	expected.Invert()
+	expected.Invert(&expected)
 
 	var ret Scalar
 	ret.BatchInvert(v1)
@@ -636,14 +618,13 @@ func testBatchInvertConsistency(t *testing.T) {
 	for i := range v1 {
 		var tmp Scalar
 		tmp.Mul(v1[i], v2[i])
-		if tmp.Equal(&one) != 1 {
+		if tmp.Equal(one) != 1 {
 			t.Fatalf("a * b != 1 (Got %v)", tmp)
 		}
 	}
 }
 
 func testPippengerRadixIter(t *testing.T, s *Scalar, w uint) {
-	scalar := *s // Copy, we reduce when checking.
 	digitsCount := ToRadix2wSizeHint(w)
 	digits := s.ToRadix2w(w)
 
@@ -654,52 +635,103 @@ func testPippengerRadixIter(t *testing.T, s *Scalar, w uint) {
 		if digit != 0 {
 			var sDigit Scalar
 			if digit < 0 {
-				sDigit.FromUint64(uint64(-int64(digit)))
-				sDigit.Neg()
+				sDigit.SetUint64(uint64(-int64(digit)))
+				sDigit.Neg(&sDigit)
 			} else {
-				sDigit.FromUint64(uint64(digit))
+				sDigit.SetUint64(uint64(digit))
 			}
-			var tmp Scalar
-			tmp.Mul(&term, &sDigit)
-			recovered.Add(&recovered, &tmp)
+			tmp := New().Mul(term, &sDigit)
+			recovered.Add(&recovered, tmp)
 		}
-		term.Mul(&term, &radix)
+		term.Mul(term, radix)
 	}
 
-	scalar.Reduce()
-	if recovered.Equal(&scalar) != 1 {
+	scalar := New().Reduce(s)
+	if recovered.Equal(scalar) != 1 {
 		t.Fatalf("recovered != scalar (Got %v, %v)", recovered, scalar)
 	}
 }
 
 func testPippengerRadix(t *testing.T) {
-	var cases []Scalar
+	var cases []*Scalar
 	for i := uint64(2); i < 100; i++ {
-		var s Scalar
-		s.FromUint64(i)
-		s.Invert()
+		s := NewFromUint64(i)
+		s.Invert(s)
 		cases = append(cases, s)
 	}
 
-	var biggest Scalar
-	if err := biggest.FromBits([]byte{
+	biggest, err := NewFromBits([]byte{
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-	}); err != nil {
-		t.Fatalf("FromBits([0xff..]): %v", err)
+	})
+	if err != nil {
+		t.Fatalf("NewFromBits([0xff..]): %v", err)
 	}
 	cases = append(cases, biggest)
 
 	for _, s := range cases {
 		for _, w := range []uint{6, 7, 8} {
-			testPippengerRadixIter(t, &s, w)
+			testPippengerRadixIter(t, s, w)
 		}
 	}
 }
 
-func newScalarP(vec []byte) *Scalar {
-	s := newScalar(vec)
-	return &s
+func BenchmarkScalar(b *testing.B) {
+	b.Run("Invert", benchScalarInvert)
+	b.Run("BatchInvert", benchScalarBatchInvert)
+}
+
+func benchScalarInvert(b *testing.B) {
+	s := NewFromUint64(897987897)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		s.Invert(s)
+	}
+}
+
+func benchScalarBatchInvertIter(b *testing.B, n int) {
+	scalars := func() []*Scalar {
+		v := make([]*Scalar, 0, n)
+		for i := 0; i < n; i++ {
+			s, err := New().Random(rand.Reader)
+			if err != nil {
+				b.Fatalf("New().Random(): %v", err)
+			}
+			v = append(v, s)
+		}
+		return v
+	}()
+
+	b.ResetTimer()
+
+	var s Scalar
+	for i := 0; i < b.N; i++ {
+		s.BatchInvert(scalars)
+	}
+}
+
+func benchScalarBatchInvert(b *testing.B) {
+	for _, n := range benchBatchSizes {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			b.ReportAllocs()
+			benchScalarBatchInvertIter(b, n)
+		})
+	}
+}
+
+func newRawScalar(vec []byte) *Scalar {
+	if len(vec) != ScalarSize {
+		panic("curve/scalar: invalid constant vector")
+	}
+
+	// Note: This will happily create non-canonical scalars, which is fine
+	// because this is only used to define constants (e.g. L), and for
+	// testing.
+	s := New()
+	copy(s.inner[:], vec)
+	return s
 }

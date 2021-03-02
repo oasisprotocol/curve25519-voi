@@ -42,9 +42,9 @@ import (
 func testConstantsDVsRatio(t *testing.T) {
 	// Test that d = -121665/121666.
 	a := field.NewFieldElement2625(121665, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	a.Neg()
+	a.Neg(&a)
 	bInv := field.NewFieldElement2625(121666, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	bInv.Invert()
+	bInv.Invert(&bInv)
 
 	var d, d2 field.FieldElement
 	d.Mul(&a, &bInv)

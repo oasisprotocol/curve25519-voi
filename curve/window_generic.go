@@ -34,11 +34,11 @@ package curve
 import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
 
 func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8) {
-	out.identity()
+	out.Identity()
 	for j := 1; j < 9; j++ {
 		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
 		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		out.conditionalAssign(&table[j-1], c)
+		out.ConditionalAssign(&table[j-1], c)
 	}
 }
 

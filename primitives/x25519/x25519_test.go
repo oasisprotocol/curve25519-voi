@@ -211,6 +211,7 @@ func benchScalarBaseMult(b *testing.B, scalarBaseMult func(dst, scalar *[32]byte
 	var in, out [32]byte
 	in[0] = 1
 
+	b.ReportAllocs()
 	b.SetBytes(32)
 	for i := 0; i < b.N; i++ {
 		scalarBaseMult(&out, &in)
@@ -240,6 +241,7 @@ func benchScalarMult(b *testing.B, scalarMult func(dst, scalar, in *[32]byte)) {
 	in[0] = 1
 	scalar[0] = 1
 
+	b.ReportAllocs()
 	b.SetBytes(32)
 	for i := 0; i < b.N; i++ {
 		scalarMult(&out, &scalar, &in)

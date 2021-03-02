@@ -32,7 +32,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMulGeneric(out, point *EdwardsPoint, scalar *scalar.Scalar) {
+func edwardsMulGeneric(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	// Construct a lookup table of [P,2P,3P,4P,5P,6P,7P,8P]
 	lookupTable := newProjectiveNielsPointLookupTable(point)
 	// Setting s = scalar, compute
@@ -56,22 +56,22 @@ func edwardsMulGeneric(out, point *EdwardsPoint, scalar *scalar.Scalar) {
 		tmp1 completedPoint
 	)
 	tmp3.Identity()
-	tmp := lookupTable.lookup(scalarDigits[63])
-	tmp1.addEdwardsProjectiveNiels(&tmp3, &tmp)
+	tmp := lookupTable.Lookup(scalarDigits[63])
+	tmp1.AddEdwardsProjectiveNiels(&tmp3, &tmp)
 	// Now tmp1 = s_63*P in P1xP1 coords
 	for i := 62; i >= 0; i-- {
-		tmp2.fromCompleted(&tmp1) // tmp2 =    (prev) in P2 coords
-		tmp1.double(&tmp2)        // tmp1 =  2*(prev) in P1xP1 coords
-		tmp2.fromCompleted(&tmp1) // tmp2 =  2*(prev) in P2 coords
-		tmp1.double(&tmp2)        // tmp1 =  4*(prev) in P1xP1 coords
-		tmp2.fromCompleted(&tmp1) // tmp2 =  4*(prev) in P2 coords
-		tmp1.double(&tmp2)        // tmp1 =  8*(prev) in P1xP1 coords
-		tmp2.fromCompleted(&tmp1) // tmp2 =  8*(prev) in P2 coords
-		tmp1.double(&tmp2)        // tmp1 = 16*(prev) in P1xP1 coords
-		tmp3.fromCompleted(&tmp1) // tmp3 = 16*(prev) in P3 coords
-		tmp = lookupTable.lookup(scalarDigits[i])
-		tmp1.addEdwardsProjectiveNiels(&tmp3, &tmp)
+		tmp2.SetCompleted(&tmp1) // tmp2 =    (prev) in P2 coords
+		tmp1.Double(&tmp2)       // tmp1 =  2*(prev) in P1xP1 coords
+		tmp2.SetCompleted(&tmp1) // tmp2 =  2*(prev) in P2 coords
+		tmp1.Double(&tmp2)       // tmp1 =  4*(prev) in P1xP1 coords
+		tmp2.SetCompleted(&tmp1) // tmp2 =  4*(prev) in P2 coords
+		tmp1.Double(&tmp2)       // tmp1 =  8*(prev) in P1xP1 coords
+		tmp2.SetCompleted(&tmp1) // tmp2 =  8*(prev) in P2 coords
+		tmp1.Double(&tmp2)       // tmp1 = 16*(prev) in P1xP1 coords
+		tmp3.setCompleted(&tmp1) // tmp3 = 16*(prev) in P3 coords
+		tmp = lookupTable.Lookup(scalarDigits[i])
+		tmp1.AddEdwardsProjectiveNiels(&tmp3, &tmp)
 		// Now tmp1 = s_i*P + 16*(prev) in P1xP1 coords
 	}
-	out.fromCompleted(&tmp1)
+	return out.setCompleted(&tmp1)
 }

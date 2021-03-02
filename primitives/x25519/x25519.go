@@ -83,12 +83,12 @@ func ScalarMult(dst, in, base *[32]byte) {
 	clampScalar(ec[:])
 
 	var s scalar.Scalar
-	if err := s.FromBits(ec[:]); err != nil {
+	if _, err := s.SetBits(ec[:]); err != nil {
 		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
 	var montP curve.MontgomeryPoint
-	if err := montP.FromBytes(base[:]); err != nil {
+	if _, err := montP.SetBytes(base[:]); err != nil {
 		panic("x25519: failed to deserialize point: " + err.Error())
 	}
 
@@ -111,14 +111,14 @@ func ScalarBaseMult(dst, in *[32]byte) {
 	clampScalar(ec[:])
 
 	var s scalar.Scalar
-	if err := s.FromBits(ec[:]); err != nil {
+	if _, err := s.SetBits(ec[:]); err != nil {
 		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
 	edP := curve.ED25519_BASEPOINT_TABLE.Mul(&s)
 
 	var montP curve.MontgomeryPoint
-	montP.FromEdwards(&edP)
+	montP.SetEdwards(&edP)
 
 	copy(dst[:], montP[:])
 }
@@ -183,17 +183,17 @@ func EdPrivateKeyToX25519(privateKey ed25519.PrivateKey) []byte {
 // key that would be generated from the same private key.
 func EdPublicKeyToX25519(publicKey ed25519.PublicKey) ([]byte, bool) {
 	var aCompressed curve.CompressedEdwardsY
-	if err := aCompressed.FromBytes(publicKey); err != nil {
+	if _, err := aCompressed.SetBytes(publicKey); err != nil {
 		return nil, false
 	}
 
 	var A curve.EdwardsPoint
-	if err := A.FromCompressedY(&aCompressed); err != nil {
+	if _, err := A.SetCompressedY(&aCompressed); err != nil {
 		return nil, false
 	}
 
 	var montA curve.MontgomeryPoint
-	montA.FromEdwards(&A)
+	montA.SetEdwards(&A)
 
 	return montA[:], true
 }

@@ -34,7 +34,7 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) {
+func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	aNaf := a.NonAdjacentForm(5)
 	bNaf := b.NonAdjacentForm(8)
 
@@ -51,25 +51,21 @@ func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.S
 	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
 
 	var q extendedPoint
-	q.identity()
+	q.Identity()
 
 	for {
-		q.double()
+		q.Double(&q)
 
 		if aNaf[i] > 0 {
-			pt := tableA.lookup(uint8(aNaf[i]))
-			q.addExtendedCached(&q, &pt)
+			q.AddExtendedCached(&q, tableA.Lookup(uint8(aNaf[i])))
 		} else if aNaf[i] < 0 {
-			pt := tableA.lookup(uint8(-aNaf[i]))
-			q.subExtendedCached(&q, &pt)
+			q.SubExtendedCached(&q, tableA.Lookup(uint8(-aNaf[i])))
 		}
 
 		if bNaf[i] > 0 {
-			pt := tableB.lookup(uint8(bNaf[i]))
-			q.addExtendedCached(&q, &pt)
+			q.AddExtendedCached(&q, tableB.Lookup(uint8(bNaf[i])))
 		} else if bNaf[i] < 0 {
-			pt := tableB.lookup(uint8(-bNaf[i]))
-			q.subExtendedCached(&q, &pt)
+			q.SubExtendedCached(&q, tableB.Lookup(uint8(-bNaf[i])))
 		}
 
 		if i == 0 {
@@ -78,5 +74,5 @@ func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.S
 		i--
 	}
 
-	out.fromExtended(&q)
+	return out.setExtended(&q)
 }

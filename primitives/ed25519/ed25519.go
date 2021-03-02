@@ -209,10 +209,10 @@ type VerifyOptions struct {
 func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.EdwardsPoint) bool {
 	// Unpack A.
 	var aCompressed curve.CompressedEdwardsY
-	if err := aCompressed.FromBytes(publicKey); err != nil {
+	if _, err := aCompressed.SetBytes(publicKey); err != nil {
 		return false
 	}
-	if err := A.FromCompressedY(&aCompressed); err != nil {
+	if _, err := A.SetCompressedY(&aCompressed); err != nil {
 		return false
 	}
 
@@ -236,10 +236,10 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// Unpack R.
 	var rCompressed curve.CompressedEdwardsY
-	if err := rCompressed.FromBytes(sig[:32]); err != nil {
+	if _, err := rCompressed.SetBytes(sig[:32]); err != nil {
 		return false
 	}
-	if err := R.FromCompressedY(&rCompressed); err != nil {
+	if _, err := R.SetCompressedY(&rCompressed); err != nil {
 		return false
 	}
 
@@ -254,7 +254,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 	}
 
 	// Unpack S.
-	if err := S.FromBytesModOrder(sig[32:]); err != nil {
+	if _, err := S.SetBytesModOrder(sig[32:]); err != nil {
 		return false
 	}
 
@@ -341,14 +341,14 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	_, _ = h.Write(extsk[32:])
 	_, _ = h.Write(message)
 	h.Sum(hashr[:0])
-	if err = r.FromBytesModOrderWide(hashr[:]); err != nil {
+	if _, err = r.SetBytesModOrderWide(hashr[:]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize r scalar: %w", err)
 	}
 
 	// R = rB
-	var rCompressed curve.CompressedEdwardsY
 	R := curve.ED25519_BASEPOINT_TABLE.Mul(&r)
-	rCompressed.FromEdwardsPoint(&R)
+	var rCompressed curve.CompressedEdwardsY
+	rCompressed.SetEdwardsPoint(&R)
 
 	// S = H(R,A,m)
 	var (
@@ -361,13 +361,13 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	_, _ = h.Write(priv[32:])
 	_, _ = h.Write(message)
 	h.Sum(hram[:0])
-	if err = S.FromBytesModOrderWide(hram[:]); err != nil {
+	if _, err = S.SetBytesModOrderWide(hram[:]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
 	}
 
 	// S = H(R,A,m)a
 	var a scalar.Scalar
-	if err = a.FromBytesModOrder(extsk[:32]); err != nil {
+	if _, err = a.SetBytesModOrder(extsk[:32]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize a scalar: %w", err)
 	}
 	S.Mul(&S, &a)
@@ -479,13 +479,13 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	_, _ = h.Write(publicKey[:])
 	_, _ = h.Write(message)
 	h.Sum(hash[:0])
-	if err = hram.FromBytesModOrderWide(hash[:]); err != nil {
+	if _, err = hram.SetBytesModOrderWide(hash[:]); err != nil {
 		return false, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
 	}
 
 	// SB - H(R,A,m)A
 	var R curve.EdwardsPoint
-	A.Neg()
+	A.Neg(&A)
 	R.DoubleScalarMulBasepointVartime(&hram, &A, &S)
 
 	// There are 2 ways of verifying Ed25519 signatures in the wild, due
@@ -504,8 +504,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// Note: IsSmallOrder multiplies by the cofactor and checks that
 	// the result is the identity element.
 	var rDiff curve.EdwardsPoint
-	rDiff.Sub(&R, &checkR)
-	return rDiff.IsSmallOrder(), nil
+	return rDiff.Sub(&R, &checkR).IsSmallOrder(), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if
@@ -523,14 +522,14 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	digest[31] |= 64
 
 	var a scalar.Scalar
-	if err := a.FromBits(digest[:32]); err != nil {
+	if _, err := a.SetBits(digest[:32]); err != nil {
 		panic("ed25519: failed to deserialize scalar: " + err.Error())
 	}
 
 	A := curve.ED25519_BASEPOINT_TABLE.Mul(&a)
 
 	var aCompressed curve.CompressedEdwardsY
-	aCompressed.FromEdwardsPoint(&A)
+	aCompressed.SetEdwardsPoint(&A)
 
 	privateKey := make([]byte, 0, PrivateKeySize)
 	privateKey = append(privateKey, seed...)
@@ -615,6 +614,6 @@ func scMinimal(scalar []byte) bool {
 
 func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
 	var RCompressed curve.CompressedEdwardsY
-	_ = RCompressed.FromBytes(sig[:32])
+	_, _ = RCompressed.SetBytes(sig[:32])
 	return R.EqualCompressedY(&RCompressed) == 1
 }
