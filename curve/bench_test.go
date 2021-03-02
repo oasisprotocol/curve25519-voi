@@ -94,7 +94,7 @@ func benchEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
 
 	b.ResetTimer()
 
-	var tmp *EdwardsPoint
+	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		aScalar, bScalar := newBenchRandomScalar(b), newBenchRandomScalar(b)
