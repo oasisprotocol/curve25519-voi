@@ -30,6 +30,36 @@
 
 #include "textflag.h"
 
+DATA ·cached_id_0<>+0x00(SB)/4, $121647
+DATA ·cached_id_0<>+0x04(SB)/4, $121666
+DATA ·cached_id_0<>+0x08(SB)/4, $0
+DATA ·cached_id_0<>+0x0c(SB)/4, $0
+DATA ·cached_id_0<>+0x10(SB)/4, $243332
+DATA ·cached_id_0<>+0x14(SB)/4, $67108845
+DATA ·cached_id_0<>+0x18(SB)/4, $0
+DATA ·cached_id_0<>+0x1c(SB)/4, $33554431
+GLOBL ·cached_id_0<>(SB), (NOPTR+RODATA), $32
+
+DATA ·cached_id_1<>+0x00(SB)/4, $67108864
+DATA ·cached_id_1<>+0x04(SB)/4, $0
+DATA ·cached_id_1<>+0x08(SB)/4, $33554431
+DATA ·cached_id_1<>+0x0c(SB)/4, $0
+DATA ·cached_id_1<>+0x10(SB)/4, $0
+DATA ·cached_id_1<>+0x14(SB)/4, $67108863
+DATA ·cached_id_1<>+0x18(SB)/4, $0
+DATA ·cached_id_1<>+0x1c(SB)/4, $33554431
+GLOBL ·cached_id_1<>(SB), (NOPTR+RODATA), $32
+
+DATA ·cached_id_2_4<>+0x00(SB)/4, $67108863
+DATA ·cached_id_2_4<>+0x04(SB)/4, $0
+DATA ·cached_id_2_4<>+0x08(SB)/4, $33554431
+DATA ·cached_id_2_4<>+0x0c(SB)/4, $0
+DATA ·cached_id_2_4<>+0x10(SB)/4, $0
+DATA ·cached_id_2_4<>+0x14(SB)/4, $67108863
+DATA ·cached_id_2_4<>+0x18(SB)/4, $0
+DATA ·cached_id_2_4<>+0x1c(SB)/4, $33554431
+GLOBL ·cached_id_2_4<>(SB), (NOPTR+RODATA), $32
+
 // This routine is basically stolen from curve25519-donna, because there
 // is only so many ways you can do a constant time table lookup in assembly
 // language, and because I had the code lying around.
@@ -212,18 +242,15 @@ TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-17
 	VPXOR        Y4, Y4, Y4
 
 	// 0
-	//
-	// Note: This assumes that `out` is pre-populated with the identity
-	// point in cached form, since it is annoying to create on the fly.
 	MOVD         $0, AX
 	VMOVD        AX, X15
 	VPBROADCASTD X15, Y15
 	VPCMPEQD     Y14, Y15, Y15
-	VMOVDQU      0(R15), Y5
-	VMOVDQU      32(R15), Y6
-	VMOVDQU      64(R15), Y7
-	VMOVDQU      96(R15), Y8
-	VMOVDQU      128(R15), Y9
+	VMOVDQA      ·cached_id_0<>(SB), Y5
+	VMOVDQA      ·cached_id_1<>(SB), Y6
+	VMOVDQA      ·cached_id_2_4<>(SB), Y7
+	VMOVDQA      Y7, Y8
+	VMOVDQA      Y7, Y9
 	VPAND        Y15, Y5, Y5
 	VPAND        Y15, Y6, Y6
 	VPAND        Y15, Y7, Y7

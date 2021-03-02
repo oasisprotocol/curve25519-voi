@@ -201,11 +201,6 @@ func (p *cachedPoint) ConditionalNegate(choice int) {
 	p.ConditionalAssign(&pNeg, choice)
 }
 
-func (p *cachedPoint) Identity() *cachedPoint {
-	*p = constCACHEDPOINT_IDENTITY
-	return p
-}
-
 type fieldElement2625x4 struct {
 	disalloweq.DisallowEqual //nolint:unused
 	inner                    [5][8]uint32

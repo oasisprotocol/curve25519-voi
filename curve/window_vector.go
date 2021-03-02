@@ -40,7 +40,6 @@ func (tbl *cachedPointLookupTable) Lookup(x int8) cachedPoint {
 
 	// Set t = 0 * P = identity
 	var t cachedPoint
-	t.Identity()
 	lookupCached(tbl, &t, xabs)
 	// Now t == |x| * P.
 
