@@ -191,7 +191,7 @@ func newAffineNielsPointNafLookupTable(ep *EdwardsPoint) affineNielsPointNafLook
 	var A2 EdwardsPoint
 	A2.double(ep)
 
-	for i := 0; i < 7; i++ {
+	for i := 0; i < 63; i++ {
 		var (
 			tmp  completedPoint
 			tmp2 EdwardsPoint
