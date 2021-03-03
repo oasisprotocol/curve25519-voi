@@ -42,6 +42,8 @@ func TestConstants(t *testing.T) {
 	t.Run("Constants/TwoTorsion", testConstantsTwoTorsion)
 	t.Run("Constants/SqrtAdMinusOne", testConstantsSqrtAdMinusOne)
 	t.Run("Constants/D/VsRatio", testConstantsDVsRatio)
+	t.Run("Constants/AffineBasepointOddLookupTable", testConstantsAffineBasepointOddLookupTable)
+	// ED25519_BASEPOINT_TABLE is checked by `testEdwardsBasepointTableNew`.
 }
 
 func testConstantsEightTorsion(t *testing.T) {
@@ -102,5 +104,16 @@ func testConstantsSqrtAdMinusOne(t *testing.T) {
 
 	if shouldBeAdMinusOne.Equal(&adMinusOne) != 1 {
 		t.Fatalf("should_be_ad_minus_one != ad_minus_one (Got: %v, %v)", shouldBeAdMinusOne, adMinusOne)
+	}
+}
+
+func testConstantsAffineBasepointOddLookupTable(t *testing.T) {
+	gen := newAffineNielsPointNafLookupTable(&ED25519_BASEPOINT_POINT)
+
+	for i, pt := range gen {
+		entry := constAFFINE_ODD_MULTIPLES_OF_BASEPOINT[i]
+		if !entry.testEqual(&pt) {
+			t.Fatalf("constAFFINE_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
+		}
 	}
 }

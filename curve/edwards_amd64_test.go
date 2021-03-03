@@ -55,6 +55,10 @@ func TestAVX2(t *testing.T) {
 		t.Run("AddSubCached", testVecAddSubCached)
 		t.Run("Double", testVecDoubleExtended)
 	})
+
+	t.Run("CachedPoint", func(t *testing.T) {
+		t.Run("BasepointOddLookupTable", testVecBasepointOddLookupTable)
+	})
 }
 
 func testVecConditionalSelect(t *testing.T) {
@@ -276,11 +280,19 @@ func testVecAddSubCached(t *testing.T) {
 
 		dS := subEdwardsSerial(v.a, v.b)
 		dV := subEdwardsVector(v.a, v.b)
-		t.Logf("dS: %v", dS)
-		t.Logf("dV: %v", dV)
-		t.Logf("isEqual: %v", dS.Equal(dV))
 		if dS.Equal(dV) != 1 {
 			t.Fatalf("%s - %s incorrect (Got: %v)", v.an, v.bn, dV)
+		}
+	}
+}
+
+func testVecBasepointOddLookupTable(t *testing.T) {
+	gen := newCachedPointNafLookupTable(&ED25519_BASEPOINT_POINT)
+
+	for i, pt := range gen {
+		entry := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[i]
+		if entry.inner.inner != pt.inner.inner {
+			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
 		}
 	}
 }
