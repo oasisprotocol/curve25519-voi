@@ -31,22 +31,6 @@
 
 package curve
 
-import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
-
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8) {
-	out.Identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		out.ConditionalAssign(&table[j-1], c)
-	}
-}
-
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
-	*out = identityAffineNielsPacked
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		subtle.MoveConditionalBytesx96(out, &table[j-1], uint64(c))
-	}
+func lookupPackedAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
+	lookupPackedAffineNielsGeneric(table, out, xabs)
 }
