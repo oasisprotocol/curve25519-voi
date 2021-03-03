@@ -31,6 +31,9 @@
 
 package curve
 
+//go:noescape
+func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
+
 type cachedPointLookupTable [8]cachedPoint
 
 func (tbl *cachedPointLookupTable) Lookup(x int8) cachedPoint {

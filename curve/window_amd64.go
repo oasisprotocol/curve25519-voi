@@ -32,10 +32,16 @@
 package curve
 
 //go:noescape
-func lookupProjectiveNiels(table *projectiveNielsPointLookupTable, out *projectiveNielsPoint, xabs uint8)
+func lookupPackedAffineNiels_AVX2(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8)
 
-//go:noescape
-func lookupAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8)
-
-//go:noescape
-func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
+func lookupPackedAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
+	// For the purposes of this routine, supportsVectorizedEdwards
+	// is just used as a "Does the system support AVX2" flag, and
+	// nothing else.
+	switch supportsVectorizedEdwards {
+	case true:
+		lookupPackedAffineNiels_AVX2(table, out, xabs)
+	case false:
+		lookupPackedAffineNielsGeneric(table, out, xabs)
+	}
+}
