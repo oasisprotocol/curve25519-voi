@@ -341,7 +341,10 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 		r     scalar.Scalar
 	)
 	h.Reset()
-	writeDom2(h, f, context)
+	dom2 := makeDom2(f, context)
+	if dom2 != nil {
+		_, _ = h.Write(dom2)
+	}
 	_, _ = h.Write(extsk[32:])
 	_, _ = h.Write(message)
 	h.Sum(hashr[:0])
@@ -360,7 +363,9 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 		S    scalar.Scalar
 	)
 	h.Reset()
-	writeDom2(h, f, context)
+	if dom2 != nil {
+		_, _ = h.Write(dom2)
+	}
 	_, _ = h.Write(rCompressed[:])
 	_, _ = h.Write(priv[32:])
 	_, _ = h.Write(message)
@@ -477,7 +482,9 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		hram scalar.Scalar
 	)
 	h := sha512.New()
-	writeDom2(h, f, context)
+	if dom2 := makeDom2(f, context); dom2 != nil {
+		_, _ = h.Write(dom2)
+	}
 	_, _ = h.Write(sig[:32])
 	_, _ = h.Write(publicKey[:])
 	_, _ = h.Write(message)
@@ -574,12 +581,9 @@ const (
 	dom2Prefix = "SigEd25519 no Ed25519 collisions"
 )
 
-// Annoyingly, doing things this way, causes the escape analysis to break
-// even with Go 1.16, and `w` (a `crypto/sha512` hash object) will get
-// moved to the heap.
-func writeDom2(w io.Writer, f dom2Flag, c []byte) {
+func makeDom2(f dom2Flag, c []byte) []byte {
 	if f == fPure {
-		return
+		return nil
 	}
 
 	cLen := len(c)
@@ -587,9 +591,15 @@ func writeDom2(w io.Writer, f dom2Flag, c []byte) {
 		panic("ed25519: bad context length: " + strconv.Itoa(cLen))
 	}
 
-	_, _ = w.Write([]byte(dom2Prefix))
-	_, _ = w.Write([]byte{byte(f), byte(cLen)})
-	_, _ = w.Write(c)
+	dLen := len(dom2Prefix) + 1 + 1 + cLen
+
+	b := make([]byte, 0, dLen)
+	b = append(b, dom2Prefix...)
+	b = append(b, byte(f))
+	b = append(b, byte(cLen))
+	b = append(b, c...)
+
+	return b
 }
 
 // order is the order of Curve25519 in little-endian form.
