@@ -42,7 +42,13 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
 )
 
-const low_51_bit_mask uint64 = (1 << 51) - 1
+const (
+	low_51_bit_mask uint64 = (1 << 51) - 1
+
+	// 16 * p
+	p_times_sixteen_0    = 36028797018963664
+	p_times_sixteen_1234 = 36028797018963952
+)
 
 // FieldElement represents an element of the field Z/(2^255 - 19).
 type FieldElement struct {
@@ -70,11 +76,11 @@ func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 	// just bigger than b and avoid having to do a reduction.
 
 	return fe.reduce(&[5]uint64{
-		(a.inner[0] + 36028797018963664) - b.inner[0],
-		(a.inner[1] + 36028797018963952) - b.inner[1],
-		(a.inner[2] + 36028797018963952) - b.inner[2],
-		(a.inner[3] + 36028797018963952) - b.inner[3],
-		(a.inner[4] + 36028797018963952) - b.inner[4],
+		(a.inner[0] + p_times_sixteen_0) - b.inner[0],
+		(a.inner[1] + p_times_sixteen_1234) - b.inner[1],
+		(a.inner[2] + p_times_sixteen_1234) - b.inner[2],
+		(a.inner[3] + p_times_sixteen_1234) - b.inner[3],
+		(a.inner[4] + p_times_sixteen_1234) - b.inner[4],
 	})
 }
 
@@ -243,11 +249,11 @@ func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
 func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
 	// See commentary in the Sub impl.
 	return fe.reduce(&[5]uint64{
-		36028797018963664 - t.inner[0],
-		36028797018963952 - t.inner[1],
-		36028797018963952 - t.inner[2],
-		36028797018963952 - t.inner[3],
-		36028797018963952 - t.inner[4],
+		p_times_sixteen_0 - t.inner[0],
+		p_times_sixteen_1234 - t.inner[1],
+		p_times_sixteen_1234 - t.inner[2],
+		p_times_sixteen_1234 - t.inner[3],
+		p_times_sixteen_1234 - t.inner[4],
 	})
 }
 
