@@ -108,6 +108,10 @@ var (
 		AllowNonCanonicalR: true,
 	}
 
+	optionsDefault = &Options{
+		Verify: VerifyOptionsDefault,
+	}
+
 	_ crypto.Signer = (PrivateKey)(nil)
 )
 
@@ -403,9 +407,10 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
-	signature, err := privateKey.Sign(nil, message, &Options{
-		Verify: VerifyOptionsDefault,
-	})
+	// This would outline the function body to avoid a heap allocation,
+	// but apparently wanting to return an error makes that not work anyway,
+	// at least as of Go 1.16.
+	signature, err := privateKey.Sign(nil, message, optionsDefault)
 	if err != nil {
 		panic(err)
 	}
@@ -416,9 +421,7 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return VerifyWithOptions(publicKey, message, sig, &Options{
-		Verify: VerifyOptionsDefault,
-	})
+	return VerifyWithOptions(publicKey, message, sig, optionsDefault)
 }
 
 // VerifyWithOptions reports whether sig is a valid Ed25519 signature by
@@ -512,6 +515,13 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 // with RFC 8032. RFC 8032's private keys correspond to seeds in this
 // package.
 func NewKeyFromSeed(seed []byte) PrivateKey {
+	// Outline the function body so that the returned key can be stack-allocated.
+	privateKey := make([]byte, PrivateKeySize)
+	newKeyFromSeed(privateKey, seed)
+	return privateKey
+}
+
+func newKeyFromSeed(privateKey, seed []byte) {
 	if l := len(seed); l != SeedSize {
 		panic("ed25519: bad seed length: " + strconv.Itoa(l))
 	}
@@ -531,11 +541,8 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
 	var aCompressed curve.CompressedEdwardsY
 	aCompressed.SetEdwardsPoint(&A)
 
-	privateKey := make([]byte, 0, PrivateKeySize)
-	privateKey = append(privateKey, seed...)
-	privateKey = append(privateKey, aCompressed[:]...)
-
-	return privateKey
+	copy(privateKey, seed)
+	copy(privateKey[32:], aCompressed[:])
 }
 
 // GenerateKey generates a public/private key pair using entropy from rand.
@@ -567,6 +574,9 @@ const (
 	dom2Prefix = "SigEd25519 no Ed25519 collisions"
 )
 
+// Annoyingly, doing things this way, causes the escape analysis to break
+// even with Go 1.16, and `w` (a `crypto/sha512` hash object) will get
+// moved to the heap.
 func writeDom2(w io.Writer, f dom2Flag, c []byte) {
 	if f == fPure {
 		return

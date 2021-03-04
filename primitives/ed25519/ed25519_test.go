@@ -283,7 +283,7 @@ func testMalleability(t *testing.T) {
 	}
 }
 
-func BenchmarkKeyGeneration(b *testing.B) {
+func BenchmarkGenerateKey(b *testing.B) {
 	var zero zeroReader
 	b.Run("voi", func(b *testing.B) {
 		b.ReportAllocs()
@@ -299,6 +299,22 @@ func BenchmarkKeyGeneration(b *testing.B) {
 			if _, _, err := stded.GenerateKey(zero); err != nil {
 				b.Fatal(err)
 			}
+		}
+	})
+}
+
+func BenchmarkNewKeyFromSeed(b *testing.B) {
+	seed := make([]byte, SeedSize)
+	b.Run("voi", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = NewKeyFromSeed(seed)
+		}
+	})
+	b.Run("stdlib", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = stded.NewKeyFromSeed(seed)
 		}
 	})
 }
