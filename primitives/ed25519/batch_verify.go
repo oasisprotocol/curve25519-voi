@@ -120,7 +120,9 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 			continue
 		}
 
-		writeDom2(h, f, context)
+		if dom2 := makeDom2(f, context); dom2 != nil {
+			_, _ = h.Write(dom2)
+		}
 		_, _ = h.Write(sigs[i][:32])
 		_, _ = h.Write(publicKeys[i][:])
 		_, _ = h.Write(messages[i])
