@@ -108,6 +108,10 @@ var (
 		AllowNonCanonicalR: true,
 	}
 
+	optionsDefault = &Options{
+		Verify: VerifyOptionsDefault,
+	}
+
 	_ crypto.Signer = (PrivateKey)(nil)
 )
 
@@ -403,7 +407,10 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 // Sign signs the message with privateKey and returns a signature. It will
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
-	signature, err := privateKey.Sign(nil, message, &Options{})
+	// This would outline the function body to avoid a heap allocation,
+	// but apparently wanting to return an error makes that not work anyway,
+	// at least as of Go 1.16.
+	signature, err := privateKey.Sign(nil, message, optionsDefault)
 	if err != nil {
 		panic(err)
 	}
@@ -414,9 +421,7 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
 // Verify reports whether sig is a valid signature of message by publicKey. It
 // will panic if len(publicKey) is not PublicKeySize.
 func Verify(publicKey PublicKey, message, sig []byte) bool {
-	return VerifyWithOptions(publicKey, message, sig, &Options{
-		Verify: VerifyOptionsDefault,
-	})
+	return VerifyWithOptions(publicKey, message, sig, optionsDefault)
 }
 
 // VerifyWithOptions reports whether sig is a valid Ed25519 signature by
@@ -569,6 +574,9 @@ const (
 	dom2Prefix = "SigEd25519 no Ed25519 collisions"
 )
 
+// Annoyingly, doing things this way, causes the escape analysis to break
+// even with Go 1.16, and `w` (a `crypto/sha512` hash object) will get
+// moved to the heap.
 func writeDom2(w io.Writer, f dom2Flag, c []byte) {
 	if f == fPure {
 		return
