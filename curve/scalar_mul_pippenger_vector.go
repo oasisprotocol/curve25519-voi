@@ -74,10 +74,7 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 		buckets[i].Identity()
 	}
 
-	// TODO/perf: Compared to using an interator this results in 1 more
-	// allocation, that should probably be eliminated.
-	columns := make([]extendedPoint, digitsCount)
-	for idx := int(digitsCount - 1); idx >= 0; idx-- {
+	calculateColumn := func(idx int) extendedPoint {
 		// Clear the buckets when processing another digit.
 		for i := 0; i < bucketsCount; i++ {
 			buckets[i].Identity()
@@ -115,18 +112,19 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 			bucketsSum.AddExtendedCached(&bucketsSum, cp.SetExtended(&bucketsIntermediateSum))
 		}
 
-		columns[idx] = bucketsSum
+		return bucketsSum
 	}
 
 	// Take the high column as an initial value to avoid wasting time doubling
 	// the identity element.
-	sum := columns[digitsCount-1]
+	sum := calculateColumn(int(digitsCount - 1))
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
 		var (
 			sumMul extendedPoint
 			cp     cachedPoint
 		)
-		sum.AddExtendedCached(sumMul.MulByPow2(&sum, w), cp.SetExtended(&columns[i]))
+		ep := calculateColumn(i)
+		sum.AddExtendedCached(sumMul.MulByPow2(&sum, w), cp.SetExtended(&ep))
 	}
 
 	return out.setExtended(&sum)

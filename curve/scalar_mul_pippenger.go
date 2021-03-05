@@ -71,11 +71,7 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 		buckets[i].Identity()
 	}
 
-	// TODO/perf: Compared to using an interator this results in 1 more
-	// allocation, that should probably be eliminated.
-	var tmp completedPoint
-	columns := make([]EdwardsPoint, digitsCount)
-	for idx := int(digitsCount - 1); idx >= 0; idx-- {
+	calculateColumn := func(idx int) EdwardsPoint {
 		// Clear the buckets when processing another digit.
 		for i := 0; i < bucketsCount; i++ {
 			buckets[i].Identity()
@@ -85,6 +81,7 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 		// and add/sub the point to the corresponding bucket.
 		// Note: if we add support for precomputed lookup tables,
 		// we'll be adding/subtracting point premultiplied by `digits[i]` to buckets[0].
+		var tmp completedPoint
 		for i := 0; i < size; i++ {
 			digit := int16(optScalars[i][idx])
 			if digit > 0 {
@@ -112,16 +109,16 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 			bucketsSum.Add(&bucketsSum, &bucketsIntermediateSum)
 		}
 
-		columns[idx] = bucketsSum
+		return bucketsSum
 	}
 
 	// Take the high column as an initial value to avoid wasting time doubling
 	// the identity element.
-	sum := columns[digitsCount-1]
+	sum := calculateColumn(int(digitsCount - 1))
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
 		var sumMul EdwardsPoint
-		sumMul.mulByPow2(&sum, w)
-		sum.Add(&sumMul, &columns[i])
+		p := calculateColumn(i)
+		sum.Add(sumMul.mulByPow2(&sum, w), &p)
 	}
 
 	return out.Set(&sum)
