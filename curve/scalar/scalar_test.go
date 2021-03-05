@@ -198,7 +198,7 @@ func testNonAdjacentFormTestVector(t *testing.T) {
 func testNonAdjacentFormRandom(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		var x Scalar
-		if _, err := x.Random(nil); err != nil {
+		if _, err := x.SetRandom(nil); err != nil {
 			t.Fatalf("x.Random(nil) failed: %v", err)
 		}
 		for _, w := range []uint{5, 6, 7, 8} {
@@ -697,7 +697,7 @@ func benchScalarBatchInvertIter(b *testing.B, n int) {
 	scalars := func() []*Scalar {
 		v := make([]*Scalar, 0, n)
 		for i := 0; i < n; i++ {
-			s, err := New().Random(rand.Reader)
+			s, err := New().SetRandom(rand.Reader)
 			if err != nil {
 				b.Fatalf("New().Random(): %v", err)
 			}

@@ -31,7 +31,6 @@
 package curve
 
 import (
-	"crypto/rand"
 	"strconv"
 	"testing"
 
@@ -90,14 +89,14 @@ func benchEdwardsBasepointTableMul(b *testing.B) {
 }
 
 func benchEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
-	A := ED25519_BASEPOINT_TABLE.Mul(newBenchRandomScalar(b))
+	A := ED25519_BASEPOINT_TABLE.Mul(newTestBenchRandomScalar(b))
 
 	b.ResetTimer()
 
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		aScalar, bScalar := newBenchRandomScalar(b), newBenchRandomScalar(b)
+		aScalar, bScalar := newTestBenchRandomScalar(b), newTestBenchRandomScalar(b)
 		b.StartTimer()
 
 		tmp.DoubleScalarMulBasepointVartime(aScalar, &A, bScalar)
@@ -112,7 +111,7 @@ func benchEdwardsMultiscalarMulIter(b *testing.B, n int, isVartime bool) {
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		scalars := newBenchRandomScalars(b, n)
+		scalars := newTestBenchRandomScalars(b, n)
 		b.StartTimer()
 
 		if isVartime {
@@ -177,26 +176,10 @@ func benchMontgomeryMul(b *testing.B) {
 	}
 }
 
-func newBenchRandomScalar(b *testing.B) *scalar.Scalar {
-	s, err := scalar.New().Random(rand.Reader)
-	if err != nil {
-		b.Fatalf("scalar.New().Random(): %v", err)
-	}
-	return s
-}
-
-func newBenchRandomScalars(b *testing.B, n int) []*scalar.Scalar {
-	v := make([]*scalar.Scalar, 0, n)
-	for i := 0; i < n; i++ {
-		v = append(v, newBenchRandomScalar(b))
-	}
-	return v
-}
-
 func newBenchRandomPoints(b *testing.B, n int) []*EdwardsPoint {
 	v := make([]*EdwardsPoint, 0, n)
 	for i := 0; i < n; i++ {
-		p := ED25519_BASEPOINT_TABLE.Mul(newBenchRandomScalar(b))
+		p := ED25519_BASEPOINT_TABLE.Mul(newTestBenchRandomScalar(b))
 		v = append(v, &p)
 	}
 	return v

@@ -1,10 +1,8 @@
 package curve
 
 import (
-	"crypto/rand"
 	"testing"
 
-	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
@@ -81,10 +79,7 @@ func testMontgomeryEqual(t *testing.T) {
 }
 
 func testMontgomeryMul(t *testing.T) {
-	s, err := scalar.New().Random(rand.Reader)
-	if err != nil {
-		t.Fatalf("scalar.New().Random(): %v", err)
-	}
+	s := newTestBenchRandomScalar(t)
 
 	pEdwards := ED25519_BASEPOINT_TABLE.Mul(s)
 	var pMontgomery MontgomeryPoint

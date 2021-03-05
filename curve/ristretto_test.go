@@ -31,7 +31,6 @@
 package curve
 
 import (
-	"crypto/rand"
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
@@ -208,10 +207,7 @@ func testRistrettoFourTorsionBasepoint(t *testing.T) {
 }
 
 func testRistrettoFourTorsionRandom(t *testing.T) {
-	s, err := scalar.New().Random(rand.Reader)
-	if err != nil {
-		t.Fatalf("scalar.New().Random(): %v", err)
-	}
+	s := newTestBenchRandomScalar(t)
 
 	p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 	pCoset := p.coset4()
@@ -285,10 +281,7 @@ func testRistrettoElligator(t *testing.T) {
 
 func testRistrettoRandomRoundtrip(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		s, err := scalar.New().Random(rand.Reader)
-		if err != nil {
-			t.Fatalf("s.Random(): %v", err)
-		}
+		s := newTestBenchRandomScalar(t)
 
 		p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 		var compressedP CompressedRistretto
