@@ -424,14 +424,7 @@ func testEdwardsBasepointPoint16VsMulByPow2_4(t *testing.T) {
 func testEdwardsMultiscalarConsistencyIter(t *testing.T, n int) {
 	// Construct random coefficients x0, ..., x_{n-1},
 	// followed by some extra hardcoded ones.
-	xs := make([]*scalar.Scalar, 0, n)
-	for i := 0; i < n; i++ {
-		tmp, err := scalar.New().Random(rand.Reader)
-		if err != nil {
-			t.Fatalf("scalar.New().Random(): %v", err)
-		}
-		xs = append(xs, tmp)
-	}
+	xs := newTestBenchRandomScalars(t, n)
 	// The largest scalar allowed by the type system, 2^255-1
 	biggest, err := scalar.NewFromBits([]byte{
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -575,4 +568,20 @@ func (p *affineNielsPoint) testEqual(other *affineNielsPoint) bool {
 	res := p.y_plus_x.Equal(&other.y_plus_x) & p.y_minus_x.Equal(&other.y_minus_x) & p.xy2d.Equal(&other.xy2d)
 
 	return res == 1
+}
+
+func newTestBenchRandomScalar(tb testing.TB) *scalar.Scalar {
+	s, err := scalar.New().SetRandom(rand.Reader)
+	if err != nil {
+		tb.Fatalf("scalar.New().Random(): %v", err)
+	}
+	return s
+}
+
+func newTestBenchRandomScalars(tb testing.TB, n int) []*scalar.Scalar {
+	v := make([]*scalar.Scalar, 0, n)
+	for i := 0; i < n; i++ {
+		v = append(v, newTestBenchRandomScalar(tb))
+	}
+	return v
 }

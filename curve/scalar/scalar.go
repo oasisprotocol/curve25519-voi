@@ -136,6 +136,22 @@ func (s *Scalar) SetBits(in []byte) (*Scalar, error) {
 	return s, nil
 }
 
+// SetRandom sets s to a scalar chosen uniformly at random using entropy
+// from the user-provided io.Reader.  If rng is nil, the runtime library's
+// entropy source will be used.
+func (s *Scalar) SetRandom(rng io.Reader) (*Scalar, error) {
+	var scalarBytes [ScalarWideSize]byte
+
+	if rng == nil {
+		rng = rand.Reader
+	}
+	if _, err := io.ReadFull(rng, scalarBytes[:]); err != nil {
+		return nil, fmt.Errorf("curve/scalar: failed to read entropy: %w", err)
+	}
+
+	return s.SetBytesModOrderWide(scalarBytes[:])
+}
+
 // Equal returns 1 iff the s and t are equal, 0 otherwise.
 // This function will execute in constant-time.
 func (s *Scalar) Equal(t *Scalar) int {
@@ -216,22 +232,6 @@ func (s *Scalar) Sum(values []*Scalar) *Scalar {
 	}
 
 	return s.Set(sum)
-}
-
-// Random sets s to a scalar chosen uniformly at random using entropy
-// from the user-provided io.Reader.  If rng is nil, the runtime library's
-// entropy source will be used.
-func (s *Scalar) Random(rng io.Reader) (*Scalar, error) {
-	var scalarBytes [ScalarWideSize]byte
-
-	if rng == nil {
-		rng = rand.Reader
-	}
-	if _, err := io.ReadFull(rng, scalarBytes[:]); err != nil {
-		return nil, fmt.Errorf("curve/scalar: failed to read entropy: %w", err)
-	}
-
-	return s.SetBytesModOrderWide(scalarBytes[:])
 }
 
 // ToBytes packs the scalar into 32 bytes.

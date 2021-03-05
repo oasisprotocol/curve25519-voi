@@ -54,6 +54,8 @@ import (
 // inputs in the batch, and instead just mark the particular signature as
 // having failed verification.
 func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte, opts *Options) (bool, []bool, error) {
+	const rsOffsetStart = 1
+
 	if rand == nil {
 		rand = cryptorand.Reader
 	}
@@ -84,26 +86,29 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 	// Unpack publicKeys/sigs into A, R and S, and compute H(R || A || M).
 	var (
-		As    = make([]*curve.EdwardsPoint, num)
-		Rs    = make([]*curve.EdwardsPoint, num)
-		Ss    = make([]*scalar.Scalar, num)
-		hrams = make([]*scalar.Scalar, num)
-		h     = sha512.New()
-		hash  [64]byte
+		numItems = num + num
 
-		aStore    = make([]curve.EdwardsPoint, num)
-		rStore    = make([]curve.EdwardsPoint, num)
-		sStore    = make([]scalar.Scalar, num)
-		hramStore = make([]scalar.Scalar, num)
+		scalars      = make([]*scalar.Scalar, numItems) // Ss || hrams
+		scalarsStore = make([]scalar.Scalar, numItems)
+
+		points      = make([]*curve.EdwardsPoint, 1+numItems) // B || Rs || As
+		pointsStore = make([]curve.EdwardsPoint, numItems)
+
+		h    = sha512.New()
+		hash [64]byte
+
+		Rs    = points[rsOffsetStart : rsOffsetStart+num]
+		As    = points[rsOffsetStart+num:]
+		Ss    = scalars[0:num]
+		hrams = scalars[num:]
 	)
-	for i := 0; i < num; i++ {
-		// Regardless of if unpacking is successful, this needs to add
-		// entries to each slice to simplify the serial path.
-		As[i] = &aStore[i]
-		Rs[i] = &rStore[i]
-		Ss[i] = &sStore[i]
-		hrams[i] = &hramStore[i]
+	points[0] = &curve.ED25519_BASEPOINT_POINT
+	for i := 0; i < numItems; i++ {
+		scalars[i] = &scalarsStore[i]
+		points[rsOffsetStart+i] = &pointsStore[i]
+	}
 
+	for i := 0; i < num; i++ {
 		if valid[i] = vOpts.unpackPublicKey(publicKeys[i], As[i]); !valid[i] {
 			allValid = false
 			continue
@@ -139,7 +144,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 	if allValid && !vOpts.CofactorlessVerify {
 		// This doesn't update allValid since the serial path
 		// handles explicitly setting after checking each signature.
-		if doBatchVerify(rand, As, Rs, Ss, hrams) {
+		if doBatchVerify(rand, points, Ss, hrams) {
 			return allValid, valid, nil
 		}
 	}
@@ -175,65 +180,56 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 	return allValid, valid, nil
 }
 
-func doBatchVerify(rand io.Reader, As, Rs []*curve.EdwardsPoint, Ss, hrams []*scalar.Scalar) bool {
-	num := len(As)
+func doBatchVerify(rand io.Reader, points []*curve.EdwardsPoint, Ss, hrams []*scalar.Scalar) bool {
+	// Note: points is assumed to contain B || Rs || As
+	const zsOffsetStart = 1
 
-	// TODO/perf: Yes, this is more allocation/copy hungry than the
-	// equivalent Rust iterator based version.
+	var (
+		num          = len(Ss)
+		numTerms     = 1 + num + num
+		scalars      = make([]*scalar.Scalar, numTerms) // B_coefficient || zs || zhrams
+		scalarsStore = make([]scalar.Scalar, numTerms)
+
+		zs     = scalars[zsOffsetStart : zsOffsetStart+num]
+		zhrams = scalars[zsOffsetStart+num:]
+	)
+	for i := range scalars {
+		scalars[i] = &scalarsStore[i]
+	}
 
 	// Select a random 128-bit scalar for each signature.
-	zs := make([]*scalar.Scalar, num)
-	zStore := make([]scalar.Scalar, num)
 	var scalarBytes [scalar.ScalarWideSize]byte
 	for i := 0; i < num; i++ {
 		// An inquisitive reader would ask why this doesn't just do
-		// `z.Random(rand)`, and instead, opts to duplicate the code.
+		// `z.SetRandom(rand)`, and instead, opts to duplicate the code.
 		//
 		// Go's escape analysis fails to realize that `scalarBytes`
 		// doesn't escape, so doing this saves n-1 allocations,
 		// which can be quite large, especially as the batch size
 		// increases.
-		z := &zStore[i]
+		z := zs[i]
 		if _, err := io.ReadFull(rand, scalarBytes[:]); err != nil {
 			return false
 		}
 		if _, err := z.SetBytesModOrderWide(scalarBytes[:]); err != nil {
 			return false
 		}
-		zs[i] = z
 	}
 
 	// Compute the basepoint coefficient, sum(s[i]z[i]) (mod l).
-	var B_coefficient scalar.Scalar
-	for i := range zs {
+	B_coefficient := scalars[0]
+	for i := 0; i < num; i++ {
 		var sz scalar.Scalar
-		sz.Mul(zs[i], Ss[i])
-		B_coefficient.Add(&B_coefficient, &sz)
+		B_coefficient.Add(B_coefficient, sz.Mul(zs[i], Ss[i]))
+	}
+	B_coefficient.Neg(B_coefficient) // ... and negate it.
+
+	// Multiply each H(R || A || M) by the random value.
+	for i := 0; i < num; i++ {
+		zhrams[i].Mul(zs[i], hrams[i])
 	}
 
-	// Multiple each H(R || A || M) by the random value.
-	zhrams := make([]*scalar.Scalar, num)
-	zhramStore := make([]scalar.Scalar, num)
-	for i := range zs {
-		zhram := &zhramStore[i]
-		zhram.Mul(zs[i], hrams[i])
-		zhrams[i] = zhram
-	}
-
-	// Collect all the scalars/points to pass into the final multiscalar
-	// multiply.
-	scalars := make([]*scalar.Scalar, 0, 1+num+num)
-	B_coefficient.Neg(&B_coefficient)
-	scalars = append(scalars, &B_coefficient)
-	scalars = append(scalars, zs...)
-	scalars = append(scalars, zhrams...)
-
-	points := make([]*curve.EdwardsPoint, 0, 1+num+num)
-	points = append(points, &curve.ED25519_BASEPOINT_POINT)
-	points = append(points, Rs...)
-	points = append(points, As...)
-
-	// Use the cofactored batch verification equation.
+	// Check the cofactored batch verification equation.
 	var id curve.EdwardsPoint
 	id.MultiscalarMulVartime(scalars, points)
 	return id.IsSmallOrder()
