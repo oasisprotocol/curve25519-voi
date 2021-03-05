@@ -37,6 +37,17 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
+func (p *RistrettoPoint) coset4() [4]EdwardsPoint {
+	var ret [4]EdwardsPoint
+
+	ret[0] = p.inner
+	ret[1].Add(&p.inner, EIGHT_TORSION[2])
+	ret[2].Add(&p.inner, EIGHT_TORSION[4])
+	ret[3].Add(&p.inner, EIGHT_TORSION[6])
+
+	return ret
+}
+
 func TestRistretto(t *testing.T) {
 	t.Run("Ristretto/Sum", testRistrettoSum)
 	t.Run("Ristretto/Decompress/NegativeS", testRistrettoDecompressNegativeSFails)
@@ -56,8 +67,8 @@ func testRistrettoSum(t *testing.T) {
 	s1, s2 := scalar.NewFromUint64(999), scalar.NewFromUint64(333)
 
 	var p1, p2, expected RistrettoPoint
-	p1.Mul(&base, s1)
-	p2.Mul(&base, s2)
+	p1.Mul(base, s1)
+	p2.Mul(base, s2)
 	expected.Add(&p1, &p2)
 
 	var sum RistrettoPoint
@@ -168,13 +179,13 @@ func testRistrettoEncodingsOfSmallMultiplesOfBasepoint(t *testing.T) {
 			t.Fatalf("bp * %d != compressed[%d] (Got %v)", i, i, pCompressed)
 		}
 
-		p.Add(&p, &RISTRETTO_BASEPOINT_POINT)
+		p.Add(&p, RISTRETTO_BASEPOINT_POINT)
 	}
 }
 
 func testRistrettoBasepointRoundtrip(t *testing.T) {
 	var bpCompressedRistretto CompressedRistretto
-	bpCompressedRistretto.SetRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
+	bpCompressedRistretto.SetRistrettoPoint(RISTRETTO_BASEPOINT_POINT)
 
 	var bpRecaf RistrettoPoint
 	_, _ = bpRecaf.SetCompressed(&bpCompressedRistretto)
@@ -184,7 +195,7 @@ func testRistrettoBasepointRoundtrip(t *testing.T) {
 		diff  RistrettoPoint
 		diff4 EdwardsPoint
 	)
-	diff.Sub(&RISTRETTO_BASEPOINT_POINT, &bpRecaf)
+	diff.Sub(RISTRETTO_BASEPOINT_POINT, &bpRecaf)
 	diff4.mulByPow2(&diff.inner, 2)
 
 	var compressedDiff4, compressedEdwardsId CompressedEdwardsY

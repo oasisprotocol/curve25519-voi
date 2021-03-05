@@ -65,7 +65,7 @@ var (
 	// The 8-torsion subgroup (E[8]).
 	EIGHT_TORSION = eightTorsionInnerDocHidden
 
-	eightTorsionInnerDocHidden = [8]EdwardsPoint{
+	eightTorsionInnerDocHidden = [8]*EdwardsPoint{
 		newEdwardsPoint(
 			field.NewFieldElement51(0, 0, 0, 0, 0),
 			field.NewFieldElement51(1, 0, 0, 0, 0),

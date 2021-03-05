@@ -72,7 +72,7 @@ var edwardsPointTestPoints = map[string]*CompressedEdwardsY{
 		0x09, 0x6f, 0xfe, 0x35, 0x4f, 0x13, 0x2b, 0x42,
 	},
 
-	"ED25519_BASEPOINT": &ED25519_BASEPOINT_COMPRESSED,
+	"ED25519_BASEPOINT": ED25519_BASEPOINT_COMPRESSED,
 
 	"COMPRESSED_IDENTITY": func() *CompressedEdwardsY {
 		var cp CompressedEdwardsY
@@ -151,7 +151,7 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 	}
 
 	var bp EdwardsPoint
-	if _, err := bp.SetCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
+	if _, err := bp.SetCompressedY(ED25519_BASEPOINT_COMPRESSED); err != nil {
 		t.Fatalf("bp.SetCompressedY(): %v", err)
 	}
 	if !bp.debugIsValid() {
@@ -164,7 +164,7 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 	}
 	var recompressed CompressedEdwardsY
 	recompressed.SetEdwardsPoint(&bp)
-	if recompressed.Equal(&ED25519_BASEPOINT_COMPRESSED) != 1 {
+	if recompressed.Equal(ED25519_BASEPOINT_COMPRESSED) != 1 {
 		t.Fatalf("recompressed != ED25519_BASEPOINT_COMPRESSED")
 	}
 }
@@ -201,7 +201,7 @@ func testEdwardsDecompressionSignHandling(t *testing.T) {
 func testEdwardsAdd(t *testing.T) {
 	bp := ED25519_BASEPOINT_POINT
 	var sum EdwardsPoint
-	sum.Add(&bp, &bp)
+	sum.Add(bp, bp)
 	if !sum.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp + bp != BASE2 (Got: %v)", sum)
 	}
@@ -214,7 +214,7 @@ func testEdwardsAddProjectiveNiels(t *testing.T) {
 		sum          EdwardsPoint
 	)
 	bp := ED25519_BASEPOINT_POINT
-	sum.setCompleted(sumCompleted.AddEdwardsProjectiveNiels(&bp, bpPNiels.SetEdwards(&bp)))
+	sum.setCompleted(sumCompleted.AddEdwardsProjectiveNiels(bp, bpPNiels.SetEdwards(bp)))
 	if !sum.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp + toProjectiveNiels(bp) != BASE2 (Got: %v)", sum)
 	}
@@ -227,7 +227,7 @@ func testEdwardsAddAffineNiels(t *testing.T) {
 		sum          EdwardsPoint
 	)
 	bp := ED25519_BASEPOINT_POINT
-	sum.setCompleted(sumCompleted.AddEdwardsAffineNiels(&bp, bpANiels.SetEdwards(&bp)))
+	sum.setCompleted(sumCompleted.AddEdwardsAffineNiels(bp, bpANiels.SetEdwards(bp)))
 	if !sum.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp + toAffineNiels(bp) != BASE2 (Got: %v)", sum)
 	}
@@ -252,7 +252,7 @@ func testEdwardsEqualsHandlesScaling(t *testing.T) {
 
 func testEdwardsMul(t *testing.T) {
 	var aB EdwardsPoint
-	aB.Mul(&ED25519_BASEPOINT_POINT, edwardsPointTestScalars["A"])
+	aB.Mul(ED25519_BASEPOINT_POINT, edwardsPointTestScalars["A"])
 	if !aB.testEqualCompressedY("A_TIMES_BASEPOINT") {
 		t.Fatalf("a * B != A_TIMES_BASEPOINT (Got: %v)", aB)
 	}
@@ -264,8 +264,8 @@ func testEdwardsSum(t *testing.T) {
 	s1, s2 := scalar.NewFromUint64(999), scalar.NewFromUint64(333)
 
 	var p1, p2, expected EdwardsPoint
-	p1.Mul(&base, s1)
-	p2.Mul(&base, s2)
+	p1.Mul(base, s1)
+	p2.Mul(base, s2)
 	expected.Add(&p1, &p2)
 
 	var sum EdwardsPoint
@@ -310,7 +310,7 @@ func testEdwardsIsTorsionFree(t *testing.T) {
 
 	// The basepoint + generator of the torsion subgroup is not torsion-free.
 	var sum EdwardsPoint
-	sum.Add(&ED25519_BASEPOINT_POINT, &EIGHT_TORSION[1])
+	sum.Add(ED25519_BASEPOINT_POINT, EIGHT_TORSION[1])
 	if sum.IsTorsionFree() {
 		t.Fatalf("(P + Q).IsTorsionFree() != false")
 	}
@@ -338,7 +338,7 @@ func testEdwardsCompressedIdentity(t *testing.T) {
 func testEdwardsBasepointTableNew(t *testing.T) {
 	// Test table creation by regenerating the hard coded basepoint table.
 	// This also serves to sanity-check that the hardcoded table is correct.
-	tbl := NewEdwardsBasepointTable(&ED25519_BASEPOINT_POINT)
+	tbl := NewEdwardsBasepointTable(ED25519_BASEPOINT_POINT)
 	for i, subTbl := range tbl {
 		for ii, pt := range subTbl {
 			expectedPt := ED25519_BASEPOINT_TABLE[i][ii]
@@ -359,7 +359,7 @@ func testEdwardsBasepointTableBasepoint(t *testing.T) {
 func testEdwardsBasepointTableMul(t *testing.T) {
 	var aB_2 EdwardsPoint
 	aB_1 := ED25519_BASEPOINT_TABLE.Mul(edwardsPointTestScalars["A"])
-	aB_2.Mul(&ED25519_BASEPOINT_POINT, edwardsPointTestScalars["A"])
+	aB_2.Mul(ED25519_BASEPOINT_POINT, edwardsPointTestScalars["A"])
 	if aB_1.Equal(&aB_2) != 1 {
 		t.Fatalf("aB_1 != aB_2 (Got %v %v)", aB_1, aB_2)
 	}
@@ -380,7 +380,7 @@ func testEdwardsBasepointTableMulVsEd25519py(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulByBasepointOrder(t *testing.T) {
-	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(&BASEPOINT_ORDER)
+	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER)
 	if !shouldBeId.IsIdentity() {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER).IsIdentity() != true")
 	}
@@ -395,7 +395,7 @@ func testEdwardsBasepointTableMulTwo(t *testing.T) {
 
 func testEdwardsBasepointPointDoubleVsConstant(t *testing.T) {
 	var p EdwardsPoint
-	p.double(&ED25519_BASEPOINT_POINT)
+	p.double(ED25519_BASEPOINT_POINT)
 	if !p.testEqualCompressedY("BASE2") {
 		t.Fatalf("bp.double() != BASE2 (Got: %v)", p)
 	}
@@ -406,7 +406,7 @@ func testEdwardsBasepointPointProjectiveExtendedRoundTrip(t *testing.T) {
 		pProjective projectivePoint
 		pp          EdwardsPoint
 	)
-	pProjective.SetEdwards(&ED25519_BASEPOINT_POINT)
+	pProjective.SetEdwards(ED25519_BASEPOINT_POINT)
 	pp.setProjective(&pProjective)
 	if !pp.testEqualCompressedY("ED25519_BASEPOINT") {
 		t.Fatalf("bp->projective->extended != bp (Got: %v)", pp)
@@ -415,7 +415,7 @@ func testEdwardsBasepointPointProjectiveExtendedRoundTrip(t *testing.T) {
 
 func testEdwardsBasepointPoint16VsMulByPow2_4(t *testing.T) {
 	var bp16 EdwardsPoint
-	bp16.mulByPow2(&ED25519_BASEPOINT_POINT, 4)
+	bp16.mulByPow2(ED25519_BASEPOINT_POINT, 4)
 	if !bp16.testEqualCompressedY("BASE16") {
 		t.Fatalf("bp.mulByPow2(4) != BASE16 (Got: %v)", bp16)
 	}
@@ -506,7 +506,7 @@ func testEdwardsMultiscalarMul(t *testing.T) {
 	var result EdwardsPoint
 	result.MultiscalarMul(
 		[]*scalar.Scalar{edwardsPointTestScalars["A"], edwardsPointTestScalars["B"]},
-		[]*EdwardsPoint{&A, &ED25519_BASEPOINT_POINT},
+		[]*EdwardsPoint{&A, ED25519_BASEPOINT_POINT},
 	)
 	if !result.testEqualCompressedY("DOUBLE_SCALAR_MULT_RESULT") {
 		t.Fatalf("A_SCALAR * A_TIMES_BASEPOINT + B_SCALAR * BASEPOINT != DOUBLE_SCALAR_MULT_RESULT (Got: %v)", result)
@@ -522,7 +522,7 @@ func testEdwardsMultiscalarMulVartime(t *testing.T) {
 	var result EdwardsPoint
 	result.MultiscalarMulVartime(
 		[]*scalar.Scalar{edwardsPointTestScalars["A"], edwardsPointTestScalars["B"]},
-		[]*EdwardsPoint{&A, &ED25519_BASEPOINT_POINT},
+		[]*EdwardsPoint{&A, ED25519_BASEPOINT_POINT},
 	)
 	if !result.testEqualCompressedY("DOUBLE_SCALAR_MULT_RESULT") {
 		t.Fatalf("A_SCALAR * A_TIMES_BASEPOINT + B_SCALAR * BASEPOINT != DOUBLE_SCALAR_MULT_RESULT (Got: %v)", result)
@@ -533,7 +533,7 @@ func testAffineNielsConditionalAssign(t *testing.T) {
 	var id, p1, bp affineNielsPoint
 	id.Identity()
 	p1.Identity()
-	bp.SetEdwards(&ED25519_BASEPOINT_POINT)
+	bp.SetEdwards(ED25519_BASEPOINT_POINT)
 
 	p1.ConditionalAssign(&bp, 0)
 	if !p1.testEqual(&id) {

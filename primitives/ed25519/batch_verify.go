@@ -102,7 +102,7 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 		Ss    = scalars[0:num]
 		hrams = scalars[num:]
 	)
-	points[0] = &curve.ED25519_BASEPOINT_POINT
+	points[0] = curve.ED25519_BASEPOINT_POINT
 	for i := 0; i < numItems; i++ {
 		scalars[i] = &scalarsStore[i]
 		points[rsOffsetStart+i] = &pointsStore[i]

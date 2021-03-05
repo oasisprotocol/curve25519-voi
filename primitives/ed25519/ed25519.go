@@ -413,8 +413,8 @@ func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 // panic if len(privateKey) is not PrivateKeySize.
 func Sign(privateKey PrivateKey, message []byte) []byte {
 	// This would outline the function body to avoid a heap allocation,
-	// but apparently wanting to return an error makes that not work anyway,
-	// at least as of Go 1.16.
+	// but at least as of Go 1.16, something causes the escape analysis
+	// to break.
 	signature, err := privateKey.Sign(nil, message, optionsDefault)
 	if err != nil {
 		panic(err)
