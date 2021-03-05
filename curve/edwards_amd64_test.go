@@ -210,7 +210,7 @@ func testVecDoubleExtended(t *testing.T) {
 		p *EdwardsPoint
 		n string
 	}{
-		{&ED25519_BASEPOINT_POINT, "B"},
+		{ED25519_BASEPOINT_POINT, "B"},
 		{testPoint_id(), "id"},
 		{testPoint_kB(), "([k]B)"},
 	} {
@@ -268,9 +268,9 @@ func testVecAddSubCached(t *testing.T) {
 		an, bn string
 	}{
 		{testPoint_id(), testPoint_id(), "id", "id"},
-		{testPoint_id(), &ED25519_BASEPOINT_POINT, "id", "B"},
-		{&ED25519_BASEPOINT_POINT, &ED25519_BASEPOINT_POINT, "B", "B"},
-		{&ED25519_BASEPOINT_POINT, testPoint_kB(), "B", "([k]B)"},
+		{testPoint_id(), ED25519_BASEPOINT_POINT, "id", "B"},
+		{ED25519_BASEPOINT_POINT, ED25519_BASEPOINT_POINT, "B", "B"},
+		{ED25519_BASEPOINT_POINT, testPoint_kB(), "B", "([k]B)"},
 	} {
 		sS := addEdwardsSerial(v.a, v.b)
 		sV := addEdwardsVector(v.a, v.b)
@@ -287,7 +287,7 @@ func testVecAddSubCached(t *testing.T) {
 }
 
 func testVecBasepointOddLookupTable(t *testing.T) {
-	gen := newCachedPointNafLookupTable(&ED25519_BASEPOINT_POINT)
+	gen := newCachedPointNafLookupTable(ED25519_BASEPOINT_POINT)
 
 	for i, pt := range gen {
 		entry := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[i]

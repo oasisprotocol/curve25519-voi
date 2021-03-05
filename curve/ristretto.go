@@ -400,17 +400,6 @@ func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	p.inner.setCompleted(&cp)
 }
 
-func (p *RistrettoPoint) coset4() [4]EdwardsPoint {
-	var ret [4]EdwardsPoint
-
-	ret[0] = p.inner
-	ret[1].Add(&p.inner, &EIGHT_TORSION[2])
-	ret[2].Add(&p.inner, &EIGHT_TORSION[4])
-	ret[3].Add(&p.inner, &EIGHT_TORSION[6])
-
-	return ret
-}
-
 // NewRistrettoPoint constructs a new Ristretto point set to the identity element.
 func NewRistrettoPoint() *RistrettoPoint {
 	var p RistrettoPoint

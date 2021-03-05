@@ -46,7 +46,7 @@ func testEdwardsMultiscalarMulPippengerVartime(t *testing.T) {
 		tmp := scalar.NewFromUint64(1 + uint64(i))
 
 		var point EdwardsPoint
-		point.Mul(&ED25519_BASEPOINT_POINT, tmp)
+		point.Mul(ED25519_BASEPOINT_POINT, tmp)
 		points = append(points, &point)
 	}
 

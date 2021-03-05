@@ -51,7 +51,7 @@ const (
 var (
 	// ED25519_BASEPOINT_COMPRESSED is the Ed25519 basepoint, in
 	// CompressedEdwardsY format.
-	ED25519_BASEPOINT_COMPRESSED = CompressedEdwardsY{
+	ED25519_BASEPOINT_COMPRESSED = &CompressedEdwardsY{
 		0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
 		0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
 		0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
@@ -60,7 +60,7 @@ var (
 
 	// X25519_BASEPOINT is the X25519 basepoint, in MontgomeryPoint
 	// format.
-	X25519_BASEPOINT = MontgomeryPoint{
+	X25519_BASEPOINT = &MontgomeryPoint{
 		0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -69,7 +69,7 @@ var (
 
 	// RISTRETTO_BASEPOINT_COMPRESED is the Ristretto basepoint, in
 	// CompressedRistretto format.
-	RISTRETTO_BASEPOINT_COMPRESSED = CompressedRistretto{
+	RISTRETTO_BASEPOINT_COMPRESSED = &CompressedRistretto{
 		0xe2, 0xf2, 0xae, 0x0a, 0x6a, 0xbc, 0x4e, 0x71,
 		0xa8, 0x84, 0xa9, 0x61, 0xc5, 0x00, 0x51, 0x5f,
 		0x58, 0xe3, 0x0b, 0x6a, 0xa5, 0x82, 0xdd, 0x8d,
@@ -78,19 +78,19 @@ var (
 
 	// RISTRETTO_BASEPOINT_POINT is the Ristretto basepoint, in
 	// RistrettoPoint format.
-	RISTRETTO_BASEPOINT_POINT = RistrettoPoint{
-		inner: ED25519_BASEPOINT_POINT,
+	RISTRETTO_BASEPOINT_POINT = &RistrettoPoint{
+		inner: *ED25519_BASEPOINT_POINT,
 	}
 
 	// RISTRETTO_BASEPOINT_TABLE is the Ristretto basepoint, as a
 	// RistrettoBasepointTable for scalar multiplication.
-	RISTRETTO_BASEPOINT_TABLE = RistrettoBasepointTable{
-		inner: ED25519_BASEPOINT_TABLE,
+	RISTRETTO_BASEPOINT_TABLE = &RistrettoBasepointTable{
+		inner: *ED25519_BASEPOINT_TABLE,
 	}
 
 	// BASEPOINT_ORDER is the order of the Ed25519 basepoint and the Ristretto
 	// group.
-	BASEPOINT_ORDER = func() scalar.Scalar {
+	BASEPOINT_ORDER = func() *scalar.Scalar {
 		// This is kind of ugly but the basepoint order isn't a canonical
 		// scalar for reasons that should be obvious.  The bit based
 		// deserialization API only masks the high bit (and does not reduce),
@@ -104,12 +104,12 @@ var (
 		if err != nil {
 			panic("curve: failed to define basepoint order constant: " + err.Error())
 		}
-		return *s
+		return s
 	}()
 )
 
-func newEdwardsPoint(X, Y, Z, T field.FieldElement) EdwardsPoint {
-	return EdwardsPoint{
+func newEdwardsPoint(X, Y, Z, T field.FieldElement) *EdwardsPoint {
+	return &EdwardsPoint{
 		edwardsPointInner{
 			X: X,
 			Y: Y,

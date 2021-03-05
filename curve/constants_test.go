@@ -49,7 +49,7 @@ func TestConstants(t *testing.T) {
 func testConstantsEightTorsion(t *testing.T) {
 	for i, torsionPoint := range EIGHT_TORSION {
 		var q EdwardsPoint
-		q.mulByPow2(&torsionPoint, 3)
+		q.mulByPow2(torsionPoint, 3)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(3).debugIsValid() != true", i)
 		}
@@ -65,7 +65,7 @@ func testConstantsFourTorsion(t *testing.T) {
 			continue
 		}
 		var q EdwardsPoint
-		q.mulByPow2(&torsionPoint, 2)
+		q.mulByPow2(torsionPoint, 2)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(2).debugIsValid() != true", i)
 		}
@@ -81,7 +81,7 @@ func testConstantsTwoTorsion(t *testing.T) {
 			continue
 		}
 		var q EdwardsPoint
-		q.mulByPow2(&torsionPoint, 1)
+		q.mulByPow2(torsionPoint, 1)
 		if !q.debugIsValid() {
 			t.Fatalf("EIGHT_TORSION[%d].mulByPow2(1).debugIsValid() != true", i)
 		}
@@ -108,7 +108,7 @@ func testConstantsSqrtAdMinusOne(t *testing.T) {
 }
 
 func testConstantsAffineBasepointOddLookupTable(t *testing.T) {
-	gen := newAffineNielsPointNafLookupTable(&ED25519_BASEPOINT_POINT)
+	gen := newAffineNielsPointNafLookupTable(ED25519_BASEPOINT_POINT)
 
 	for i, pt := range gen {
 		entry := constAFFINE_ODD_MULTIPLES_OF_BASEPOINT[i]

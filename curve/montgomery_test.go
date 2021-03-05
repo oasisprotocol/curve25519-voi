@@ -16,16 +16,16 @@ func TestMontgomery(t *testing.T) {
 
 func testMontgomeryEdwardsPointFromMontgomery(t *testing.T) {
 	var p EdwardsPoint
-	if _, err := p.SetMontgomery(&X25519_BASEPOINT, 0); err != nil {
+	if _, err := p.SetMontgomery(X25519_BASEPOINT, 0); err != nil {
 		t.Fatalf("SetMontgomery(X25519_BASEPOINT, 0)")
 	}
-	if p.Equal(&ED25519_BASEPOINT_POINT) != 1 {
+	if p.Equal(ED25519_BASEPOINT_POINT) != 1 {
 		t.Fatalf("SetMontgomery(X25519_BASEPOINT, 0) != ED25519_BASEPOINT_POINT (Got: %v)", p)
 	}
 
 	var negBasepoint EdwardsPoint
-	negBasepoint.Neg(&ED25519_BASEPOINT_POINT)
-	if _, err := p.SetMontgomery(&X25519_BASEPOINT, 1); err != nil {
+	negBasepoint.Neg(ED25519_BASEPOINT_POINT)
+	if _, err := p.SetMontgomery(X25519_BASEPOINT, 1); err != nil {
 		t.Fatalf("SetMontgomery(X25519_BASEPOINT, 0)")
 	}
 	if p.Equal(&negBasepoint) != 1 {
@@ -57,8 +57,8 @@ func testMontgomeryEdwardsPointFromMontgomeryRejectsTwist(t *testing.T) {
 
 func testMontgomeryFromEdwards(t *testing.T) {
 	var p MontgomeryPoint
-	p.SetEdwards(&ED25519_BASEPOINT_POINT)
-	if p.Equal(&X25519_BASEPOINT) != 1 {
+	p.SetEdwards(ED25519_BASEPOINT_POINT)
+	if p.Equal(X25519_BASEPOINT) != 1 {
 		t.Fatalf("FromEdwards(ED25519_BASEPOINT_POINT) != X25519_BASEPOINT (Got: %v)", p)
 	}
 }

@@ -52,14 +52,14 @@ func BenchmarkEdwards(b *testing.B) {
 func benchEdwardsCompress(b *testing.B) {
 	var compressed CompressedEdwardsY
 	for i := 0; i < b.N; i++ {
-		compressed.SetEdwardsPoint(&ED25519_BASEPOINT_POINT)
+		compressed.SetEdwardsPoint(ED25519_BASEPOINT_POINT)
 	}
 }
 
 func benchEdwardsDecompress(b *testing.B) {
 	var decompressed EdwardsPoint
 	for i := 0; i < b.N; i++ {
-		if _, err := decompressed.SetCompressedY(&ED25519_BASEPOINT_COMPRESSED); err != nil {
+		if _, err := decompressed.SetCompressedY(ED25519_BASEPOINT_COMPRESSED); err != nil {
 			b.Fatalf("FromCompressedY(): %v", err)
 		}
 	}
@@ -72,7 +72,7 @@ func benchEdwardsMul(b *testing.B) {
 
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
-		tmp.Mul(&ED25519_BASEPOINT_POINT, s)
+		tmp.Mul(ED25519_BASEPOINT_POINT, s)
 	}
 }
 
@@ -148,14 +148,14 @@ func BenchmarkRistretto(b *testing.B) {
 func benchRistrettoCompress(b *testing.B) {
 	var compressed CompressedRistretto
 	for i := 0; i < b.N; i++ {
-		compressed.SetRistrettoPoint(&RISTRETTO_BASEPOINT_POINT)
+		compressed.SetRistrettoPoint(RISTRETTO_BASEPOINT_POINT)
 	}
 }
 
 func benchRistrettoDecompress(b *testing.B) {
 	var decompressed RistrettoPoint
 	for i := 0; i < b.N; i++ {
-		if _, err := decompressed.SetCompressed(&RISTRETTO_BASEPOINT_COMPRESSED); err != nil {
+		if _, err := decompressed.SetCompressed(RISTRETTO_BASEPOINT_COMPRESSED); err != nil {
 			b.Fatalf("FromRistrettoPoint(): %v", err)
 		}
 	}
@@ -172,7 +172,7 @@ func benchMontgomeryMul(b *testing.B) {
 
 	var tmp MontgomeryPoint
 	for i := 0; i < b.N; i++ {
-		tmp.Mul(&X25519_BASEPOINT, s)
+		tmp.Mul(X25519_BASEPOINT, s)
 	}
 }
 
