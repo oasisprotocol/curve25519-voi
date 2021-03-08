@@ -31,6 +31,6 @@
 
 package curve
 
-func lookupPackedAffineNiels(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
-	lookupPackedAffineNielsGeneric(table, out, xabs)
+func lookupAffineNiels(tbl *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) {
+	lookupAffineNielsGeneric(tbl, out, xabs)
 }

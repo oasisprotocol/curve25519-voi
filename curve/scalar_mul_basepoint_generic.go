@@ -1,5 +1,5 @@
 // Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
-// Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
+// Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -28,32 +28,59 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build !amd64 purego forcenoasm force32bit
-
 package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
-func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
-	return edwardsMulGeneric(out, point, scalar)
+type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
+
+func (tbl *edwardsBasepointTableGeneric) Basepoint() EdwardsPoint {
+	// tbl[0].lookup(1) = 1*(16^2)^0*B
+	// but as an `affineNielsPoint`, so add identity to convert to extended.
+	var ep EdwardsPoint
+	ep.Identity()
+
+	aPt := tbl[0].Lookup(1)
+
+	var sum completedPoint
+	ep.setCompleted(sum.AddEdwardsAffineNiels(&ep, &aPt))
+
+	return ep
 }
 
-func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
-	return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+func (tbl *edwardsBasepointTableGeneric) Mul(scalar *scalar.Scalar) EdwardsPoint {
+	a := scalar.ToRadix16()
+
+	var p EdwardsPoint
+	p.Identity()
+
+	var sum completedPoint
+	for i := 1; i < 64; i = i + 2 {
+		aPt := tbl[i/2].Lookup(a[i])
+		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
+	}
+
+	p.mulByPow2(&p, 4)
+
+	for i := 0; i < 64; i = i + 2 {
+		aPt := tbl[i/2].Lookup(a[i])
+		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
+	}
+
+	return p
 }
 
-func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
-	return edwardsMultiscalarMulStrausGeneric(out, scalars, points)
-}
+func newEdwardsBasepointTableGeneric(basepoint *EdwardsPoint) *edwardsBasepointTableGeneric {
+	var (
+		table edwardsBasepointTableGeneric
+		p     EdwardsPoint
+	)
 
-func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
-	return edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
-}
+	p.Set(basepoint)
+	for i := 0; i < 32; i++ {
+		table[i] = newAffineNielsPointLookupTable(&p)
+		p.mulByPow2(&p, 8)
+	}
 
-func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
-	return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
-}
-
-func newEdwardsBasepointTable(basepoint *EdwardsPoint) edwardsBasepointTableImpl {
-	return newEdwardsBasepointTableGeneric(basepoint)
+	return &table
 }

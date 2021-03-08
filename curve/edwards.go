@@ -399,7 +399,17 @@ func NewEdwardsPoint() *EdwardsPoint {
 
 // EdwardsBasepointTable defines a precomputed table of multiples of a
 // basepoint, for accelerating fixed-based scalar multiplication.
-type EdwardsBasepointTable [32]packedAffineNielsPointLookupTable
+type EdwardsBasepointTable struct {
+	// TODO/perf: Interface unboxing causes an allocation, but this is
+	// the cleanest way to do this.  Since it's only one, and it's small
+	// live with it for now.
+	inner edwardsBasepointTableImpl
+}
+
+type edwardsBasepointTableImpl interface {
+	Basepoint() EdwardsPoint
+	Mul(scalar *scalar.Scalar) EdwardsPoint
+}
 
 // Mul constructs a point from a scalar by computing the multiple aB
 // of this basepoint (B).
@@ -407,25 +417,7 @@ type EdwardsBasepointTable [32]packedAffineNielsPointLookupTable
 // Note: This function breaks from convention and does not return a pointer
 // because Go's escape analysis sucks.
 func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
-	a := scalar.ToRadix16()
-
-	var p EdwardsPoint
-	p.Identity()
-
-	var sum completedPoint
-	for i := 1; i < 64; i = i + 2 {
-		aPt := tbl[i/2].Lookup(a[i])
-		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
-	}
-
-	p.mulByPow2(&p, 4)
-
-	for i := 0; i < 64; i = i + 2 {
-		aPt := tbl[i/2].Lookup(a[i])
-		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
-	}
-
-	return p
+	return tbl.inner.Mul(scalar)
 }
 
 // Basepoint returns the basepoint of the table.
@@ -433,34 +425,15 @@ func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
 // Note: This function breaks from convention and does not return a pointer
 // because Go's escape analysis sucks.
 func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
-	// tbl[0].lookup(1) = 1*(16^2)^0*B
-	// but as an `affineNielsPoint`, so add identity to convert to extended.
-	var ep EdwardsPoint
-	ep.Identity()
-
-	aPt := tbl[0].Lookup(1)
-
-	var sum completedPoint
-	ep.setCompleted(sum.AddEdwardsAffineNiels(&ep, &aPt))
-
-	return ep
+	return tbl.inner.Basepoint()
 }
 
 // NewEdwardsBasepointTable creates a table of precomputed multiples of
 // `basepoint`.
 func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
-	var (
-		table EdwardsBasepointTable
-		p     EdwardsPoint
-	)
-
-	p.Set(basepoint)
-	for i := 0; i < 32; i++ {
-		table[i] = newPackedAffineNielsPointLookupTable(&p)
-		p.mulByPow2(&p, 8)
+	return &EdwardsBasepointTable{
+		inner: newEdwardsBasepointTable(basepoint),
 	}
-
-	return &table
 }
 
 // Omitted:

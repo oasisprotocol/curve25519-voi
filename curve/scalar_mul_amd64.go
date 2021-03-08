@@ -78,3 +78,12 @@ func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.
 		return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
 	}
 }
+
+func newEdwardsBasepointTable(basepoint *EdwardsPoint) edwardsBasepointTableImpl {
+	switch supportsVectorizedEdwards {
+	case true:
+		return newEdwardsBasepointTableVector(basepoint)
+	default:
+		return newEdwardsBasepointTableGeneric(basepoint)
+	}
+}

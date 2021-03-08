@@ -274,4 +274,10 @@ func newFieldElement2625x4(fe0, fe1, fe2, fe3 *field.FieldElement) fieldElement2
 
 func init() {
 	supportsVectorizedEdwards = cpu.Initialized && cpu.X86.HasAVX2
+
+	// Enable the vector backend for the hardcoded basepoint table,
+	// if the vector backend is enabled for everything else.
+	if supportsVectorizedEdwards {
+		ED25519_BASEPOINT_TABLE.inner = constVECTOR_ED25519_BASEPOINT_TABLE
+	}
 }
