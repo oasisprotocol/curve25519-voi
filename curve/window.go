@@ -78,26 +78,17 @@ func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLo
 	return projectiveNielsPointLookupTable(points)
 }
 
-// Note: Unlike curve25519-dalek, the table uses the packed format as the
-// internal representation, as 96-byte entries are significantly easier
-// to manipulate with vector instructions.
-type packedAffineNielsPointLookupTable [8][96]byte
+type affineNielsPointLookupTable [8]affineNielsPoint
 
-func (tbl *packedAffineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
-	// Compute xabs = |x|
+func (tbl *affineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
+	// Compute xabx = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
 
 	// Set t = 0 * P = identity
-	var tPacked [96]byte
-	lookupPackedAffineNiels(tbl, &tPacked, xabs)
-	// Now t == |x| * P.
-
-	// Unpack t.
 	var t affineNielsPoint
-	_, _ = t.y_plus_x.SetBytes(tPacked[0:32])
-	_, _ = t.y_minus_x.SetBytes(tPacked[32:64])
-	_, _ = t.xy2d.SetBytes(tPacked[64:96])
+	lookupAffineNiels(tbl, &t, xabs)
+	// Now t == |x| * P.
 
 	negMask := int(byte(xmask & 1))
 	t.ConditionalNegate(negMask)
@@ -106,16 +97,16 @@ func (tbl *packedAffineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
 	return t
 }
 
-func lookupPackedAffineNielsGeneric(table *packedAffineNielsPointLookupTable, out *[96]byte, xabs uint8) {
-	*out = identityAffineNielsPacked
+func lookupAffineNielsGeneric(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) {
+	out.Identity()
 	for j := 1; j < 9; j++ {
 		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
 		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		subtle.MoveConditionalBytesx96(out, &table[j-1], uint64(c))
+		out.ConditionalAssign(&table[j-1], c)
 	}
 }
 
-func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPointLookupTable {
+func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTable {
 	var epANiels affineNielsPoint
 	epANiels.SetEdwards(ep)
 
@@ -131,16 +122,7 @@ func newPackedAffineNielsPointLookupTable(ep *EdwardsPoint) packedAffineNielsPoi
 		points[j+1].SetEdwards(tmp2.setCompleted(tmp.AddEdwardsAffineNiels(ep, &points[j])))
 	}
 
-	// Pack the table.  At this point, `points` is equivalent to the table
-	// used by curve25519-dalek.
-	var tbl packedAffineNielsPointLookupTable
-	for i, point := range points {
-		_ = point.y_plus_x.ToBytes(tbl[i][0:32])
-		_ = point.y_minus_x.ToBytes(tbl[i][32:64])
-		_ = point.xy2d.ToBytes(tbl[i][64:96])
-	}
-
-	return tbl
+	return affineNielsPointLookupTable(points)
 }
 
 // Holds odd multiples 1A, 3A, ..., 15A of a point A.

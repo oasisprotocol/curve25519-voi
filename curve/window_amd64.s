@@ -60,10 +60,20 @@ DATA ·cached_id_2_4<>+0x18(SB)/4, $0
 DATA ·cached_id_2_4<>+0x1c(SB)/4, $33554431
 GLOBL ·cached_id_2_4<>(SB), (NOPTR+RODATA), $32
 
-// func lookupPackedAffineNiels_AVX2(table *packedAffineNielsPointLookupTable, out *byte, xabs uint8)
-TEXT ·lookupPackedAffineNiels_AVX2(SB), NOSPLIT|NOFRAME, $0-17
+// func lookupAffineNiels_AVX2(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8)
+TEXT ·lookupAffineNiels_AVX2(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
+
+	// This is moderately annoying due to having 5x3 64-bit elements, which
+	// does not nicely fit into 256-bit registers.  This is handled by
+	// duplicating one element in 2 ymm registers, since doing so keeps
+	// the rest of the code straight forward.
+	//
+	// ymm0 = y_plus_x_0,  y_plus_x_1,  y_plus_x_2,  y_plus_x_3
+	// ymm1 = y_plus_x_4,  y_minus_x_0, y_minus_x_1, y_minus_x_2
+	// ymm2 = y_minus_x_3, y_minus_x_4, xy2d_0,      xy2d_1
+	// ymm3 = xy2d_1 (*),  xy2d_2,      xy2d_3,      xy2d_4
 
 	MOVBQZX      xabs+16(FP), AX
 	VMOVD        AX, X14
@@ -71,6 +81,7 @@ TEXT ·lookupPackedAffineNiels_AVX2(SB), NOSPLIT|NOFRAME, $0-17
 	VPXOR        Y0, Y0, Y0
 	VPXOR        Y1, Y1, Y1
 	VPXOR        Y2, Y2, Y2
+	VPXOR        Y3, Y3, Y3
 
 	// 0
 	MOVD         $0, AX
@@ -78,32 +89,37 @@ TEXT ·lookupPackedAffineNiels_AVX2(SB), NOSPLIT|NOFRAME, $0-17
 	VPBROADCASTD X15, Y15
 	VPCMPEQD     Y14, Y15, Y15
 	MOVQ         $1, AX
-	VMOVQ        AX, X3
-	VPAND        Y15, Y3, Y3
-	VPOR         Y3, Y0, Y0
-	VPOR         Y3, Y1, Y1
+	VMOVQ        AX, X4
+	VPINSRQ      $1, AX, X0, X5
+	VPAND        Y15, Y4, Y4
+	VPAND        Y15, Y5, Y5
+	VPOR         Y0, Y4, Y0
+	VPOR         Y1, Y5, Y1
 
 	// 1 .. 8
 	MOVQ $1, AX
 
-aniels_lookup_loop:
+affine_lookup_loop:
 	VMOVD        AX, X15
 	VPBROADCASTD X15, Y15
 	VPCMPEQD     Y14, Y15, Y15
-	VPAND        0(R14), Y15, Y3
-	VPAND        32(R14), Y15, Y4
-	VPAND        64(R14), Y15, Y5
-	VPOR         Y0, Y3, Y0
-	VPOR         Y1, Y4, Y1
-	VPOR         Y2, Y5, Y2
-	ADDQ         $96, R14
+	VPAND        0(R14), Y15, Y4
+	VPAND        32(R14), Y15, Y5
+	VPAND        64(R14), Y15, Y6
+	VPAND        88(R14), Y15, Y7
+	VPOR         Y0, Y4, Y0
+	VPOR         Y1, Y5, Y1
+	VPOR         Y2, Y6, Y2
+	VPOR         Y3, Y7, Y3
+	ADDQ         $120, R14
 	INCQ         AX
 	CMPQ         AX, $8
-	JLE          aniels_lookup_loop
+	JLE          affine_lookup_loop
 
 	VMOVDQU Y0, 0(R15)
 	VMOVDQU Y1, 32(R15)
 	VMOVDQU Y2, 64(R15)
+	VMOVDQU Y3, 88(R15)
 
 	VZEROUPPER
 	RET

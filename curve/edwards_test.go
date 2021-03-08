@@ -342,7 +342,7 @@ func testEdwardsBasepointTableNew(t *testing.T) {
 	for i, subTbl := range tbl {
 		for ii, pt := range subTbl {
 			expectedPt := ED25519_BASEPOINT_TABLE[i][ii]
-			if pt != expectedPt {
+			if !pt.testEqual(&expectedPt) {
 				t.Fatalf("tbl[%d][%d] != ED25519_BASEPOINT_TABLE[%d][%d] (Got: %v)", i, ii, i, ii, pt)
 			}
 		}
