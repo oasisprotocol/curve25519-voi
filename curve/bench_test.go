@@ -43,6 +43,7 @@ func BenchmarkEdwards(b *testing.B) {
 	b.Run("Compress", benchEdwardsCompress)
 	b.Run("Decompress", benchEdwardsDecompress)
 	b.Run("Mul", benchEdwardsMul)
+	b.Run("BasepointTable/New", benchEdwardsBasepointTableNew)
 	b.Run("BasepointTable/Mul", benchEdwardsBasepointTableMul)
 	b.Run("DoubleScalarMulBasepointVartime", benchEdwardsDoubleScalarMulBasepointVartime)
 	b.Run("MultiscalarMul", benchEdwardsMultiscalarMul)
@@ -73,6 +74,12 @@ func benchEdwardsMul(b *testing.B) {
 	var tmp EdwardsPoint
 	for i := 0; i < b.N; i++ {
 		tmp.Mul(ED25519_BASEPOINT_POINT, s)
+	}
+}
+
+func benchEdwardsBasepointTableNew(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewEdwardsBasepointTable(ED25519_BASEPOINT_POINT)
 	}
 }
 
