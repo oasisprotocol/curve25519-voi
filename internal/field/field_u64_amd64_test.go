@@ -121,22 +121,14 @@ func isInAsmBounds(x *FieldElement) bool {
 
 func TestFeMulAsm(t *testing.T) {
 	t.Run("FeMul/mul", func(t *testing.T) {
-		testFeMul(t, false)
+		testFeMul(t)
 	})
 	t.Run("FePow2k/mul", func(t *testing.T) {
-		testFePow2k(t, false)
+		testFePow2k(t)
 	})
-	if useBMI2 {
-		t.Run("FeMul/mulx", func(t *testing.T) {
-			testFeMul(t, true)
-		})
-		t.Run("FePow2k/mulx", func(t *testing.T) {
-			testFePow2k(t, true)
-		})
-	}
 }
 
-func testFeMul(t *testing.T, useBMI2 bool) {
+func testFeMul(t *testing.T) {
 	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
 		var t1, t2, t3, t1Asm, t2Asm, t3Asm FieldElement
 
@@ -154,15 +146,15 @@ func testFeMul(t *testing.T, useBMI2 bool) {
 
 		// Compute t1 = (x+y)*z
 		t1.Add(&x, &y)
-		feMul_AMD64(&t1Asm, &t1, &z, useBMI2)
+		feMul(&t1Asm, &t1, &z)
 		feMulGeneric(&t1, &t1, &z)
 		if t1.Equal(&t1Asm) != 1 || !isInAsmBounds(&t1Asm) {
 			return false
 		}
 
 		// Compute t2 = x*z + y*z
-		feMul_AMD64(&t2Asm, &x, &z, useBMI2)
-		feMul_AMD64(&t3Asm, &y, &z, useBMI2)
+		feMul(&t2Asm, &x, &z)
+		feMul(&t3Asm, &y, &z)
 		feMulGeneric(&t2, &x, &z)
 		feMulGeneric(&t3, &y, &z)
 		if t2.Equal(&t2Asm) != 1 || !isInAsmBounds(&t2Asm) {
@@ -182,11 +174,11 @@ func testFeMul(t *testing.T, useBMI2 bool) {
 	}
 }
 
-func testFePow2k(t *testing.T, useBMI2 bool) {
+func testFePow2k(t *testing.T) {
 	a, ap16 := testConstants["A"], testConstants["AP16"]
 
 	var shouldBeAp16 FieldElement
-	fePow2k_AMD64(&shouldBeAp16, a, 4, useBMI2)
+	fePow2k(&shouldBeAp16, a, 4)
 
 	if shouldBeAp16.Equal(ap16) != 1 {
 		t.Fatalf("a ^ (2^4) != ap16 (Got: %v)", shouldBeAp16)

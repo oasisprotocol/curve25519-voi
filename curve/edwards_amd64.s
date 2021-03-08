@@ -490,17 +490,20 @@ TEXT ·vecNegate_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 // With the way they are currently written, both feMul_AVX2 and
 // feSquareAndNegateD_AVX2 need to spill at least one set of unpacked
 // pairs onto the stack.  Define some macros for readability.
+//
+// Note: Instead of rbp, rdi is used as the register containing the
+// base of the 64 byte aligned stack.
 
-#define X_0 160(BP)
-#define X_1 192(BP)
-#define X_2 224(BP)
-#define X_3 256(BP)
-#define X_4 288(BP)
-#define X_5 320(BP)
-#define X_6 352(BP)
-#define X_7 384(BP)
-#define X_8 416(BP)
-#define X_9 448(BP)
+#define X_0 160(DI)
+#define X_1 192(DI)
+#define X_2 224(DI)
+#define X_3 256(DI)
+#define X_4 288(DI)
+#define X_5 320(DI)
+#define X_6 352(DI)
+#define X_7 384(DI)
+#define X_8 416(DI)
+#define X_9 448(DI)
 
 #define spill_x() \
 	VMOVDQA Y0, X_0 \
@@ -514,16 +517,16 @@ TEXT ·vecNegate_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 	VMOVDQA Y8, X_8 \
 	VMOVDQA Y9, X_9 \
 
-#define Y_0 480(BP)
-#define Y_1 512(BP)
-#define Y_2 544(BP)
-#define Y_3 576(BP)
-#define Y_4 608(BP)
-#define Y_5 640(BP)
-#define Y_6 672(BP)
-#define Y_7 704(BP)
-#define Y_8 736(BP)
-#define Y_9 768(BP)
+#define Y_0 480(DI)
+#define Y_1 512(DI)
+#define Y_2 544(DI)
+#define Y_3 576(DI)
+#define Y_4 608(DI)
+#define Y_5 640(DI)
+#define Y_6 672(DI)
+#define Y_7 704(DI)
+#define Y_8 736(DI)
+#define Y_9 768(DI)
 
 #define spill_y() \
 	VMOVDQA Y0, Y_0 \
@@ -544,24 +547,24 @@ TEXT ·vecMul_AVX2(SB), $992-24
 	MOVQ b+16(FP), CX
 
 	// Align the stack on a 64 byte boundary.
-	MOVQ SP, BP
-	ADDQ $64, BP
-	ANDQ $-64, BP
+	MOVQ SP, DI
+	ADDQ $64, DI
+	ANDQ $-64, DI
 
 	// ymm0, ymm2, ymm4, ymm6, ymm9 = a
-	// 160(BP) .. = ymm0 .. ymm9 (x0 .. x9)
+	// 160(DI) .. = ymm0 .. ymm9 (x0 .. x9)
 	unpack_vec(BX)
 	spill_x()
 
 	// ymm0, ymm2, ymm4, ymm6, ymm9 = b
-	// 480(BP) .. = ymm0 .. ymm9 (y0 .. y9)
+	// 480(DI) .. = ymm0 .. ymm9 (y0 .. y9)
 	unpack_vec(CX)
 	spill_y()
 
 	// Precompute some intermediate values.
-#define Y_2_19 800(BP)
-#define Y_3_19 832(BP)
-#define Y_4_19 864(BP)
+#define Y_2_19 800(DI)
+#define Y_3_19 832(DI)
+#define Y_4_19 864(DI)
 #define Y_5_19 Y11
 #define Y_6_19 Y12
 #define Y_7_19 Y13
@@ -729,11 +732,11 @@ TEXT ·vecMul_AVX2(SB), $992-24
 
 	// At this point, z0, z2, z4, z6, z8 are done, so store them onto the
 	// stack to free up registers.
-	VMOVDQA Y0, 0(BP)
-	VMOVDQA Y2, 32(BP)
-	VMOVDQA Y4, 64(BP)
-	VMOVDQA Y6, 96(BP)
-	VMOVDQA Y8, 128(BP)
+	VMOVDQA Y0, 0(DI)
+	VMOVDQA Y2, 32(DI)
+	VMOVDQA Y4, 64(DI)
+	VMOVDQA Y6, 96(DI)
+	VMOVDQA Y8, 128(DI)
 
 	//
 	// Handle the odd zs.
@@ -887,11 +890,11 @@ TEXT ·vecMul_AVX2(SB), $992-24
 
 	// At this point z1, z3, z5, z7, z9 are done, so restore z0, z2, z4,
 	// z6, z8 from the stack.
-	VMOVDQA 0(BP), Y0
-	VMOVDQA 32(BP), Y2
-	VMOVDQA 64(BP), Y4
-	VMOVDQA 96(BP), Y6
-	VMOVDQA 128(BP), Y8
+	VMOVDQA 0(DI), Y0
+	VMOVDQA 32(DI), Y2
+	VMOVDQA 64(DI), Y4
+	VMOVDQA 96(DI), Y6
+	VMOVDQA 128(DI), Y8
 
 	reduce64()
 
@@ -903,12 +906,12 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 	MOVQ out+0(FP), AX
 
 	// Align the stack on a 64 byte boundary.
-	MOVQ SP, BP
-	ADDQ $64, BP
-	ANDQ $-64, BP
+	MOVQ SP, DI
+	ADDQ $64, DI
+	ANDQ $-64, DI
 
 	// ymm0, ymm2, ymm4, ymm6, ymm8 = out (x0 .. x9)
-	// 160(BP) .. = ymm0 .. ymm9 (x0 .. x9)
+	// 160(DI) .. = ymm0 .. ymm9 (x0 .. x9)
 	unpack_vec(AX)
 	spill_x()
 
@@ -949,10 +952,10 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 	VPADDQ  Y6, Y6, Y6 // ymm6 <<= 1
 	VPADDQ  Y7, Y7, Y7 // ymm7 <<= 1
 	VPADDQ  Y8, Y8, Y8 // ymm8 <<= 1
-	VMOVDQA Y5, 0(BP)
-	VMOVDQA Y6, 32(BP)
-	VMOVDQA Y7, 64(BP)
-	VMOVDQA Y8, 96(BP)
+	VMOVDQA Y5, 0(DI)
+	VMOVDQA Y6, 32(DI)
+	VMOVDQA Y7, 64(DI)
+	VMOVDQA Y8, 96(DI)
 
 	// z0 += m(x3_2,x7_19)
 	// z1 += m(x4,x7_19)
@@ -1075,19 +1078,19 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 	VPMULUDQ X_7, Y9, Y7    // ymm7 = m(x0_2,x7)
 	VPMULUDQ X_8, Y9, Y8    // ymm8 = m(x0_2,x8)
 	VPMULUDQ X_9, Y9, Y9    // ymm9 = m(x0_2,x9)
-	VPADDQ   0(BP), Y5, Y5
-	VPADDQ   32(BP), Y6, Y6
-	VPADDQ   64(BP), Y7, Y7
-	VPADDQ   96(BP), Y8, Y8
+	VPADDQ   0(DI), Y5, Y5
+	VPADDQ   32(DI), Y6, Y6
+	VPADDQ   64(DI), Y7, Y7
+	VPADDQ   96(DI), Y8, Y8
 
 	// At this point, z0 .. z4 are done, and we no longer need z5 .. z8
 	// that we previously stored onto the stack, so store z0 .. z4 to
 	// free up registers.
-	VMOVDQA Y0, 0(BP)
-	VMOVDQA Y1, 32(BP)
-	VMOVDQA Y2, 64(BP)
-	VMOVDQA Y3, 96(BP)
-	VMOVDQA Y4, 128(BP)
+	VMOVDQA Y0, 0(DI)
+	VMOVDQA Y1, 32(DI)
+	VMOVDQA Y2, 64(DI)
+	VMOVDQA Y3, 96(DI)
+	VMOVDQA Y4, 128(DI)
 
 	// z5 += m(x1_2,x4)
 	// z6 += m(x1_2,x5_2)
@@ -1159,11 +1162,11 @@ TEXT ·vecSquareAndNegateD_AVX2(SB), NOSPLIT, $544-8
 #undef X_7_2
 
 	// At this point z5 .. z9 are done, so restore z0 .. z4 from the stack.
-	VMOVDQA 0(BP), Y0
-	VMOVDQA 32(BP), Y1
-	VMOVDQA 64(BP), Y2
-	VMOVDQA 96(BP), Y3
-	VMOVDQA 128(BP), Y4
+	VMOVDQA 0(DI), Y0
+	VMOVDQA 32(DI), Y1
+	VMOVDQA 64(DI), Y2
+	VMOVDQA 96(DI), Y3
+	VMOVDQA 128(DI), Y4
 
 	// At this point ymm0 .. ymm9 contains the final z0 .. z9, prior
 	// to negating d.

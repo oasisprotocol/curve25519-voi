@@ -31,45 +31,8 @@
 
 package field
 
-import "golang.org/x/sys/cpu"
-
-var useBMI2 bool
-
-// In an ideal world, this would have the assembly language implementations
-// split into separate routines based on which instructions are used, like
-// this:
-//
-// func feMul(out, a, b *FieldElement) {
-//     if useBMI2 {
-//        feMul_BMI2(out, a, b)
-//     } else {
-//        feMul_AMD64(out, a, b)
-//     }
-// }
-//
-// However, the compiler will inline what we do now, and will NOT inline
-// the cleaner version of the code.  The extra overhead of an extra
-// function call obliterates the gains made by using BMI2 in the
-// first place.
-//
-// Since we have control over our assembly language code, and do not have
-// control over the inliner (because you know, that would be useful),
-// things are done this way.
+//go:noescape
+func feMul(out, a, b *FieldElement)
 
 //go:noescape
-func feMul_AMD64(out, a, b *FieldElement, useBMI2 bool)
-
-//go:noescape
-func fePow2k_AMD64(out, a *FieldElement, k uint, useBMI2 bool)
-
-func feMul(out, a, b *FieldElement) {
-	feMul_AMD64(out, a, b, useBMI2)
-}
-
-func fePow2k(out, a *FieldElement, k uint) {
-	fePow2k_AMD64(out, a, k, useBMI2)
-}
-
-func init() {
-	useBMI2 = cpu.Initialized && cpu.X86.HasBMI2
-}
+func fePow2k(out, a *FieldElement, k uint)
