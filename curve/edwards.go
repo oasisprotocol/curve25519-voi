@@ -296,6 +296,13 @@ func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *Edwa
 	return edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
 }
 
+// TripleScalarMulBasepoint sets `p = [delta a]A + [delta b]B - [delta]C`
+// in variable-time, where delta is a value invertible mod ell, which
+// is selected internally to this method.
+func (p *EdwardsPoint) TripleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar, C *EdwardsPoint) *EdwardsPoint {
+	return edwardsMulAbglsvPorninVartime(p, a, A, b, C)
+}
+
 // MultiscalarMul sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
 // in constant-time, and returns p.
 //

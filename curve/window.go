@@ -183,3 +183,15 @@ func newAffineNielsPointNafLookupTable(ep *EdwardsPoint) affineNielsPointNafLook
 
 	return affineNielsPointNafLookupTable(Ai)
 }
+
+func newAffineNielsPointShl128NafLookupTable(ep *EdwardsPoint) affineNielsPointNafLookupTable { //nolint:unused,deadcode
+	table := newAffineNielsPointNafLookupTable(ep)
+	for i, ap := range table {
+		var tmp EdwardsPoint
+		tmp.setAffineNiels(&ap)
+		tmp.mulByPow2(&tmp, 128)
+		table[i].SetEdwards(&tmp)
+	}
+
+	return table
+}

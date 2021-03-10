@@ -46,6 +46,7 @@ func BenchmarkEdwards(b *testing.B) {
 	b.Run("BasepointTable/New", benchEdwardsBasepointTableNew)
 	b.Run("BasepointTable/Mul", benchEdwardsBasepointTableMul)
 	b.Run("DoubleScalarMulBasepointVartime", benchEdwardsDoubleScalarMulBasepointVartime)
+	b.Run("TripleScalarMulBasepointVartime", benchEdwardsTripleScalarMulBasepointVartime)
 	b.Run("MultiscalarMul", benchEdwardsMultiscalarMul)
 	b.Run("MultiscalarMulVartime", benchEdwardsMultiscalarMulVartime)
 }
@@ -98,6 +99,7 @@ func benchEdwardsBasepointTableMul(b *testing.B) {
 func benchEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
 	A := ED25519_BASEPOINT_TABLE.Mul(newTestBenchRandomScalar(b))
 
+	b.ReportAllocs()
 	b.ResetTimer()
 
 	var tmp EdwardsPoint
@@ -107,6 +109,23 @@ func benchEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
 		b.StartTimer()
 
 		tmp.DoubleScalarMulBasepointVartime(aScalar, &A, bScalar)
+	}
+}
+
+func benchEdwardsTripleScalarMulBasepointVartime(b *testing.B) {
+	A := ED25519_BASEPOINT_TABLE.Mul(newTestBenchRandomScalar(b))
+	C := ED25519_BASEPOINT_TABLE.Mul(newTestBenchRandomScalar(b))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var tmp EdwardsPoint
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		aScalar, bScalar := newTestBenchRandomScalar(b), newTestBenchRandomScalar(b)
+		b.StartTimer()
+
+		tmp.TripleScalarMulBasepointVartime(aScalar, &A, bScalar, &C)
 	}
 }
 

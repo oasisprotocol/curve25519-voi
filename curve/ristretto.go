@@ -354,6 +354,14 @@ func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *Ri
 	return p
 }
 
+// TripleScalarMulBasepoint sets `p = [delta a]A + [delta b]B - [delta]C`
+// in variable-time, where delta is a value invertible mod ell, which
+// is selected internally to this method.
+func (p *RistrettoPoint) TripleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar, C *RistrettoPoint) *RistrettoPoint {
+	p.inner.TripleScalarMulBasepointVartime(a, &A.inner, b, &C.inner)
+	return p
+}
+
 func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	c := constMINUS_ONE
 

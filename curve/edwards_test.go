@@ -130,6 +130,7 @@ func TestEdwards(t *testing.T) {
 	t.Run("BasepointPoint/ProjectiveExtendedRoundTrip", testEdwardsBasepointPointProjectiveExtendedRoundTrip)
 	t.Run("BasepointPoint/16VsMulByPow2_4", testEdwardsBasepointPoint16VsMulByPow2_4)
 	t.Run("DoubleScalarMulBasepointVartime", testEdwardsDoubleScalarMulBasepointVartime)
+	t.Run("TripleScalarMulBasepointVartime", testEdwardsMulAbglsvPorninVartime)
 	t.Run("MultiscalarMul", testEdwardsMultiscalarMul)
 	t.Run("MultiscalarMul/Consistency", testEdwardsMultiscalarConsistency)
 	t.Run("MultiscalarMulVartime", testEdwardsMultiscalarMulVartime)

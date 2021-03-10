@@ -38,17 +38,13 @@ type edwardsBasepointTableVector [32]cachedPointLookupTable
 
 func (tbl *edwardsBasepointTableVector) Basepoint() EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
-	// but as a `cachedPoint`, so add identity to convert to extended.
-	var p extendedPoint
-	p.Identity()
-
+	// but as a `cachedPoint`, so convert to extended.
 	cPt := tbl[0].Lookup(1)
-	p.AddExtendedCached(&p, &cPt)
 
-	var out EdwardsPoint
-	out.setExtended(&p)
+	var ep EdwardsPoint
+	ep.setCached(&cPt)
 
-	return out
+	return ep
 }
 
 func (tbl *edwardsBasepointTableVector) Mul(scalar *scalar.Scalar) EdwardsPoint {
