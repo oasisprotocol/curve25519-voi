@@ -341,7 +341,7 @@ func (p *EdwardsPoint) IsSmallOrder() bool {
 // in the prime-order subgroup.
 func (p *EdwardsPoint) IsTorsionFree() bool {
 	var check EdwardsPoint
-	return check.Mul(p, BASEPOINT_ORDER).IsIdentity()
+	return check.Mul(p, scalar.BASEPOINT_ORDER).IsIdentity()
 }
 
 // IsIdentity returns true iff the point is equivalent to the identity element

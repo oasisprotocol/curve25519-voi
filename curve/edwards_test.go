@@ -376,7 +376,7 @@ func testEdwardsBasepointTableMulVsEd25519py(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulByBasepointOrder(t *testing.T) {
-	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER)
+	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(scalar.BASEPOINT_ORDER)
 	if !shouldBeId.IsIdentity() {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER).IsIdentity() != true")
 	}
