@@ -128,7 +128,7 @@ func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTabl
 // Holds odd multiples 1A, 3A, ..., 15A of a point A.
 type projectiveNielsPointNafLookupTable [8]projectiveNielsPoint
 
-func (tbl *projectiveNielsPointNafLookupTable) lookup(x uint8) *projectiveNielsPoint {
+func (tbl *projectiveNielsPointNafLookupTable) Lookup(x uint8) *projectiveNielsPoint {
 	return &tbl[x/2]
 }
 
@@ -157,7 +157,7 @@ func newProjectiveNielsPointNafLookupTable(ep *EdwardsPoint) projectiveNielsPoin
 // Holds stuff up to 8.
 type affineNielsPointNafLookupTable [64]affineNielsPoint
 
-func (tbl *affineNielsPointNafLookupTable) lookup(x uint8) *affineNielsPoint {
+func (tbl *affineNielsPointNafLookupTable) Lookup(x uint8) *affineNielsPoint {
 	return &tbl[x/2]
 }
 

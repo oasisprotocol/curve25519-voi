@@ -81,9 +81,9 @@ func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*sca
 		for j := 0; j < len(points); j++ {
 			naf_i := nafs[j][i]
 			if naf_i > 0 {
-				t.AddCompletedProjectiveNiels(&t, lookupTables[j].lookup(uint8(naf_i)))
+				t.AddCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
-				t.SubCompletedProjectiveNiels(&t, lookupTables[j].lookup(uint8(-naf_i)))
+				t.SubCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 
