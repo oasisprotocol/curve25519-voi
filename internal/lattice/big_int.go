@@ -37,10 +37,7 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
-var (
-	i512Zero = &int512{}
-	i512One  = newInt512(1, 0, 0, 0, 0, 0, 0, 0)
-)
+var i512One = newInt512(1, 0, 0, 0, 0, 0, 0, 0)
 
 // int512 represents a signed two's complement 512-bit integer in eight
 // 64-bit limbs.
@@ -49,6 +46,29 @@ type int512 [8]uint64
 // IsNegative returns `true` if the sign bit is set.
 func (x *int512) IsNegative() bool {
 	return x[7]>>63 != 0
+}
+
+// PositiveLt returns true if `x < y`.
+//
+// WARNING: Both x and y must be non-negative.
+func (x *int512) PositiveLt(y *int512) bool {
+	var borrow uint64
+	_, borrow = bits.Sub64(x[0], y[0], borrow)
+	_, borrow = bits.Sub64(x[1], y[1], borrow)
+	_, borrow = bits.Sub64(x[2], y[2], borrow)
+	_, borrow = bits.Sub64(x[3], y[3], borrow)
+	_, borrow = bits.Sub64(x[4], y[4], borrow)
+	_, borrow = bits.Sub64(x[5], y[5], borrow)
+	_, borrow = bits.Sub64(x[6], y[6], borrow)
+	_, borrow = bits.Sub64(x[7], y[7], borrow)
+	return borrow == 1
+}
+
+// SafeToShrink returns true if x will fit in an int384.
+func (x *int512) SafeToShrink() bool {
+	// It is safe to shrink if the two most significant limbs
+	// and what will be the new sign-bit are zero.
+	return (x[6]|x[7] == 0) && x[5] <= 0x7fffffffffffffff
 }
 
 // BitLen returns the minimal size (in bits) of the binary representation
@@ -158,30 +178,12 @@ func (x *int512) Add(a, b *int512) *int512 {
 	return x
 }
 
-// Sub sets `x = a - b`, and returns x.
-func (x *int512) Sub(a, b *int512) *int512 {
-	var borrow uint64
-	x[0], borrow = bits.Sub64(a[0], b[0], borrow)
-	x[1], borrow = bits.Sub64(a[1], b[1], borrow)
-	x[2], borrow = bits.Sub64(a[2], b[2], borrow)
-	x[3], borrow = bits.Sub64(a[3], b[3], borrow)
-	x[4], borrow = bits.Sub64(a[4], b[4], borrow)
-	x[5], borrow = bits.Sub64(a[5], b[5], borrow)
-	x[6], borrow = bits.Sub64(a[6], b[6], borrow)
-	x[7], _ = bits.Sub64(a[7], b[7], borrow)
-	return x
-}
-
-// Shl sets `x = a << s`, and returns x.
-func (x *int512) Shl(a *int512, s uint) *int512 {
+// ShiftLimbs sets `x = a << (s/64)`, and returns x.
+func (x *int512) ShiftLimbs(a *int512, s uint) *int512 {
 	k := s / int64Size
 	switch k {
 	case 0:
 		*x = *a
-		if s == 0 {
-			// s = 0: x = a
-			return x
-		}
 	case 1:
 		*x = int512{0, a[0], a[1], a[2], a[3], a[4], a[5], a[6]}
 	case 2:
@@ -197,67 +199,81 @@ func (x *int512) Shl(a *int512, s uint) *int512 {
 	case 7:
 		*x = int512{0, 0, 0, 0, 0, 0, 0, a[0]}
 	default:
-		// This should NEVER happen, but handle it anyway.
 		*x = int512{}
-		return x
 	}
-	s = s & 0x3f // k * 64 bits shifted as part of the copy, derive the remainder.
+	return x
+}
 
+// AddShifted sets `x = a + (b << s)`, and returns x.
+func (x *int512) AddShifted(a, b *int512, s uint) *int512 {
 	var carry uint64
-	switch k {
-	case 0:
-		x[0], carry = x[0]<<s|carry, x[0]>>(int64Size-s)
-		fallthrough
-	case 1:
-		x[1], carry = x[1]<<s|carry, x[1]>>(int64Size-s)
-		fallthrough
-	case 2:
-		x[2], carry = x[2]<<s|carry, x[2]>>(int64Size-s)
-		fallthrough
-	case 3:
-		x[3], carry = x[3]<<s|carry, x[3]>>(int64Size-s)
-		fallthrough
-	case 4:
-		x[4], carry = x[4]<<s|carry, x[4]>>(int64Size-s)
-		fallthrough
-	case 5:
-		x[5], carry = x[5]<<s|carry, x[5]>>(int64Size-s)
-		fallthrough
-	case 6:
-		x[6], carry = x[6]<<s|carry, x[6]>>(int64Size-s)
-		fallthrough
-	case 7:
-		x[7], _ = x[7]<<s|carry, x[7]>>(int64Size-s)
+	switch {
+	case s == 0:
+		return x.Add(a, b)
+	case s > 63:
+		b = (&int512{}).ShiftLimbs(b, s)
+		s = s & 0x3f
 	}
+
+	var bTmp, shiftCarry uint64
+	bTmp, shiftCarry = b[0]<<s|shiftCarry, b[0]>>(int64Size-s)
+	x[0], carry = bits.Add64(a[0], bTmp, carry)
+	bTmp, shiftCarry = b[1]<<s|shiftCarry, b[1]>>(int64Size-s)
+	x[1], carry = bits.Add64(a[1], bTmp, carry)
+	bTmp, shiftCarry = b[2]<<s|shiftCarry, b[2]>>(int64Size-s)
+	x[2], carry = bits.Add64(a[2], bTmp, carry)
+	bTmp, shiftCarry = b[3]<<s|shiftCarry, b[3]>>(int64Size-s)
+	x[3], carry = bits.Add64(a[3], bTmp, carry)
+	bTmp, shiftCarry = b[4]<<s|shiftCarry, b[4]>>(int64Size-s)
+	x[4], carry = bits.Add64(a[4], bTmp, carry)
+	bTmp, shiftCarry = b[5]<<s|shiftCarry, b[5]>>(int64Size-s)
+	x[5], carry = bits.Add64(a[5], bTmp, carry)
+	bTmp, shiftCarry = b[6]<<s|shiftCarry, b[6]>>(int64Size-s)
+	x[6], carry = bits.Add64(a[6], bTmp, carry)
+	bTmp, _ = b[7]<<s|shiftCarry, b[7]>>(int64Size-s)
+	x[7], _ = bits.Add64(a[7], bTmp, carry)
 
 	return x
 }
 
-// Cmp compares x and y and returns `-1` if `x < y`, `0` if `x == y`, and
-// `+1` if x > y.
-func (x *int512) Cmp(y *int512) int {
-	// If the signs differ, we can quickly determine ordering.
-	xIsNeg, yIsNeg := x.IsNegative(), y.IsNegative()
+// SubShifted sets `x = a - (b << s)`, and returns x.
+func (x *int512) SubShifted(a, b *int512, s uint) *int512 {
+	var borrow uint64
 	switch {
-	case xIsNeg && !yIsNeg:
-		return -1
-	case !xIsNeg && yIsNeg:
-		return 1
+	case s == 0:
+		x[0], borrow = bits.Sub64(a[0], b[0], borrow)
+		x[1], borrow = bits.Sub64(a[1], b[1], borrow)
+		x[2], borrow = bits.Sub64(a[2], b[2], borrow)
+		x[3], borrow = bits.Sub64(a[3], b[3], borrow)
+		x[4], borrow = bits.Sub64(a[4], b[4], borrow)
+		x[5], borrow = bits.Sub64(a[5], b[5], borrow)
+		x[6], borrow = bits.Sub64(a[6], b[6], borrow)
+		x[7], _ = bits.Sub64(a[7], b[7], borrow)
+		return x
+	case s > 63:
+		b = (&int512{}).ShiftLimbs(b, s)
+		s = s & 0x3f
 	}
 
-	// Compare the integers ignoring sign. Because we use two's complement,
-	// and the integers have the same sign, this is guaranteed to give the
-	// correct result.
-	for i := 7; i >= 0; i-- {
-		switch {
-		case y[i] > x[i]:
-			return -1
-		case x[i] > y[i]:
-			return 1
-		}
-	}
+	var bTmp, shiftCarry uint64
+	bTmp, shiftCarry = b[0]<<s|shiftCarry, b[0]>>(int64Size-s)
+	x[0], borrow = bits.Sub64(a[0], bTmp, borrow)
+	bTmp, shiftCarry = b[1]<<s|shiftCarry, b[1]>>(int64Size-s)
+	x[1], borrow = bits.Sub64(a[1], bTmp, borrow)
+	bTmp, shiftCarry = b[2]<<s|shiftCarry, b[2]>>(int64Size-s)
+	x[2], borrow = bits.Sub64(a[2], bTmp, borrow)
+	bTmp, shiftCarry = b[3]<<s|shiftCarry, b[3]>>(int64Size-s)
+	x[3], borrow = bits.Sub64(a[3], bTmp, borrow)
+	bTmp, shiftCarry = b[4]<<s|shiftCarry, b[4]>>(int64Size-s)
+	x[4], borrow = bits.Sub64(a[4], bTmp, borrow)
+	bTmp, shiftCarry = b[5]<<s|shiftCarry, b[5]>>(int64Size-s)
+	x[5], borrow = bits.Sub64(a[5], bTmp, borrow)
+	bTmp, shiftCarry = b[6]<<s|shiftCarry, b[6]>>(int64Size-s)
+	x[6], borrow = bits.Sub64(a[6], bTmp, borrow)
+	bTmp, _ = b[7]<<s|shiftCarry, b[7]>>(int64Size-s)
+	x[7], _ = bits.Sub64(a[7], bTmp, borrow)
 
-	return 0
+	return x
 }
 
 func newInt512(l0, l1, l2, l3, l4, l5, l6, l7 uint64) *int512 {
@@ -275,4 +291,142 @@ func ellSquared() *int512 {
 		0x0000000000000000,
 		0x0100000000000000,
 	)
+}
+
+// int384 represents a signed two's complement 512-bit integer in six
+// 64-bit limbs.
+//
+// This should be defined based on generics, but because this is Go,
+// it is defined via copy-and-paste.
+type int384 [6]uint64
+
+func (x *int384) IsNegative() bool {
+	return x[5]>>63 != 0
+}
+
+func (x *int384) PositiveLt(y *int384) bool {
+	var borrow uint64
+	_, borrow = bits.Sub64(x[0], y[0], borrow)
+	_, borrow = bits.Sub64(x[1], y[1], borrow)
+	_, borrow = bits.Sub64(x[2], y[2], borrow)
+	_, borrow = bits.Sub64(x[3], y[3], borrow)
+	_, borrow = bits.Sub64(x[4], y[4], borrow)
+	_, borrow = bits.Sub64(x[5], y[5], borrow)
+	return borrow == 1
+}
+
+func (x *int384) BitLen() uint {
+	signMask := uint64(-(int64(x[5] >> 63)))
+
+	for i := 5; i >= 0; i-- {
+		w := x[i]
+
+		if w == signMask {
+			continue
+		}
+
+		w ^= signMask
+
+		return uint(i*int64Size + bits.Len64(w))
+	}
+
+	return 0
+}
+
+func (x *int384) ShiftLimbs(a *int384, s uint) *int384 {
+	k := s / int64Size
+	switch k {
+	case 0:
+		*x = *a
+	case 1:
+		*x = int384{0, a[0], a[1], a[2], a[3], a[4]}
+	case 2:
+		*x = int384{0, 0, a[0], a[1], a[2], a[3]}
+	case 3:
+		*x = int384{0, 0, 0, a[0], a[1], a[2]}
+	case 4:
+		*x = int384{0, 0, 0, 0, a[0], a[1]}
+	case 5:
+		*x = int384{0, 0, 0, 0, 0, a[0]}
+	default:
+		*x = int384{}
+	}
+	return x
+}
+
+func (x *int384) AddShifted(a, b *int384, s uint) *int384 {
+	var carry uint64
+	switch {
+	case s == 0:
+		x[0], carry = bits.Add64(a[0], b[0], carry)
+		x[1], carry = bits.Add64(a[1], b[1], carry)
+		x[2], carry = bits.Add64(a[2], b[2], carry)
+		x[3], carry = bits.Add64(a[3], b[3], carry)
+		x[4], carry = bits.Add64(a[4], b[4], carry)
+		x[5], _ = bits.Add64(a[5], b[5], carry)
+		return x
+	case s > 63:
+		b = (&int384{}).ShiftLimbs(b, s)
+		s = s & 0x3f
+	}
+
+	var bTmp, shiftCarry uint64
+	bTmp, shiftCarry = b[0]<<s|shiftCarry, b[0]>>(int64Size-s)
+	x[0], carry = bits.Add64(a[0], bTmp, carry)
+	bTmp, shiftCarry = b[1]<<s|shiftCarry, b[1]>>(int64Size-s)
+	x[1], carry = bits.Add64(a[1], bTmp, carry)
+	bTmp, shiftCarry = b[2]<<s|shiftCarry, b[2]>>(int64Size-s)
+	x[2], carry = bits.Add64(a[2], bTmp, carry)
+	bTmp, shiftCarry = b[3]<<s|shiftCarry, b[3]>>(int64Size-s)
+	x[3], carry = bits.Add64(a[3], bTmp, carry)
+	bTmp, shiftCarry = b[4]<<s|shiftCarry, b[4]>>(int64Size-s)
+	x[4], carry = bits.Add64(a[4], bTmp, carry)
+	bTmp, _ = b[5]<<s|shiftCarry, b[5]>>(int64Size-s)
+	x[5], _ = bits.Add64(a[5], bTmp, carry)
+
+	return x
+}
+
+func (x *int384) SubShifted(a, b *int384, s uint) *int384 {
+	var borrow uint64
+	switch {
+	case s == 0:
+		x[0], borrow = bits.Sub64(a[0], b[0], borrow)
+		x[1], borrow = bits.Sub64(a[1], b[1], borrow)
+		x[2], borrow = bits.Sub64(a[2], b[2], borrow)
+		x[3], borrow = bits.Sub64(a[3], b[3], borrow)
+		x[4], borrow = bits.Sub64(a[4], b[4], borrow)
+		x[5], _ = bits.Sub64(a[5], b[5], borrow)
+		return x
+	case s > 63:
+		b = (&int384{}).ShiftLimbs(b, s)
+		s = s & 0x3f
+	}
+
+	var bTmp, shiftCarry uint64
+	bTmp, shiftCarry = b[0]<<s|shiftCarry, b[0]>>(int64Size-s)
+	x[0], borrow = bits.Sub64(a[0], bTmp, borrow)
+	bTmp, shiftCarry = b[1]<<s|shiftCarry, b[1]>>(int64Size-s)
+	x[1], borrow = bits.Sub64(a[1], bTmp, borrow)
+	bTmp, shiftCarry = b[2]<<s|shiftCarry, b[2]>>(int64Size-s)
+	x[2], borrow = bits.Sub64(a[2], bTmp, borrow)
+	bTmp, shiftCarry = b[3]<<s|shiftCarry, b[3]>>(int64Size-s)
+	x[3], borrow = bits.Sub64(a[3], bTmp, borrow)
+	bTmp, shiftCarry = b[4]<<s|shiftCarry, b[4]>>(int64Size-s)
+	x[4], borrow = bits.Sub64(a[4], bTmp, borrow)
+	bTmp, _ = b[5]<<s|shiftCarry, b[5]>>(int64Size-s)
+	x[5], _ = bits.Sub64(a[5], bTmp, borrow)
+
+	return x
+}
+
+func (x *int384) FromInt512(a *int512) *int384 {
+	x[0] = a[0]
+	x[1] = a[1]
+	x[2] = a[2]
+	x[3] = a[3]
+	x[4] = a[4]
+	x[5] = a[5]
+
+	return x
 }
