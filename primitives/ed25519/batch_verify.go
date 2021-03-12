@@ -161,16 +161,17 @@ func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte
 
 		// Instead of calling verifyWithOptionsNoPanic, just do the
 		// final calculation to save some computation.
-		var R curve.EdwardsPoint
 		As[i].Neg(As[i])
-		R.DoubleScalarMulBasepointVartime(hrams[i], As[i], Ss[i])
 
 		switch vOpts.CofactorlessVerify {
 		case true:
+			var R curve.EdwardsPoint
+			R.DoubleScalarMulBasepointVartime(hrams[i], As[i], Ss[i])
 			valid[i] = cofactorlessVerify(&R, sigs[i])
 		case false:
 			var rDiff curve.EdwardsPoint
-			valid[i] = rDiff.Sub(&R, Rs[i]).IsSmallOrder()
+			rDiff.TripleScalarMulBasepointVartime(hrams[i], As[i], Ss[i], Rs[i])
+			valid[i] = rDiff.IsSmallOrder()
 		}
 		if !valid[i] {
 			allValid = false
