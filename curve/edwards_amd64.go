@@ -96,6 +96,12 @@ func (p *EdwardsPoint) setExtended(ep *extendedPoint) *EdwardsPoint {
 	return p
 }
 
+func (p *EdwardsPoint) setCached(cp *cachedPoint) *EdwardsPoint {
+	var ep extendedPoint
+	ep.Identity()
+	return p.setExtended(ep.AddExtendedCached(&ep, cp))
+}
+
 func (p *extendedPoint) SetEdwards(ep *EdwardsPoint) *extendedPoint {
 	p.inner = newFieldElement2625x4(&ep.inner.X, &ep.inner.Y, &ep.inner.Z, &ep.inner.T)
 	return p

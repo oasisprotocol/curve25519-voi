@@ -130,6 +130,7 @@ func TestEdwards(t *testing.T) {
 	t.Run("BasepointPoint/ProjectiveExtendedRoundTrip", testEdwardsBasepointPointProjectiveExtendedRoundTrip)
 	t.Run("BasepointPoint/16VsMulByPow2_4", testEdwardsBasepointPoint16VsMulByPow2_4)
 	t.Run("DoubleScalarMulBasepointVartime", testEdwardsDoubleScalarMulBasepointVartime)
+	t.Run("TripleScalarMulBasepointVartime", testEdwardsMulAbglsvPorninVartime)
 	t.Run("MultiscalarMul", testEdwardsMultiscalarMul)
 	t.Run("MultiscalarMul/Consistency", testEdwardsMultiscalarConsistency)
 	t.Run("MultiscalarMulVartime", testEdwardsMultiscalarMulVartime)
@@ -376,7 +377,7 @@ func testEdwardsBasepointTableMulVsEd25519py(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulByBasepointOrder(t *testing.T) {
-	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER)
+	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(scalar.BASEPOINT_ORDER)
 	if !shouldBeId.IsIdentity() {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER).IsIdentity() != true")
 	}

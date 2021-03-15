@@ -132,3 +132,15 @@ func newCachedPointNafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 
 
 	return cachedPointNafLookupTable8(Ai)
 }
+
+func newCachedPointShl128NafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 { //nolint:unused,deadcode
+	table := newCachedPointNafLookupTable8(ep)
+	for i, cp := range table {
+		var tmp extendedPoint
+		tmp.AddExtendedCached(tmp.Identity(), &cp)
+		tmp.MulByPow2(&tmp, 128)
+		table[i].SetExtended(&tmp)
+	}
+
+	return table
+}

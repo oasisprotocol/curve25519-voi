@@ -296,6 +296,13 @@ func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *Edwa
 	return edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
 }
 
+// TripleScalarMulBasepoint sets `p = [delta a]A + [delta b]B - [delta]C`
+// in variable-time, where delta is a value invertible mod ell, which
+// is selected internally to this method.
+func (p *EdwardsPoint) TripleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar, C *EdwardsPoint) *EdwardsPoint {
+	return edwardsMulAbglsvPorninVartime(p, a, A, b, C)
+}
+
 // MultiscalarMul sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
 // in constant-time, and returns p.
 //
@@ -341,7 +348,7 @@ func (p *EdwardsPoint) IsSmallOrder() bool {
 // in the prime-order subgroup.
 func (p *EdwardsPoint) IsTorsionFree() bool {
 	var check EdwardsPoint
-	return check.Mul(p, BASEPOINT_ORDER).IsIdentity()
+	return check.Mul(p, scalar.BASEPOINT_ORDER).IsIdentity()
 }
 
 // IsIdentity returns true iff the point is equivalent to the identity element

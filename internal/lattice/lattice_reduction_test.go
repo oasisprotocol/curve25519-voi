@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
+// Copyright (c) 2020 Jack Grigg.  All rights reserved.
 // Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,60 +28,56 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64,!purego,!forcenoasm,!force32bit
+package lattice
 
-package curve
+import (
+	"crypto/rand"
+	"testing"
 
-import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+)
 
-type edwardsBasepointTableVector [32]cachedPointLookupTable
+func TestLatticeReduction(t *testing.T) {
+	for i := 0; i < 500; i++ {
+		k, err := scalar.New().SetRandom(rand.Reader)
+		if err != nil {
+			t.Fatalf("Failed to generate random scalar: %v", err)
+		}
 
-func (tbl *edwardsBasepointTableVector) Basepoint() EdwardsPoint {
-	// tbl[0].lookup(1) = 1*(16^2)^0*B
-	// but as a `cachedPoint`, so convert to extended.
-	cPt := tbl[0].Lookup(1)
+		d_0, d_1 := FindShortVector(k)
 
-	var ep EdwardsPoint
-	ep.setCached(&cPt)
+		// Ensure `d_0` and `d_1` are non-zero.
+		if d_0.isZero() {
+			t.Fatalf("Invariant violation, d_0 is 0")
+		}
+		if d_1.isZero() {
+			t.Fatalf("Invariant violation, d_1 is 0")
+		}
 
-	return ep
+		// Ensure `d_0 = d_1 * k`.
+		var s_0, s_1, should_be_d_0 scalar.Scalar
+		d_0.ToScalar(&s_0)
+		d_1.ToScalar(&s_1)
+		should_be_d_0.Mul(k, &s_1)
+		if s_0.Equal(&should_be_d_0) != 1 {
+			t.Fatalf("d_0 != k * d_1 (Got: %v)", should_be_d_0)
+		}
+	}
 }
 
-func (tbl *edwardsBasepointTableVector) Mul(scalar *scalar.Scalar) EdwardsPoint {
-	a := scalar.ToRadix16()
+func BenchmarkLatticeReduction(b *testing.B) {
+	b.ReportAllocs()
 
-	var p extendedPoint
-	p.Identity()
+	for i := 0; i < b.N; i++ {
+		// Rerandomize the scalar on each iteration, and hope that enough
+		// iterations happen to give a good estimate of average runtime.
+		b.StopTimer()
+		k, err := scalar.New().SetRandom(rand.Reader)
+		if err != nil {
+			b.Fatalf("Failed to generate random scalar: %v", err)
+		}
+		b.StartTimer()
 
-	for i := 1; i < 64; i = i + 2 {
-		cPt := tbl[i/2].Lookup(a[i])
-		p.AddExtendedCached(&p, &cPt)
+		_, _ = FindShortVector(k)
 	}
-
-	p.MulByPow2(&p, 4)
-
-	for i := 0; i < 64; i = i + 2 {
-		cPt := tbl[i/2].Lookup(a[i])
-		p.AddExtendedCached(&p, &cPt)
-	}
-
-	var out EdwardsPoint
-	out.setExtended(&p)
-
-	return out
-}
-
-func newEdwardsBasepointTableVector(basepoint *EdwardsPoint) *edwardsBasepointTableVector {
-	var (
-		table edwardsBasepointTableVector
-		p     EdwardsPoint
-	)
-
-	p.Set(basepoint)
-	for i := 0; i < 32; i++ {
-		table[i] = newCachedPointLookupTable(&p)
-		p.mulByPow2(&p, 8)
-	}
-
-	return &table
 }

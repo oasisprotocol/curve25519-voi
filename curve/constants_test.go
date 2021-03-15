@@ -43,6 +43,7 @@ func TestConstants(t *testing.T) {
 	t.Run("Constants/SqrtAdMinusOne", testConstantsSqrtAdMinusOne)
 	t.Run("Constants/D/VsRatio", testConstantsDVsRatio)
 	t.Run("Constants/AffineBasepointOddLookupTable", testConstantsAffineBasepointOddLookupTable)
+	t.Run("Constants/AffineBasepointOddShl128LookupTable", testConstantsAffineBasepointOddShl128LookupTable)
 	// ED25519_BASEPOINT_TABLE is checked by `testEdwardsBasepointTableNew`.
 }
 
@@ -114,6 +115,17 @@ func testConstantsAffineBasepointOddLookupTable(t *testing.T) {
 		entry := constAFFINE_ODD_MULTIPLES_OF_BASEPOINT[i]
 		if !entry.testEqual(&pt) {
 			t.Fatalf("constAFFINE_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
+		}
+	}
+}
+
+func testConstantsAffineBasepointOddShl128LookupTable(t *testing.T) {
+	gen := newAffineNielsPointShl128NafLookupTable(ED25519_BASEPOINT_POINT)
+
+	for i, pt := range gen {
+		entry := constAFFINE_ODD_MULTIPLES_OF_B_SHL_128[i]
+		if !entry.testEqual(&pt) {
+			t.Fatalf("constAFFINE_ODD_MULTIPLES_B_SHL_128[%d] != pt (Got: %v)", i, entry)
 		}
 	}
 }

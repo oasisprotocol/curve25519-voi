@@ -493,10 +493,8 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 		return false, fmt.Errorf("ed25519: failed to deserialize H(R,A,m) scalar: %w", err)
 	}
 
-	// SB - H(R,A,m)A
-	var R curve.EdwardsPoint
+	// A = -A (Since we want SB - H(R,A,m)A)
 	A.Neg(&A)
-	R.DoubleScalarMulBasepointVartime(&hram, &A, &S)
 
 	// There are 2 ways of verifying Ed25519 signatures in the wild, due
 	// to the original paper/implementation, RFC, and FIPS draft.
@@ -504,17 +502,21 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// For the purpose of compatibility, support the old way of doing
 	// things, though this is now considered unwise.
 	if vOpts.CofactorlessVerify {
+		// SB - H(R,A,m)A
+		var R curve.EdwardsPoint
+		R.DoubleScalarMulBasepointVartime(&hram, &A, &S)
 		return cofactorlessVerify(&R, sig), nil
 	}
 
-	// Check that [8]R == [8](SB - H(R,A,m)A)).  Note that this actually
-	// checks if [8](R - (SB - H(R,A,m)A) is the identity element (the
-	// the difference is small order).
+	// Check that [8]R == [8](SB - H(R,A,m)A)), by computing
+	// [8 delta S]B - [8 delta]H(R,A,m)A - [8 delta]R, and ensuring
+	// that the result is small order.
 	//
 	// Note: IsSmallOrder multiplies by the cofactor and checks that
 	// the result is the identity element.
 	var rDiff curve.EdwardsPoint
-	return rDiff.Sub(&R, &checkR).IsSmallOrder(), nil
+	rDiff.TripleScalarMulBasepointVartime(&hram, &A, &S, &checkR)
+	return rDiff.IsSmallOrder(), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if

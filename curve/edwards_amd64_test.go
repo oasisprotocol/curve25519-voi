@@ -58,6 +58,7 @@ func TestAVX2(t *testing.T) {
 
 	t.Run("CachedPoint", func(t *testing.T) {
 		t.Run("BasepointOddLookupTable", testVecBasepointOddLookupTable)
+		t.Run("BasepointOddShl128LookupTable", testVecBasepointOddShl128LookupTable)
 	})
 }
 
@@ -293,6 +294,17 @@ func testVecBasepointOddLookupTable(t *testing.T) {
 		entry := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[i]
 		if entry.inner.inner != pt.inner.inner {
 			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
+		}
+	}
+}
+
+func testVecBasepointOddShl128LookupTable(t *testing.T) {
+	gen := newCachedPointShl128NafLookupTable8(ED25519_BASEPOINT_POINT)
+
+	for i, pt := range gen {
+		entry := constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[i]
+		if entry.inner.inner != pt.inner.inner {
+			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[%d] != pt (Got: %v)", i, entry)
 		}
 	}
 }

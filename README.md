@@ -67,9 +67,9 @@ sentence again, and then be mercilessly mocked.  It is worth noting
 that the standard library does not do this appropriately either.
 
 This package uses hand-crafted build tags of doom to determine if
-the 32-bit or 64-bit codepath should be used.
+the 32-bit or 64-bit codepath should be used, when both exist.
 
- * `amd64` will always use the 64 bit code.
+ * `amd64` will always use the 64-bit code.
  * `arm64`, `ppc64le`, `ppc64` will use the 64-bit code iff Go >= 1.13,
    32-bit otherwise.
  * `s390x` will use the 64-bit code iff Go >= 1.14, 32-bit otherwise.
@@ -83,6 +83,13 @@ This decision is more complicated than it should due to:
  * `math/bits.Mul64` and `math/bits.Add64` requiring special cases in
    the SSA code (`cmd/compile/internal/gc/ssa.go`) to be performant.
  * The Go developers rejecting [adding build tags for bit-width][3].
+
+The lattice reduction implementation currently only has a 64-bit
+version, and thus it will be used on all platforms.  This effectively
+pegs the minimum required Go version at 1.12 due to the use of
+`math/bits` intrinsics (as the lattice reduction is only done during
+verification, the lack of a timing guarantee in that version has no
+security impact).
 
 #### TODO
 

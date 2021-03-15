@@ -36,14 +36,11 @@ type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
 
 func (tbl *edwardsBasepointTableGeneric) Basepoint() EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
-	// but as an `affineNielsPoint`, so add identity to convert to extended.
-	var ep EdwardsPoint
-	ep.Identity()
-
+	// but as an `affineNielsPoint`, so convert to extended.
 	aPt := tbl[0].Lookup(1)
 
-	var sum completedPoint
-	ep.setCompleted(sum.AddEdwardsAffineNiels(&ep, &aPt))
+	var ep EdwardsPoint
+	ep.setAffineNiels(&aPt)
 
 	return ep
 }

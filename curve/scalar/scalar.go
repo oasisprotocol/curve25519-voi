@@ -54,6 +54,25 @@ const (
 var (
 	errScalarNotCanonical  = fmt.Errorf("curve/scalar: representative not canonical")
 	errUnexpectedInputSize = fmt.Errorf("curve/scalar: unexpected input size")
+
+	// BASEPOINT_ORDER is the order of the Ed25519 basepoint and the Ristretto
+	// group.
+	BASEPOINT_ORDER = func() *Scalar {
+		// This is kind of ugly but the basepoint order isn't a canonical
+		// scalar for reasons that should be obvious.  The bit based
+		// deserialization API only masks the high bit (and does not reduce),
+		// so it works to construct the constant.
+		s, err := NewFromBits([]byte{
+			0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+			0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+		})
+		if err != nil {
+			panic("curve/scalar: failed to define basepoint order constant: " + err.Error())
+		}
+		return s
+	}()
 )
 
 // Scalar holds an integer s < 2^255 which represents an element of

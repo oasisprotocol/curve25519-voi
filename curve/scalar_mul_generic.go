@@ -42,6 +42,10 @@ func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar,
 	return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
 }
 
+func edwardsMulAbglsvPorninVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar, C *EdwardsPoint) *EdwardsPoint {
+	return edwardsMulAbglsvPorninVartimeGeneric(out, a, A, b, C)
+}
+
 func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	return edwardsMultiscalarMulStrausGeneric(out, scalars, points)
 }

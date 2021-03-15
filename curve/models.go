@@ -136,6 +136,13 @@ func (p *EdwardsPoint) setProjective(pp *projectivePoint) *EdwardsPoint {
 	return p
 }
 
+func (p *EdwardsPoint) setAffineNiels(ap *affineNielsPoint) *EdwardsPoint {
+	p.Identity()
+
+	var sum completedPoint
+	return p.setCompleted(sum.AddEdwardsAffineNiels(p, ap))
+}
+
 func (p *EdwardsPoint) setCompleted(cp *completedPoint) *EdwardsPoint {
 	p.inner.X.Mul(&cp.X, &cp.T)
 	p.inner.Y.Mul(&cp.Y, &cp.Z)

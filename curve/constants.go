@@ -30,10 +30,7 @@
 
 package curve
 
-import (
-	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-	"github.com/oasisprotocol/curve25519-voi/internal/field"
-)
+import "github.com/oasisprotocol/curve25519-voi/internal/field"
 
 const (
 	// CompressedPointSize is the size of a compressed point in bytes.
@@ -87,25 +84,6 @@ var (
 	RISTRETTO_BASEPOINT_TABLE = &RistrettoBasepointTable{
 		inner: *ED25519_BASEPOINT_TABLE,
 	}
-
-	// BASEPOINT_ORDER is the order of the Ed25519 basepoint and the Ristretto
-	// group.
-	BASEPOINT_ORDER = func() *scalar.Scalar {
-		// This is kind of ugly but the basepoint order isn't a canonical
-		// scalar for reasons that should be obvious.  The bit based
-		// deserialization API only masks the high bit (and does not reduce),
-		// so it works to construct the constant.
-		s, err := scalar.NewFromBits([]byte{
-			0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-			0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
-		})
-		if err != nil {
-			panic("curve: failed to define basepoint order constant: " + err.Error())
-		}
-		return s
-	}()
 )
 
 func newEdwardsPoint(X, Y, Z, T field.FieldElement) *EdwardsPoint {
