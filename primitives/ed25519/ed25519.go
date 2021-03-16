@@ -193,7 +193,7 @@ type VerifyOptions struct {
 
 	// AllowSmallOrder R allows signatures with a small order R.
 	//
-	// Note: Rejecting small order R is not required for binding.
+	// Note: Rejecting small order R is NOT required for binding.
 	AllowSmallOrderR bool
 
 	// AllowNonCanonicalA allows signatures with a non-canonical
@@ -304,6 +304,8 @@ func (priv PrivateKey) Seed() []byte {
 // expected to be a SHA-512 hash, otherwise opts.HashFunc() must be
 // crypto.Hash(0) and the message must not be hashed, as Ed25519 performs two
 // passes over messages to be signed.
+//
+// Warning: This routine will panic if opts is nil.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	var (
 		context []byte
@@ -435,6 +437,8 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 // will panic if len(publicKey) is not PublicKeySize, len(message) is
 // not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
 // ContextMaxSize.
+//
+// Warning: This routine will panic if opts is nil.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
 	ok, err := verifyWithOptionsNoPanic(publicKey, message, sig, opts)
 	if err != nil {
@@ -502,18 +506,18 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	// For the purpose of compatibility, support the old way of doing
 	// things, though this is now considered unwise.
 	if vOpts.CofactorlessVerify {
-		// SB - H(R,A,m)A
+		// SB - H(R,A,m)A ?= R
 		var R curve.EdwardsPoint
 		R.DoubleScalarMulBasepointVartime(&hram, &A, &S)
 		return cofactorlessVerify(&R, sig), nil
 	}
 
 	// Check that [8]R == [8](SB - H(R,A,m)A)), by computing
-	// [8 delta S]B - [8 delta]H(R,A,m)A - [8 delta]R, and ensuring
-	// that the result is small order.
+	// [delta S]B - [delta A]H(R,A,m) - [delta]R, multiplying the
+	// result by the cofactor, and checking if the result is
+	// small order.
 	//
-	// Note: IsSmallOrder multiplies by the cofactor and checks that
-	// the result is the identity element.
+	// Note: IsSmallOrder includes a cofactor multiply.
 	var rDiff curve.EdwardsPoint
 	rDiff.TripleScalarMulBasepointVartime(&hram, &A, &S, &checkR)
 	return rDiff.IsSmallOrder(), nil

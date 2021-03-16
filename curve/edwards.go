@@ -88,7 +88,7 @@ func (p *CompressedEdwardsY) SetEdwardsPoint(point *EdwardsPoint) *CompressedEdw
 	return p
 }
 
-// Equal returns 1 iff the compresed points are equal, 0 otherwise.
+// Equal returns 1 iff the compressed points are equal, 0 otherwise.
 // This function will execute in constant-time.
 func (p *CompressedEdwardsY) Equal(other *CompressedEdwardsY) int {
 	return subtle.ConstantTimeCompareBytes(p[:], other[:])

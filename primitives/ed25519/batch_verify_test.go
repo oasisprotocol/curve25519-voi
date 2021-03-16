@@ -30,9 +30,7 @@ package ed25519
 
 import (
 	"crypto"
-	"crypto/rand"
-	"io"
-	"strconv"
+	"fmt"
 	"testing"
 )
 
@@ -40,191 +38,287 @@ type batchTest int
 
 const (
 	batchNoErrors batchTest = iota
-	batchWrongMessage
-	batchWrongPk
-	batchWrongSig
-	batchMalformedPk
+	batchShortSig
+	batchCorruptKey
+	batchCorruptSignatureR
+	batchCorruptSignatureS
+	batchCorruptMessage
+	batchMalformedKey
 	batchMalformedSig
 	batchMalformedPh
+	batchMalformedCtx
 
-	testBatchSize = 64
+	testBatchSize = 38
 )
 
-func testBatchInit(tb testing.TB, r io.Reader, batchSize int, opts *Options) ([]PublicKey, [][]byte, [][]byte) {
-	sks := make([]PrivateKey, batchSize)
-	pks := make([]PublicKey, batchSize)
-	sigs := make([][]byte, batchSize)
-	messages := make([][]byte, batchSize)
-
-	// generate keys
-	for i := 0; i < batchSize; i++ {
-		pub, priv, err := GenerateKey(r)
-		if err != nil {
-			tb.Fatalf("failed to generate key #%d: %v", i, err)
-		}
-
-		sks[i], pks[i] = priv, pub
-	}
-
-	// generate messages
-	for i := 0; i < batchSize; i++ {
-		mLen := (i & 127) + 1
-		m := make([]byte, mLen)
-		if _, err := io.ReadFull(r, m); err != nil {
-			tb.Fatalf("failed to generate message #%d: %v", i, err)
-		}
-		messages[i] = m
-
-		// Pre-hash the message if required.
-		if opts.Hash != crypto.Hash(0) {
-			h := opts.Hash.New()
-			_, _ = h.Write(messages[i])
-			messages[i] = h.Sum(nil)
-		}
-	}
-
-	// sign messages
-	for i := 0; i < batchSize; i++ {
-		sig, err := sks[i].Sign(nil, messages[i], opts)
-		if err != nil {
-			tb.Fatalf("failed to generate signature #%d: %v", i, err)
-		}
-		sigs[i] = sig
-	}
-
-	return pks, sigs, messages
+type batchVerifierTestCase struct {
+	n          string
+	tst        batchTest
+	culpritIdx int
+	details    string
 }
 
-func testBatchInstance(t *testing.T, tst batchTest, r io.Reader, opts *Options) {
-	pks, sigs, messages := testBatchInit(t, r, testBatchSize, opts)
-
-	// mess things up (if required)
-	var expectedRet bool
-	switch tst {
-	case batchNoErrors:
-		expectedRet = true
-	case batchWrongMessage:
-		messages[0] = messages[1]
-	case batchWrongPk:
-		pks[0] = pks[1]
-	case batchWrongSig:
-		sigs[0] = sigs[1]
-	case batchMalformedPk:
-		pks[0] = []byte("truncated pk")
-	case batchMalformedSig:
-		sigs[0] = []byte("truncated sig")
-	case batchMalformedPh:
-		messages[0] = []byte("bad digest")
-	}
-
-	// Ensure the 0th signature verification done singularly, gives
-	// the expected result.
-	sigOk, _ := verifyWithOptionsNoPanic(pks[0], messages[0], sigs[0], opts)
-	if sigOk != expectedRet {
-		t.Fatalf("failed to force failure: %v", tst)
-	}
-
-	// verify the batch
-	ok, valid, err := VerifyBatch(r, pks[:], messages[:], sigs[:], opts)
-	if err != nil {
-		t.Fatalf("failed to verify batch: %v", err)
-	}
-
-	// validate the results
-	if ok != expectedRet {
-		t.Errorf("unexpected batch return code: %v (expected: %v)", ok, expectedRet)
-	}
-	if len(valid) != testBatchSize {
-		t.Errorf("unexpected batch validity vector length: %v (expected: %v)", len(valid), testBatchSize)
-	}
-	for i, v := range valid {
-		expectedValid := expectedRet
-		if i != 0 {
-			// The negative tests only mess up the 0th entry.
-			expectedValid = true
-		}
-		if v != expectedValid {
-			t.Errorf("unexpected batch element return code #%v: %v (expected: %v)", i, v, expectedValid)
-		}
-	}
+var batchTestCases = []*batchVerifierTestCase{
+	{
+		"Verify",
+		batchNoErrors,
+		-1,
+		"failed batch verification",
+	},
+	{
+		"FailsOnShortSig",
+		batchShortSig,
+		0,
+		"batch verification should fail due to short signature",
+	},
+	{
+		"FailsOnCorruptKey",
+		batchCorruptKey,
+		1,
+		"batch verification should fail due to corrupt key",
+	},
+	{
+		"FailsOnCorruptSignature/R",
+		batchCorruptSignatureR,
+		2,
+		"batch verification should fail due to corrupt signature (R)",
+	},
+	{
+		"FailsOnCorruptSignature/S",
+		batchCorruptSignatureS,
+		3,
+		"batch verification should fail due to corrupt signature (S)",
+	},
+	{
+		"FailsOnCorruptMessage",
+		batchCorruptMessage,
+		4,
+		"batch verification should fail due to corrupt message",
+	},
+	{
+		"FailsOnMalformedKey",
+		batchMalformedKey,
+		5,
+		"batch verification should fail due to malformed key",
+	},
+	{
+		"FailsOnMalformedSignature",
+		batchMalformedSig,
+		6,
+		"batch verification should fail due to malformed signature",
+	},
 }
 
-func testVerifyBatchOpts(t *testing.T, opts *Options) {
-	t.Run("NoErrors", func(t *testing.T) {
-		testBatchInstance(t, batchNoErrors, rand.Reader, opts)
-	})
+func (tc *batchVerifierTestCase) makeVerifier(t *testing.T, opts *Options) *BatchVerifier {
+	const n = 38
 
-	const nrFailTestRuns = 4
-	t.Run("WrongMessage", func(t *testing.T) {
-		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongMessage, rand.Reader, opts)
+	v := NewBatchVerifier()
+	privs := make([]PrivateKey, 0, n)
+	pubs := make([]PublicKey, 0, n)
+	msgs := make([][]byte, 0, n)
+	sigs := make([][]byte, 0, n)
+	optsVec := make([]*Options, 0, n)
+
+	for i := 0; i <= testBatchSize; i++ {
+		pub, priv, err := GenerateKey(nil)
+		if err != nil {
+			t.Fatalf("failed to GenerateKey: %v", err)
 		}
-	})
-	t.Run("WrongPublicKey", func(t *testing.T) {
-		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongPk, rand.Reader, opts)
+
+		var msg []byte
+		if i%2 == 0 {
+			msg = []byte("easter")
+		} else {
+			msg = []byte("egg")
 		}
-	})
-	t.Run("WrongSignature", func(t *testing.T) {
-		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchWrongSig, rand.Reader, opts)
+		if opts != nil && opts.Hash != 0 {
+			h := opts.HashFunc().New()
+			_, _ = h.Write(msg)
+			msg = h.Sum(nil)
 		}
-	})
-	t.Run("MalformedPublicKey", func(t *testing.T) {
-		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchMalformedPk, rand.Reader, opts)
-		}
-	})
-	t.Run("MalformedSignature", func(t *testing.T) {
-		for i := 0; i < nrFailTestRuns; i++ {
-			testBatchInstance(t, batchMalformedSig, rand.Reader, opts)
-		}
-	})
-	if opts.Hash != crypto.Hash(0) {
-		t.Run("MalformedPreHash", func(t *testing.T) {
-			for i := 0; i < nrFailTestRuns; i++ {
-				testBatchInstance(t, batchMalformedPh, rand.Reader, opts)
+
+		privs = append(privs, priv)
+		pubs = append(pubs, pub)
+		msgs = append(msgs, msg)
+		optsVec = append(optsVec, opts)
+	}
+
+	// If the test case calls for it, introduce errors in the batch.
+	culpritIdx := tc.culpritIdx
+	switch tc.tst {
+	case batchCorruptKey:
+		pubs[culpritIdx][1] ^= 1
+	case batchMalformedKey:
+		pubs[culpritIdx] = pubs[culpritIdx][:31]
+	}
+
+	for i := range privs {
+		switch {
+		case opts == nil:
+			sigs = append(sigs, Sign(privs[i], msgs[i]))
+		default:
+			sig, err := privs[i].Sign(nil, msgs[i], opts)
+			if err != nil {
+				t.Fatalf("failed to sign message: %v", err)
 			}
-		})
+			sigs = append(sigs, sig)
+		}
+	}
+
+	switch tc.tst {
+	case batchShortSig:
+		sigs[culpritIdx] = nil
+	case batchCorruptSignatureR:
+		sigs[culpritIdx][1] ^= 1
+	case batchCorruptSignatureS:
+		sigs[culpritIdx][33] ^= 1
+	case batchCorruptMessage:
+		msgs[culpritIdx] = []byte("not the message")
+	case batchMalformedSig:
+		sigs[culpritIdx] = append(sigs[culpritIdx], 23)
+	case batchMalformedPh:
+		msgs[culpritIdx] = []byte("not a pre-hash")
+	case batchMalformedCtx:
+		b := make([]byte, ContextMaxSize+1)
+		for i := range b {
+			b[i] = byte('a')
+		}
+		optsVec[culpritIdx] = &Options{
+			Context: string(b),
+		}
+	}
+
+	for i := range pubs {
+		switch {
+		case optsVec[i] == nil:
+			v.Add(pubs[i], msgs[i], sigs[i])
+		default:
+			v.AddWithOptions(pubs[i], msgs[i], sigs[i], optsVec[i])
+		}
+	}
+
+	return v
+}
+
+func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options) {
+	v := tc.makeVerifier(t, opts)
+	expectedBatchOk := tc.culpritIdx < 0
+	expectedVerifyOk := expectedBatchOk
+	if opts != nil && opts.Verify != nil && opts.Verify.CofactorlessVerify {
+		// Cofactor-less verification should always fail batch verify.
+		expectedBatchOk = false
+	}
+
+	// First test that the batch verify returns the expected
+	// result for the entire batch.
+	if v.VerifyBatchOnly(nil) != expectedBatchOk {
+		t.Error(tc.details)
+	}
+
+	// Then test the actually useful API.
+	allValid, valid := v.Verify(nil)
+	if allValid != expectedVerifyOk {
+		t.Errorf("Verify returned incorrect summary (Got: %v)", allValid)
+	}
+
+	// The ensure that the bit-vector contains the expected
+	// signature validity status.  tc.culpritIdx is the index
+	// of the malformed/invalid signature.
+	for i, sigValid := range valid {
+		expectedSigOk := i != tc.culpritIdx
+		if sigValid != expectedSigOk {
+			t.Errorf("bit-vector %d incorrect (Got: %v)", i, sigValid)
+		}
 	}
 }
 
-func TestVerifyBatch(t *testing.T) {
+func TestBatchVerifier(t *testing.T) {
+	runTestCases := func(t *testing.T, opts *Options) {
+		for _, tc := range batchTestCases {
+			t.Run(tc.n, func(t *testing.T) {
+				tc.run(t, opts)
+			})
+		}
+	}
+
 	t.Run("Ed25519pure", func(t *testing.T) {
-		testVerifyBatchOpts(t, &Options{})
+		runTestCases(t, nil)
 	})
 	t.Run("Ed25519ctx", func(t *testing.T) {
-		testVerifyBatchOpts(t, &Options{
-			Context: "test ed25519ctx batch verify",
+		opts := &Options{
+			Context: "Ed25519ctx test context",
+		}
+		runTestCases(t, opts)
+
+		tc := &batchVerifierTestCase{
+			"FailsOnMalformedContext",
+			batchMalformedCtx,
+			7,
+			"batch verification should fail due to malformed context",
+		}
+		t.Run(tc.n, func(t *testing.T) {
+			tc.run(t, opts)
 		})
 	})
 	t.Run("Ed25519ph", func(t *testing.T) {
-		testVerifyBatchOpts(t, &Options{
-			Hash:    crypto.SHA512,
-			Context: "test ed25519ph batch verify",
+		opts := &Options{
+			Hash: crypto.SHA512,
+		}
+		runTestCases(t, opts)
+
+		tc := &batchVerifierTestCase{
+			"FailsOnMalformedPreHash",
+			batchMalformedPh,
+			7,
+			"batch verification should fail due to malformed pre-hash",
+		}
+		t.Run(tc.n, func(t *testing.T) {
+			tc.run(t, opts)
 		})
+	})
+	t.Run("CofactorlessFallback", func(t *testing.T) {
+		runTestCases(t, &Options{
+			Verify: VerifyOptionsStdLib,
+		})
+	})
+
+	t.Run("EmptyBatchFails", func(t *testing.T) {
+		v := NewBatchVerifier()
+
+		if v.VerifyBatchOnly(nil) {
+			t.Error("batch verification should fail on an empty batch")
+		}
 	})
 }
 
-func BenchmarkVerifyBatch(b *testing.B) {
+func BenchmarkVerifyBatchOnly(b *testing.B) {
 	benchBatchSizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024}
 	for _, n := range benchBatchSizes {
-		b.Run(strconv.Itoa(n), func(b *testing.B) {
-			benchmarkVerifyBatchIter(b, n)
+		// Attempt to get a more accurate reflection on how much memory
+		// is allocated, by pre-generating all of the batch inputs
+		// prior to entering the benchmark routine, but actually
+		// building the batch as part of the benchmarking process.
+		pub, priv, _ := GenerateKey(nil)
+		msg := []byte("BatchVerifyTest")
+		sig := Sign(priv, msg)
+
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.ReportAllocs()
+
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				// Exclude the time spent so that comparisons with
+				// ed25519consensus are close.
+				v := NewBatchVerifier()
+				for j := 0; j < n; j++ {
+					v.Add(pub, msg, sig)
+				}
+				b.StartTimer()
+
+				if !v.VerifyBatchOnly(nil) {
+					b.Fatal("signature set failed batch verification")
+				}
+			}
 		})
-	}
-}
-
-func benchmarkVerifyBatchIter(b *testing.B, n int) {
-	var opts Options
-	pks, sigs, messages := testBatchInit(b, rand.Reader, n, &opts)
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		ok, _, _ := VerifyBatch(nil, pks[:], messages[:], sigs[:], &opts)
-		if !ok {
-			b.Fatalf("unexpected batch verification failure!")
-		}
 	}
 }

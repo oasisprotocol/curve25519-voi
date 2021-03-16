@@ -149,19 +149,13 @@ func (v *speccheckTestVector) Run(t *testing.T, isBatch bool, opts *Options) boo
 	case false:
 		sigOk = VerifyWithOptions(pk, msg, sig, opts)
 	case true:
-		var pks []PublicKey
-		var sigs, msgs [][]byte
+		v := NewBatchVerifier()
 		for i := 0; i < testBatchSize; i++ {
-			pks = append(pks, pk)
-			msgs = append(msgs, msg)
-			sigs = append(sigs, sig)
+			v.AddWithOptions(pk, msg, sig, opts)
 		}
 
 		var valid []bool
-		sigOk, valid, err = VerifyBatch(rand.Reader, pks, msgs, sigs, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
+		sigOk, valid = v.Verify(rand.Reader)
 		for i, v := range valid {
 			if v != sigOk {
 				t.Fatalf("sigOk != valid[%d]", i)
