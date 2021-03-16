@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 Isis Agora Lovecruft. All rights reserved.
+// Copyright (c) 2020 Henry de Valence. All rights reserved.
 // Copyright (c) 2020-2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,205 +33,279 @@ package ed25519
 import (
 	cryptorand "crypto/rand"
 	"crypto/sha512"
-	"fmt"
 	"io"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
-// VerifyBatch reports whether sigs are valid signatures of messages by
-// publicKeys, using entropy from rand.  If rand is nil, crypto/rand.Reader
-// will be used.  For convenience, the function will return true iff
-// every single signature is valid.
-//
-// Batch verification MUST use the cofactored verification equation to
-// produce correct results.  If VerifyOptions is set to cofactorless
-// verification, this routine will fall back to serial verification of
-// each signature.
-//
-// Note: Unlike VerifyWithOptions, this routine will not panic on malformed
-// inputs in the batch, and instead just mark the particular signature as
-// having failed verification.
-func VerifyBatch(rand io.Reader, publicKeys []PublicKey, messages, sigs [][]byte, opts *Options) (bool, []bool, error) {
-	const rsOffsetStart = 1
+// BatchVerifier accumulates batch entries with Add, before performing
+// batch verifcation with Verify.
+type BatchVerifier struct {
+	entries []entry
 
-	if rand == nil {
-		rand = cryptorand.Reader
-	}
+	anyInvalid      bool
+	anyCofactorless bool
+}
+
+type entry struct {
+	signature []byte
+
+	// Note: Unlike ed25519consensus, this stores R, and A, and S
+	// in the entry, so that it is possible to implement a more
+	// useful verification API (information about which signature(s)
+	// are invalid is wanted a lot of the time), without having to
+	// redo a non-trivial amount of computation.
+	//
+	// In terms of total heap space consumed to verify a given batch,
+	// this adds ~`2*sizeof(scalar.Scalar)` bytes per entry.
+	R    curve.EdwardsPoint
+	A    curve.EdwardsPoint
+	S    scalar.Scalar
+	hram scalar.Scalar
+
+	wantCofactorless bool
+	canBeValid       bool
+}
+
+func (e *entry) doInit(publicKey, message, sig []byte, opts *Options) {
+	// Until everything has been deserialized correctly, assume the
+	// entry is totally invalid.
+	e.canBeValid = false
 
 	fBase, context, err := opts.verify()
 	if err != nil {
-		return false, nil, err
+		return
 	}
 	vOpts := opts.Verify
 	if vOpts == nil {
 		vOpts = VerifyOptionsDefault
 	}
 
-	num := len(publicKeys)
-	if num != len(messages) || len(messages) != len(sigs) {
-		return false, nil, fmt.Errorf("ed25519: argument count mismatch")
-	}
-	if num == 0 {
-		return false, nil, fmt.Errorf("ed25519: empty batches are not supported")
+	// This is nonsensical (as in, cofactorless batch-verification
+	// is flat out incorrect), but the API allows for requesting it.
+	if e.wantCofactorless = vOpts.CofactorlessVerify; e.wantCofactorless {
+		e.signature = sig
 	}
 
-	// Start under the assumption that everything is valid.
-	valid := make([]bool, num)
-	for i := range valid {
-		valid[i] = true
+	// Deserialize R, A, and S.
+	//
+	// TODO/perf: The clever thing to do would be to decouple A from
+	// the rest of the entry contents so that it is possible to avoid
+	// having to decompress public keys repeatedly.  Though at that
+	// point dalek's `VartimeEdwardsPrecomputation` also starts to
+	// look attractive.
+	if ok := vOpts.unpackPublicKey(publicKey, &e.A); !ok {
+		return
 	}
-	allValid := true
+	if ok := vOpts.unpackSignature(sig, &e.R, &e.S); !ok {
+		return
+	}
 
-	// Unpack publicKeys/sigs into A, R and S, and compute H(R || A || M).
+	// Calculate H(R,A,m).
 	var (
-		numItems = num + num
+		f dom2Flag
 
-		scalars      = make([]*scalar.Scalar, numItems) // Ss || hrams
-		scalarsStore = make([]scalar.Scalar, numItems)
-
-		points      = make([]*curve.EdwardsPoint, 1+numItems) // B || Rs || As
-		pointsStore = make([]curve.EdwardsPoint, numItems)
-
-		h    = sha512.New()
 		hash [64]byte
-
-		Rs    = points[rsOffsetStart : rsOffsetStart+num]
-		As    = points[rsOffsetStart+num:]
-		Ss    = scalars[0:num]
-		hrams = scalars[num:]
+		h    = sha512.New()
 	)
-	points[0] = curve.ED25519_BASEPOINT_POINT
-	for i := 0; i < numItems; i++ {
-		scalars[i] = &scalarsStore[i]
-		points[rsOffsetStart+i] = &pointsStore[i]
+
+	if f, err = checkHash(fBase, message, opts.HashFunc()); err != nil {
+		return
 	}
 
-	for i := 0; i < num; i++ {
-		if valid[i] = vOpts.unpackPublicKey(publicKeys[i], As[i]); !valid[i] {
-			allValid = false
-			continue
-		}
-
-		if valid[i] = vOpts.unpackSignature(sigs[i], Rs[i], Ss[i]); !valid[i] {
-			allValid = false
-			continue
-		}
-
-		var f dom2Flag
-		if f, err = checkHash(fBase, messages[i], opts.HashFunc()); err != nil {
-			valid[i], allValid = false, false
-			continue
-		}
-
-		if dom2 := makeDom2(f, context); dom2 != nil {
-			_, _ = h.Write(dom2)
-		}
-		_, _ = h.Write(sigs[i][:32])
-		_, _ = h.Write(publicKeys[i][:])
-		_, _ = h.Write(messages[i])
-		h.Sum(hash[:0])
-		if _, err = hrams[i].SetBytesModOrderWide(hash[:]); err != nil {
-			valid[i], allValid = false, false
-			continue
-		}
-		h.Reset()
+	if dom2 := makeDom2(f, context); dom2 != nil {
+		_, _ = h.Write(dom2)
+	}
+	_, _ = h.Write(sig[:32])
+	_, _ = h.Write(publicKey[:])
+	_, _ = h.Write(message)
+	h.Sum(hash[:0])
+	if _, err = e.hram.SetBytesModOrderWide(hash[:]); err != nil {
+		return
 	}
 
-	// Only actually try to do the batch verification if allowed by
-	// the verification options.
-	if allValid && !vOpts.CofactorlessVerify {
-		// This doesn't update allValid since the serial path
-		// handles explicitly setting after checking each signature.
-		if doBatchVerify(rand, points, Ss, hrams) {
-			return allValid, valid, nil
-		}
-	}
-
-	// If execution reaches this point, either it was not possible to
-	// do batch verification, or batch verification claims that at
-	// least one signature is invalid.  Fall back to serial verification.
-	for i := 0; i < num; i++ {
-		// If the signature is already known to be invalid, skip
-		// actually doing the verification.
-		if !valid[i] {
-			continue
-		}
-
-		// Instead of calling verifyWithOptionsNoPanic, just do the
-		// final calculation to save some computation.
-		As[i].Neg(As[i])
-
-		switch vOpts.CofactorlessVerify {
-		case true:
-			var R curve.EdwardsPoint
-			R.DoubleScalarMulBasepointVartime(hrams[i], As[i], Ss[i])
-			valid[i] = cofactorlessVerify(&R, sigs[i])
-		case false:
-			var rDiff curve.EdwardsPoint
-			rDiff.TripleScalarMulBasepointVartime(hrams[i], As[i], Ss[i], Rs[i])
-			valid[i] = rDiff.IsSmallOrder()
-		}
-		if !valid[i] {
-			allValid = false
-		}
-	}
-
-	return allValid, valid, nil
+	// Ok, R, A, S, and hram can at least be deserialized/computed,
+	// so it is possible for the entry to be valid.
+	e.canBeValid = true
 }
 
-func doBatchVerify(rand io.Reader, points []*curve.EdwardsPoint, Ss, hrams []*scalar.Scalar) bool {
-	// Note: points is assumed to contain B || Rs || As
-	const zsOffsetStart = 1
+// Add adds a (public key, message, sig) triple to the current batch.
+func (v *BatchVerifier) Add(publicKey PublicKey, message, sig []byte) {
+	v.AddWithOptions(publicKey, message, sig, optionsDefault)
+}
 
-	var (
-		num          = len(Ss)
-		numTerms     = 1 + num + num
-		scalars      = make([]*scalar.Scalar, numTerms) // B_coefficient || zs || zhrams
-		scalarsStore = make([]scalar.Scalar, numTerms)
+// AddWithOptions adds a (public key, message, sig, opts) quad to the
+// current batch.
+//
+// WARNING: This routine will panic if opts is nil.
+func (v *BatchVerifier) AddWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) {
+	var e entry
 
-		zs     = scalars[zsOffsetStart : zsOffsetStart+num]
-		zhrams = scalars[zsOffsetStart+num:]
-	)
-	for i := range scalars {
-		scalars[i] = &scalarsStore[i]
+	e.doInit(publicKey, message, sig, opts)
+	v.anyInvalid = v.anyInvalid || !e.canBeValid
+	v.anyCofactorless = v.anyCofactorless || e.wantCofactorless
+	v.entries = append(v.entries, e)
+}
+
+// VerifyBatchOnly checks all entries in the current batch using entropy
+// from rand, returning true if all entries are valid and false if any one
+// entry is invalid.  If rand is nil, crypto/rand.Reader will be used.
+//
+// If a failure arises it is unknown which entry failed, the caller must
+// verify each entry individually.
+//
+// Calling Verify on an empty batch, or a batch containing any entries that
+// specifiy cofactor-less verification will return false.
+func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
+	if rand == nil {
+		rand = cryptorand.Reader
 	}
 
-	// Select a random 128-bit scalar for each signature.
-	var scalarBytes [scalar.ScalarWideSize]byte
-	for i := 0; i < num; i++ {
+	vl := len(v.entries)
+	numTerms := 1 + vl + vl
+
+	// Handle some early aborts.
+	switch {
+	case vl == 0:
+		// Abort early on an empty batch, which probably indicates a bug
+		return false
+	case v.anyInvalid:
+		// Abort early if any of the `Add`/`AddWithOptions` calls failed
+		// to fully execute, since at least one entry is invalid.
+		return false
+	case v.anyCofactorless:
+		// Abort early if any of the entries requested cofactor-less
+		// verification, since that flat out doesn't work.
+		return false
+	}
+
+	// The batch verification equation is
+	//
+	// [-sum(z_i * s_i)]B + sum([z_i]R_i) + sum([z_i * k_i]A_i) = 0.
+	// where for each signature i,
+	// - A_i is the verification key;
+	// - R_i is the signature's R value;
+	// - s_i is the signature's s value;
+	// - k_i is the hash of the message and other data;
+	// - z_i is a random 128-bit Scalar.
+	svals := make([]scalar.Scalar, numTerms)
+	scalars := make([]*scalar.Scalar, numTerms)
+
+	// Populate scalars variable with concrete scalars to reduce heap allocation
+	for i := range scalars {
+		scalars[i] = &svals[i]
+	}
+
+	Bcoeff := scalars[0]
+	Rcoeffs := scalars[1 : 1+vl]
+	Acoeffs := scalars[1+vl:]
+
+	// No need to allocate a backing-store since B, Rs and As already
+	// have concrete instances.
+	points := make([]*curve.EdwardsPoint, numTerms)
+
+	points[0] = curve.ED25519_BASEPOINT_POINT // B
+	var randomBytes [scalar.ScalarWideSize]byte
+	for i := range v.entries {
+		// Avoid range copying each v.entries[i] literal.
+		entry := &v.entries[i]
+		points[1+i] = &entry.R
+		points[1+vl+i] = &entry.A
+
 		// An inquisitive reader would ask why this doesn't just do
 		// `z.SetRandom(rand)`, and instead, opts to duplicate the code.
 		//
-		// Go's escape analysis fails to realize that `scalarBytes`
+		// Go's escape analysis fails to realize that `randomBytes`
 		// doesn't escape, so doing this saves n-1 allocations,
 		// which can be quite large, especially as the batch size
 		// increases.
-		z := zs[i]
-		if _, err := io.ReadFull(rand, scalarBytes[:]); err != nil {
+		if _, err := io.ReadFull(rand, randomBytes[:]); err != nil {
 			return false
 		}
-		if _, err := z.SetBytesModOrderWide(scalarBytes[:]); err != nil {
+		if _, err := Rcoeffs[i].SetBytesModOrderWide(randomBytes[:]); err != nil {
 			return false
 		}
-	}
 
-	// Compute the basepoint coefficient, sum(s[i]z[i]) (mod l).
-	B_coefficient := scalars[0]
-	for i := 0; i < num; i++ {
 		var sz scalar.Scalar
-		B_coefficient.Add(B_coefficient, sz.Mul(zs[i], Ss[i]))
-	}
-	B_coefficient.Neg(B_coefficient) // ... and negate it.
+		Bcoeff.Add(Bcoeff, sz.Mul(Rcoeffs[i], &entry.S))
 
-	// Multiply each H(R || A || M) by the random value.
-	for i := 0; i < num; i++ {
-		zhrams[i].Mul(zs[i], hrams[i])
+		Acoeffs[i].Mul(Rcoeffs[i], &entry.hram)
 	}
+	Bcoeff.Neg(Bcoeff) // this term is subtracted in the summation
 
 	// Check the cofactored batch verification equation.
-	var id curve.EdwardsPoint
-	id.MultiscalarMulVartime(scalars, points)
-	return id.IsSmallOrder()
+	var shouldBeId curve.EdwardsPoint
+	shouldBeId.MultiscalarMulVartime(scalars, points)
+	return shouldBeId.IsSmallOrder()
+}
+
+// Verify checks all entries in the current batch using entropy from rand,
+// returning true if all entries in the current bach are valid.  If one or
+// more signature is invalid, each entry in the batch will be verified
+// serially, and the returned bit-vector will provide information about
+// each individual entry.  If rand is nil, crypto/rand.Reader will be used.
+//
+// Note: Unless specific information about which signature(s) were invalid
+// is not required, calling Verify will be faster than VerifyBatchOnly
+// followed by serial verification in the event of a failure.
+func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
+	vl := len(v.entries)
+	if vl == 0 {
+		return false, nil
+	}
+
+	// Start by assuming everything is valid, unless we know for sure
+	// otherwise (ie: public key/signature/options were malformed).
+	valid := make([]bool, vl)
+	for i := range v.entries {
+		valid[i] = v.entries[i].canBeValid
+	}
+
+	// If batch verification is possible, do the batch verification.
+	if !v.anyInvalid && !v.anyCofactorless {
+		if v.VerifyBatchOnly(rand) {
+			// Fast-path, the entire batch is valid.
+			return true, valid
+		}
+	}
+
+	// Slow-path, one or more signatures is either invalid, or needs
+	// cofactor-less verification.
+	//
+	// Note: In the case of the latter it is still possible for the
+	// entire batch to be valid, but it is incorrect to trust the
+	// batch verification results.
+	allValid := !v.anyInvalid
+	for i := range v.entries {
+		// If the entry is known to be invalid, skip the serial
+		// verification.
+		if !valid[i] {
+			continue
+		}
+
+		entry := &v.entries[i]
+
+		var Aneg curve.EdwardsPoint
+		Aneg.Neg(&entry.A)
+
+		switch entry.wantCofactorless {
+		case true:
+			var R curve.EdwardsPoint
+			R.DoubleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S)
+			valid[i] = cofactorlessVerify(&R, entry.signature)
+		case false:
+			var rDiff curve.EdwardsPoint
+			rDiff.TripleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S, &entry.R)
+			valid[i] = rDiff.IsSmallOrder()
+		}
+		allValid = allValid && valid[i]
+	}
+
+	return allValid, valid
+}
+
+// NewBatchVerfier creates an empty BatchVerifier.
+func NewBatchVerifier() *BatchVerifier {
+	return &BatchVerifier{}
 }

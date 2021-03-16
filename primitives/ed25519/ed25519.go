@@ -304,6 +304,8 @@ func (priv PrivateKey) Seed() []byte {
 // expected to be a SHA-512 hash, otherwise opts.HashFunc() must be
 // crypto.Hash(0) and the message must not be hashed, as Ed25519 performs two
 // passes over messages to be signed.
+//
+// Warning: This routine will panic if opts is nil.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	var (
 		context []byte
@@ -435,6 +437,8 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 // will panic if len(publicKey) is not PublicKeySize, len(message) is
 // not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
 // ContextMaxSize.
+//
+// Warning: This routine will panic if opts is nil.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
 	ok, err := verifyWithOptionsNoPanic(publicKey, message, sig, opts)
 	if err != nil {
