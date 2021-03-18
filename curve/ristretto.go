@@ -451,6 +451,4 @@ func NewRistrettoBasepointTable(basepoint *RistrettoPoint) *RistrettoBasepointTa
 
 // Omitted:
 //  * DoubleAndCompressBatch
-//  * HashFromBytes
-//  * FromHash
 //  * VartimeRistrettoPrecomputation

@@ -583,7 +583,3 @@ func NewFromUint64(x uint64) *Scalar {
 func One() *Scalar {
 	return New().One()
 }
-
-// Omitted:
-//  * HashFromBytes
-//  * FromHash

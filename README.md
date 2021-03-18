@@ -94,9 +94,6 @@ security impact).
 #### TODO
 
  * Add the functions that were omitted in the initial porting effort.
-   This would primarily be for completeness, none of the use cases the
-   author is interested in require them at the moment, likely due
-   to lack of imagination.
 
 [1]: https://github.com/novifinancial/ed25519-speccheck
 [2]: https://eprint.iacr.org/2020/1244.pdf
