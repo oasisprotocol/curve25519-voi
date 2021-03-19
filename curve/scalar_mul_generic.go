@@ -34,6 +34,37 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+// EdwardsBasepointTable defines a precomputed table of multiples of a
+// basepoint, for accelerating fixed-based scalar multiplication.
+type EdwardsBasepointTable struct {
+	inner *edwardsBasepointTableGeneric
+}
+
+// Mul constructs a point from a scalar by computing the multiple aB
+// of this basepoint (B).
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
+func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
+	return tbl.inner.Mul(scalar)
+}
+
+// Basepoint returns the basepoint of the table.
+//
+// Note: This function breaks from convention and does not return a pointer
+// because Go's escape analysis sucks.
+func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
+	return tbl.inner.Basepoint()
+}
+
+// NewEdwardsBasepointTable creates a table of precomputed multiples of
+// `basepoint`.
+func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	return &EdwardsBasepointTable{
+		inner: newEdwardsBasepointTableGeneric(basepoint),
+	}
+}
+
 func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	return edwardsMulGeneric(out, point, scalar)
 }
@@ -56,8 +87,4 @@ func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Sca
 
 func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
-}
-
-func newEdwardsBasepointTable(basepoint *EdwardsPoint) edwardsBasepointTableImpl {
-	return newEdwardsBasepointTableGeneric(basepoint)
 }

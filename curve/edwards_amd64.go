@@ -284,6 +284,7 @@ func init() {
 	// Enable the vector backend for the hardcoded basepoint table,
 	// if the vector backend is enabled for everything else.
 	if supportsVectorizedEdwards {
-		ED25519_BASEPOINT_TABLE.inner = constVECTOR_ED25519_BASEPOINT_TABLE
+		ED25519_BASEPOINT_TABLE.inner = nil
+		ED25519_BASEPOINT_TABLE.innerVector = constVECTOR_ED25519_BASEPOINT_TABLE
 	}
 }

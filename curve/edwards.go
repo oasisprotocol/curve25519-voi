@@ -404,44 +404,5 @@ func NewEdwardsPoint() *EdwardsPoint {
 	return p.Identity()
 }
 
-// EdwardsBasepointTable defines a precomputed table of multiples of a
-// basepoint, for accelerating fixed-based scalar multiplication.
-type EdwardsBasepointTable struct {
-	// TODO/perf: Interface unboxing causes an allocation, but this is
-	// the cleanest way to do this.  Since it's only one, and it's small
-	// live with it for now.
-	inner edwardsBasepointTableImpl
-}
-
-type edwardsBasepointTableImpl interface {
-	Basepoint() EdwardsPoint
-	Mul(scalar *scalar.Scalar) EdwardsPoint
-}
-
-// Mul constructs a point from a scalar by computing the multiple aB
-// of this basepoint (B).
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
-	return tbl.inner.Mul(scalar)
-}
-
-// Basepoint returns the basepoint of the table.
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
-	return tbl.inner.Basepoint()
-}
-
-// NewEdwardsBasepointTable creates a table of precomputed multiples of
-// `basepoint`.
-func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
-	return &EdwardsBasepointTable{
-		inner: newEdwardsBasepointTable(basepoint),
-	}
-}
-
 // Omitted:
 //  * VartimeEdwardsPrecomputation

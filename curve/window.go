@@ -81,7 +81,7 @@ func newProjectiveNielsPointLookupTable(ep *EdwardsPoint) projectiveNielsPointLo
 type affineNielsPointLookupTable [8]affineNielsPoint
 
 func (tbl *affineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
-	// Compute xabx = |x|
+	// Compute xabs = |x|
 	xmask := x >> 7
 	xabs := uint8((x + xmask) ^ xmask)
 
