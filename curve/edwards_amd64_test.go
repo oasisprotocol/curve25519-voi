@@ -331,7 +331,6 @@ func testPoint_id() *EdwardsPoint {
 }
 
 func testPoint_kB() *EdwardsPoint {
-	s := scalar.NewFromUint64(8475983829)
-	p := ED25519_BASEPOINT_TABLE.Mul(s)
-	return &p
+	var p EdwardsPoint
+	return p.MulBasepoint(ED25519_BASEPOINT_TABLE, scalar.NewFromUint64(8475983829))
 }

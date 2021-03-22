@@ -34,6 +34,41 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+// EdwardsBasepointTable defines a precomputed table of multiples of a
+// basepoint, for accelerating fixed-based scalar multiplication.
+type EdwardsBasepointTable struct {
+	inner       *edwardsBasepointTableGeneric
+	innerVector *edwardsBasepointTableVector
+}
+
+func (tbl *EdwardsBasepointTable) mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	if tbl.innerVector != nil {
+		return tbl.innerVector.Mul(point, scalar)
+	}
+	return tbl.inner.Mul(point, scalar)
+}
+
+// Basepoint returns the basepoint of the table.
+func (tbl *EdwardsBasepointTable) Basepoint() *EdwardsPoint {
+	if tbl.innerVector != nil {
+		return tbl.innerVector.Basepoint()
+	}
+	return tbl.inner.Basepoint()
+}
+
+// NewEdwardsBasepointTable creates a table of precomputed multiples of
+// `basepoint`.
+func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	if supportsVectorizedEdwards {
+		return &EdwardsBasepointTable{
+			innerVector: newEdwardsBasepointTableVector(basepoint),
+		}
+	}
+	return &EdwardsBasepointTable{
+		inner: newEdwardsBasepointTableGeneric(basepoint),
+	}
+}
+
 func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
@@ -85,14 +120,5 @@ func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.
 		return edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
 	default:
 		return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
-	}
-}
-
-func newEdwardsBasepointTable(basepoint *EdwardsPoint) edwardsBasepointTableImpl {
-	switch supportsVectorizedEdwards {
-	case true:
-		return newEdwardsBasepointTableVector(basepoint)
-	default:
-		return newEdwardsBasepointTableGeneric(basepoint)
 	}
 }

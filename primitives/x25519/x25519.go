@@ -115,10 +115,11 @@ func ScalarBaseMult(dst, in *[32]byte) {
 		panic("x25519: failed to deserialize scalar: " + err.Error())
 	}
 
-	edP := curve.ED25519_BASEPOINT_TABLE.Mul(&s)
-
-	var montP curve.MontgomeryPoint
-	montP.SetEdwards(&edP)
+	var (
+		edP   curve.EdwardsPoint
+		montP curve.MontgomeryPoint
+	)
+	montP.SetEdwards(edP.MulBasepoint(curve.ED25519_BASEPOINT_TABLE, &s))
 
 	copy(dst[:], montP[:])
 }

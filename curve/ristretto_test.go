@@ -218,9 +218,9 @@ func testRistrettoFourTorsionBasepoint(t *testing.T) {
 }
 
 func testRistrettoFourTorsionRandom(t *testing.T) {
-	s := newTestBenchRandomScalar(t)
+	var p RistrettoPoint
+	p.MulBasepoint(RISTRETTO_BASEPOINT_TABLE, newTestBenchRandomScalar(t))
 
-	p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 	pCoset := p.coset4()
 	for i, pp := range pCoset {
 		if p.Equal(&RistrettoPoint{inner: pp}) != 1 {
@@ -292,9 +292,9 @@ func testRistrettoElligator(t *testing.T) {
 
 func testRistrettoRandomRoundtrip(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		s := newTestBenchRandomScalar(t)
+		var p RistrettoPoint
+		p.MulBasepoint(RISTRETTO_BASEPOINT_TABLE, newTestBenchRandomScalar(t))
 
-		p := RISTRETTO_BASEPOINT_TABLE.Mul(s)
 		var compressedP CompressedRistretto
 		compressedP.SetRistrettoPoint(&p)
 

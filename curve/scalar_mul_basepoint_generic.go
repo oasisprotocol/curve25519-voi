@@ -34,7 +34,7 @@ import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
 type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
 
-func (tbl *edwardsBasepointTableGeneric) Basepoint() EdwardsPoint {
+func (tbl *edwardsBasepointTableGeneric) Basepoint() *EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
 	// but as an `affineNielsPoint`, so convert to extended.
 	aPt := tbl[0].Lookup(1)
@@ -42,29 +42,28 @@ func (tbl *edwardsBasepointTableGeneric) Basepoint() EdwardsPoint {
 	var ep EdwardsPoint
 	ep.setAffineNiels(&aPt)
 
-	return ep
+	return &ep
 }
 
-func (tbl *edwardsBasepointTableGeneric) Mul(scalar *scalar.Scalar) EdwardsPoint {
+func (tbl *edwardsBasepointTableGeneric) Mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	a := scalar.ToRadix16()
 
-	var p EdwardsPoint
-	p.Identity()
+	out.Identity()
 
 	var sum completedPoint
 	for i := 1; i < 64; i = i + 2 {
 		aPt := tbl[i/2].Lookup(a[i])
-		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
+		out.setCompleted(sum.AddEdwardsAffineNiels(out, &aPt))
 	}
 
-	p.mulByPow2(&p, 4)
+	out.mulByPow2(out, 4)
 
 	for i := 0; i < 64; i = i + 2 {
 		aPt := tbl[i/2].Lookup(a[i])
-		p.setCompleted(sum.AddEdwardsAffineNiels(&p, &aPt))
+		out.setCompleted(sum.AddEdwardsAffineNiels(out, &aPt))
 	}
 
-	return p
+	return out
 }
 
 func newEdwardsBasepointTableGeneric(basepoint *EdwardsPoint) *edwardsBasepointTableGeneric {

@@ -290,6 +290,11 @@ func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsP
 	return edwardsMul(p, point, scalar)
 }
 
+// MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
+func (p *EdwardsPoint) MulBasepoint(basepoint *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
+	return basepoint.mul(p, scalar)
+}
+
 // DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
 // where B is the Ed25519 basepoint, and returns p.
 func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
@@ -402,45 +407,6 @@ func (p *EdwardsPoint) mulByPow2(t *EdwardsPoint, k uint) *EdwardsPoint {
 func NewEdwardsPoint() *EdwardsPoint {
 	var p EdwardsPoint
 	return p.Identity()
-}
-
-// EdwardsBasepointTable defines a precomputed table of multiples of a
-// basepoint, for accelerating fixed-based scalar multiplication.
-type EdwardsBasepointTable struct {
-	// TODO/perf: Interface unboxing causes an allocation, but this is
-	// the cleanest way to do this.  Since it's only one, and it's small
-	// live with it for now.
-	inner edwardsBasepointTableImpl
-}
-
-type edwardsBasepointTableImpl interface {
-	Basepoint() EdwardsPoint
-	Mul(scalar *scalar.Scalar) EdwardsPoint
-}
-
-// Mul constructs a point from a scalar by computing the multiple aB
-// of this basepoint (B).
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
-	return tbl.inner.Mul(scalar)
-}
-
-// Basepoint returns the basepoint of the table.
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
-	return tbl.inner.Basepoint()
-}
-
-// NewEdwardsBasepointTable creates a table of precomputed multiples of
-// `basepoint`.
-func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
-	return &EdwardsBasepointTable{
-		inner: newEdwardsBasepointTable(basepoint),
-	}
 }
 
 // Omitted:
