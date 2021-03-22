@@ -39,6 +39,11 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
+var edwardsPointTestIdentity = func() *EdwardsPoint {
+	var p EdwardsPoint
+	return p.Identity()
+}()
+
 var edwardsPointTestPoints = map[string]*CompressedEdwardsY{
 	// Compressed Edwards Y form of 2*basepoint.
 	"BASE2": {
@@ -319,9 +324,7 @@ func testEdwardsIsTorsionFree(t *testing.T) {
 }
 
 func testEdwardsIsIdentity(t *testing.T) {
-	var p EdwardsPoint
-	p.Identity()
-	if !p.IsIdentity() {
+	if !edwardsPointTestIdentity.IsIdentity() {
 		t.Fatalf("p.IsIdentity() != true")
 	}
 	if ED25519_BASEPOINT_POINT.IsIdentity() {
@@ -330,10 +333,8 @@ func testEdwardsIsIdentity(t *testing.T) {
 }
 
 func testEdwardsCompressedIdentity(t *testing.T) {
-	var p EdwardsPoint
-	p.Identity()
-	if !p.testEqualCompressedY("COMPRESSED_IDENTITY") {
-		t.Fatalf("p.Identity().compress() != COMPRESSED_IDENTITY (Got: %v)", p)
+	if !edwardsPointTestIdentity.testEqualCompressedY("COMPRESSED_IDENTITY") {
+		t.Fatalf("p.Identity().compress() != COMPRESSED_IDENTITY (Got: %v)", edwardsPointTestIdentity)
 	}
 }
 
@@ -548,13 +549,12 @@ func testAffineNielsConditionalAssign(t *testing.T) {
 
 func testAffineNielsConversionClearsDenominators(t *testing.T) {
 	var (
-		id, aB, also_aB EdwardsPoint
-		aBAffineNiels   affineNielsPoint
-		sum             completedPoint
+		aB, also_aB   EdwardsPoint
+		aBAffineNiels affineNielsPoint
+		sum           completedPoint
 	)
-	id.Identity()
 	aB.MulBasepoint(ED25519_BASEPOINT_TABLE, edwardsPointTestScalars["A"])
-	also_aB.setCompleted(sum.AddEdwardsAffineNiels(&id, aBAffineNiels.SetEdwards(&aB)))
+	also_aB.setCompleted(sum.AddEdwardsAffineNiels(edwardsPointTestIdentity, aBAffineNiels.SetEdwards(&aB)))
 
 	if aB.Equal(&also_aB) != 1 {
 		t.Fatalf("aB != also_aB (Got %v %v)", aB, also_aB)

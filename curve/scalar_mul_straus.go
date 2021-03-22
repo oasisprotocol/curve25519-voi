@@ -92,3 +92,61 @@ func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*sca
 
 	return out.setProjective(&r)
 }
+
+func edwardsMultiscalarMulStrausVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	lookupTables := make([]cachedPointLookupTable, 0, len(points))
+	for _, point := range points {
+		lookupTables = append(lookupTables, newCachedPointLookupTable(point))
+	}
+
+	// TODO: In theory this should be sanitized.
+	scalarDigitsVec := make([][64]int8, 0, len(scalars))
+	for _, scalar := range scalars {
+		scalarDigitsVec = append(scalarDigitsVec, scalar.ToRadix16())
+	}
+
+	var q extendedPoint
+	q.Identity()
+
+	for i := 63; i >= 0; i-- {
+		q.MulByPow2(&q, 4)
+		for j := 0; j < len(points); j++ {
+			// R_i = s_{i,j} * P_i
+			R_i := lookupTables[j].Lookup(scalarDigitsVec[j][i])
+			// Q = Q + R_i
+			q.AddExtendedCached(&q, &R_i)
+		}
+	}
+
+	return out.setExtended(&q)
+}
+
+func edwardsMultiscalarMulStrausVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	lookupTables := make([]cachedPointNafLookupTable, 0, len(points))
+	for _, point := range points {
+		lookupTables = append(lookupTables, newCachedPointNafLookupTable(point))
+	}
+
+	nafs := make([][256]int8, 0, len(scalars))
+	for _, scalar := range scalars {
+		nafs = append(nafs, scalar.NonAdjacentForm(5))
+	}
+
+	var q extendedPoint
+	q.Identity()
+
+	for i := 255; i >= 0; i-- {
+		q.Double(&q)
+
+		for j := 0; j < len(points); j++ {
+			naf_i := nafs[j][i]
+			if naf_i > 0 {
+				q.AddExtendedCached(&q, lookupTables[j].Lookup(uint8(naf_i)))
+			} else if naf_i < 0 {
+				q.SubExtendedCached(&q, lookupTables[j].Lookup(uint8(-naf_i)))
+			}
+		}
+	}
+
+	return out.setExtended(&q)
+}

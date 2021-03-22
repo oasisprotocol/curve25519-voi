@@ -28,12 +28,61 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64,!purego,!forcenoasm,!force32bit
-
 package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+// edwardsBasepointTableGeneric is a portable precomputed basepoint multiply.
+type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
+
+func (tbl *edwardsBasepointTableGeneric) Basepoint() *EdwardsPoint {
+	// tbl[0].lookup(1) = 1*(16^2)^0*B
+	// but as an `affineNielsPoint`, so convert to extended.
+	aPt := tbl[0].Lookup(1)
+
+	var ep EdwardsPoint
+	ep.setAffineNiels(&aPt)
+
+	return &ep
+}
+
+func (tbl *edwardsBasepointTableGeneric) Mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	a := scalar.ToRadix16()
+
+	out.Identity()
+
+	var sum completedPoint
+	for i := 1; i < 64; i = i + 2 {
+		aPt := tbl[i/2].Lookup(a[i])
+		out.setCompleted(sum.AddEdwardsAffineNiels(out, &aPt))
+	}
+
+	out.mulByPow2(out, 4)
+
+	for i := 0; i < 64; i = i + 2 {
+		aPt := tbl[i/2].Lookup(a[i])
+		out.setCompleted(sum.AddEdwardsAffineNiels(out, &aPt))
+	}
+
+	return out
+}
+
+func newEdwardsBasepointTableGeneric(basepoint *EdwardsPoint) *edwardsBasepointTableGeneric {
+	var (
+		table edwardsBasepointTableGeneric
+		p     EdwardsPoint
+	)
+
+	p.Set(basepoint)
+	for i := 0; i < 32; i++ {
+		table[i] = newAffineNielsPointLookupTable(&p)
+		p.mulByPow2(&p, 8)
+	}
+
+	return &table
+}
+
+// edwardsBasepointTableVector is a vectorized precomputed basepoint multiply.
 type edwardsBasepointTableVector [32]cachedPointLookupTable
 
 func (tbl *edwardsBasepointTableVector) Basepoint() *EdwardsPoint {

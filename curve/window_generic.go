@@ -34,3 +34,7 @@ package curve
 func lookupAffineNiels(tbl *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) {
 	lookupAffineNielsGeneric(tbl, out, xabs)
 }
+
+func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8) {
+	panic(errVectorNotSupported)
+}

@@ -77,3 +77,46 @@ func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.
 
 	return out.setProjective(&r)
 }
+
+func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	aNaf := a.NonAdjacentForm(5)
+	bNaf := b.NonAdjacentForm(8)
+
+	// Find the starting index.
+	var i int
+	for j := 255; j >= 0; j-- {
+		i = j
+		if aNaf[i] != 0 || bNaf[i] != 0 {
+			break
+		}
+	}
+
+	tableA := newCachedPointNafLookupTable(A)
+	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
+
+	var q extendedPoint
+	q.Identity()
+
+	for {
+		q.Double(&q)
+
+		if aNaf[i] > 0 {
+			q.AddExtendedCached(&q, tableA.Lookup(uint8(aNaf[i])))
+		} else if aNaf[i] < 0 {
+			q.SubExtendedCached(&q, tableA.Lookup(uint8(-aNaf[i])))
+		}
+
+		if bNaf[i] > 0 {
+			q.AddExtendedCached(&q, tableB.Lookup(uint8(bNaf[i])))
+		} else if bNaf[i] < 0 {
+			q.SubExtendedCached(&q, tableB.Lookup(uint8(-bNaf[i])))
+		}
+
+		if i == 0 {
+			break
+		}
+		i--
+	}
+
+	return out.setExtended(&q)
+}
