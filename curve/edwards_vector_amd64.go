@@ -107,14 +107,6 @@ func (p *extendedPoint) SetEdwards(ep *EdwardsPoint) *extendedPoint {
 	return p
 }
 
-func (p *extendedPoint) ConditionalSelect(a, b *extendedPoint, choice int) {
-	p.inner.ConditionalSelect(&a.inner, &b.inner, choice)
-}
-
-func (p *extendedPoint) ConditionalAssign(other *extendedPoint, choice int) {
-	p.inner.ConditionalAssign(&other.inner, choice)
-}
-
 // Note: dalek has the identity point as the default ctor for
 // ExtendedPoint/CachedPoint.
 
@@ -207,6 +199,12 @@ func (p *cachedPoint) ConditionalNegate(choice int) {
 	p.ConditionalAssign(&pNeg, choice)
 }
 
+func (p *cachedPoint) LazyEqual(other *cachedPoint) bool {
+	// Yes, this is explicitly disallowed for good reason, but unit
+	// tests need to do it.
+	return p.inner.inner == other.inner.inner
+}
+
 type fieldElement2625x4 struct {
 	disalloweq.DisallowEqual //nolint:unused
 	inner                    [5][8]uint32
@@ -286,5 +284,7 @@ func init() {
 	if supportsVectorizedEdwards {
 		ED25519_BASEPOINT_TABLE.inner = nil
 		ED25519_BASEPOINT_TABLE.innerVector = constVECTOR_ED25519_BASEPOINT_TABLE
+
+		RISTRETTO_BASEPOINT_TABLE.inner = *ED25519_BASEPOINT_TABLE
 	}
 }

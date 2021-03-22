@@ -1,3 +1,4 @@
+// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
 // Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,29 +28,18 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// +build amd64,!purego,!forcenoasm,!force32bit
-
 package curve
 
 import (
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
-func TestAVX2(t *testing.T) {
+func TestVector(t *testing.T) {
 	if !supportsVectorizedEdwards {
-		t.Skipf("AVX2 not supported")
+		t.Skipf("Vector backend not supported")
 	}
-
-	t.Run("FieldElement2625x4", func(t *testing.T) {
-		t.Run("ConditionalSelect", testVecConditionalSelect)
-		t.Run("Neg", testVecNeg)
-		t.Run("SquareAndNegateD", testVecSquareAndNegateD)
-		t.Run("Mul", testVecMul)
-		t.Run("NewSplit", testVecNewSplit)
-	})
 
 	t.Run("ExtendedPoint", func(t *testing.T) {
 		t.Run("AddSubCached", testVecAddSubCached)
@@ -60,137 +50,6 @@ func TestAVX2(t *testing.T) {
 		t.Run("BasepointOddLookupTable", testVecBasepointOddLookupTable)
 		t.Run("BasepointOddShl128LookupTable", testVecBasepointOddShl128LookupTable)
 	})
-}
-
-func testVecConditionalSelect(t *testing.T) {
-	a := testFieldElement2625x4()
-	var out, b fieldElement2625x4
-
-	// Fill out up with crap.
-	for i := range out.inner {
-		for j := range out.inner[i] {
-			out.inner[i][j] = 0xdeadbeef
-		}
-	}
-
-	out.ConditionalSelect(&a, &b, 0)
-	if out.inner != a.inner {
-		t.Fatalf("ConditionalSelect(a, b, 0) != a (Got: %v)", out)
-	}
-
-	out.ConditionalSelect(&a, &b, 1)
-	if out.inner != b.inner {
-		t.Fatalf("ConditionalSelect(a, b, 1) != b (Got: %v)", out)
-	}
-}
-
-func testVecNeg(t *testing.T) {
-	x0, x1, x2, x3 := testFieldElementComponents()
-	vec := newFieldElement2625x4(x0, x1, x2, x3)
-
-	vec.Neg()
-
-	var y0, y1, y2, y3 field.FieldElement
-	vec.Split(&y0, &y1, &y2, &y3)
-
-	var neg_x0, neg_x1, neg_x2, neg_x3 field.FieldElement
-	neg_x0.Neg(x0)
-	neg_x1.Neg(x1)
-	neg_x2.Neg(x2)
-	neg_x3.Neg(x3)
-
-	if neg_x0.Equal(&y0) != 1 {
-		t.Fatalf("vec[0] != -x0 (Got: %v)", y0)
-	}
-	if neg_x1.Equal(&y1) != 1 {
-		t.Fatalf("vec[1] != -x1 (Got: %v)", y1)
-	}
-	if neg_x2.Equal(&y2) != 1 {
-		t.Fatalf("vec[2] != -x2 (Got: %v)", y2)
-	}
-	if neg_x3.Equal(&y3) != 1 {
-		t.Fatalf("vec[3] != -x3 (Got: %v)", y3)
-	}
-}
-
-func testVecSquareAndNegateD(t *testing.T) {
-	x0, x1, x2, x3 := testFieldElementComponents()
-	vec := newFieldElement2625x4(x0, x1, x2, x3)
-
-	vec.SquareAndNegateD()
-
-	var y0, y1, y2, y3 field.FieldElement
-	vec.Split(&y0, &y1, &y2, &y3)
-
-	var x0sq, x1sq, x2sq, neg_x3sq field.FieldElement
-	x0sq.Mul(x0, x0)
-	x1sq.Mul(x1, x1)
-	x2sq.Mul(x2, x2)
-	neg_x3sq.Mul(x3, x3)
-	neg_x3sq.Neg(&neg_x3sq)
-
-	if x0sq.Equal(&y0) != 1 {
-		t.Fatalf("vec[0] != x0 * x0 (Got: %v)", y0)
-	}
-	if x1sq.Equal(&y1) != 1 {
-		t.Fatalf("vec[1] != x1 * x1 (Got: %v)", y1)
-	}
-	if x2sq.Equal(&y2) != 1 {
-		t.Fatalf("vec[2] != x2 * x2 (Got: %v)", y2)
-	}
-	if neg_x3sq.Equal(&y3) != 1 {
-		t.Fatalf("vec[3] != -(x3 * x3) (Got: %v)", y3)
-	}
-}
-
-func testVecMul(t *testing.T) {
-	x0, x1, x2, x3 := testFieldElementComponents()
-	vec := newFieldElement2625x4(x0, x1, x2, x3)
-
-	vec.Mul(&vec, &vec)
-
-	var y0, y1, y2, y3 field.FieldElement
-	vec.Split(&y0, &y1, &y2, &y3)
-
-	var x0sq, x1sq, x2sq, x3sq field.FieldElement
-	x0sq.Mul(x0, x0)
-	x1sq.Mul(x1, x1)
-	x2sq.Mul(x2, x2)
-	x3sq.Mul(x3, x3)
-
-	if x0sq.Equal(&y0) != 1 {
-		t.Fatalf("vec[0] != x0 * x0 (Got: %v %v)", y0, x0sq)
-	}
-	if x1sq.Equal(&y1) != 1 {
-		t.Fatalf("vec[1] != x1 * x1 (Got: %v)", y1)
-	}
-	if x2sq.Equal(&y2) != 1 {
-		t.Fatalf("vec[2] != x2 * x2 (Got: %v)", y2)
-	}
-	if x3sq.Equal(&y3) != 1 {
-		t.Fatalf("vec[3] != x3 * x3 (Got: %v)", y3)
-	}
-}
-
-func testVecNewSplit(t *testing.T) {
-	x0, x1, x2, x3 := testFieldElementComponents()
-	vec := newFieldElement2625x4(x0, x1, x2, x3)
-
-	var y0, y1, y2, y3 field.FieldElement
-	vec.Split(&y0, &y1, &y2, &y3)
-
-	if x0.Equal(&y0) != 1 {
-		t.Fatalf("Split(0) != x0 (Got: %v)", y0)
-	}
-	if x1.Equal(&y1) != 1 {
-		t.Fatalf("Split(1) != x1 (Got: %v)", y1)
-	}
-	if x2.Equal(&y2) != 1 {
-		t.Fatalf("Split(2) != x2 (Got: %v)", y2)
-	}
-	if x3.Equal(&y3) != 1 {
-		t.Fatalf("Split(3) != x3 (Got: %v)", y3)
-	}
 }
 
 func testVecDoubleExtended(t *testing.T) {
@@ -212,7 +71,7 @@ func testVecDoubleExtended(t *testing.T) {
 		n string
 	}{
 		{ED25519_BASEPOINT_POINT, "B"},
-		{testPoint_id(), "id"},
+		{edwardsPointTestIdentity, "id"},
 		{testPoint_kB(), "([k]B)"},
 	} {
 		pS := doubleEdwardsSerial(v.p)
@@ -268,8 +127,8 @@ func testVecAddSubCached(t *testing.T) {
 		a, b   *EdwardsPoint
 		an, bn string
 	}{
-		{testPoint_id(), testPoint_id(), "id", "id"},
-		{testPoint_id(), ED25519_BASEPOINT_POINT, "id", "B"},
+		{edwardsPointTestIdentity, edwardsPointTestIdentity, "id", "id"},
+		{edwardsPointTestIdentity, ED25519_BASEPOINT_POINT, "id", "B"},
 		{ED25519_BASEPOINT_POINT, ED25519_BASEPOINT_POINT, "B", "B"},
 		{ED25519_BASEPOINT_POINT, testPoint_kB(), "B", "([k]B)"},
 	} {
@@ -292,7 +151,7 @@ func testVecBasepointOddLookupTable(t *testing.T) {
 
 	for i, pt := range gen {
 		entry := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[i]
-		if entry.inner.inner != pt.inner.inner {
+		if !entry.LazyEqual(&pt) {
 			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
 		}
 	}
@@ -303,31 +162,10 @@ func testVecBasepointOddShl128LookupTable(t *testing.T) {
 
 	for i, pt := range gen {
 		entry := constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[i]
-		if entry.inner.inner != pt.inner.inner {
+		if !entry.LazyEqual(&pt) {
 			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[%d] != pt (Got: %v)", i, entry)
 		}
 	}
-}
-
-func testFieldElementComponents() (x0, x1, x2, x3 *field.FieldElement) {
-	// Just make a fieldElement2625x4 out of 2*B.
-	compressedY := edwardsPointTestPoints["BASE2"]
-	_ = compressedY
-
-	var p EdwardsPoint
-	_, _ = p.SetCompressedY(compressedY)
-
-	return &p.inner.X, &p.inner.Y, &p.inner.Z, &p.inner.T
-}
-
-func testFieldElement2625x4() fieldElement2625x4 {
-	x0, x1, x2, x3 := testFieldElementComponents()
-	return newFieldElement2625x4(x0, x1, x2, x3)
-}
-
-func testPoint_id() *EdwardsPoint {
-	var p EdwardsPoint
-	return p.Identity()
 }
 
 func testPoint_kB() *EdwardsPoint {

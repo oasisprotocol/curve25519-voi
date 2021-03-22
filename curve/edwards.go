@@ -403,6 +403,47 @@ func (p *EdwardsPoint) mulByPow2(t *EdwardsPoint, k uint) *EdwardsPoint {
 	return p.setCompleted(r.Double(&s))
 }
 
+// EdwardsBasepointTable defines a precomputed table of multiples of a
+// basepoint, for accelerating fixed-based scalar multiplication.
+type EdwardsBasepointTable struct {
+	inner       *edwardsBasepointTableGeneric
+	innerVector *edwardsBasepointTableVector
+}
+
+func (tbl *EdwardsBasepointTable) mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Mul(point, scalar)
+	default:
+		return tbl.inner.Mul(point, scalar)
+	}
+}
+
+// Basepoint returns the basepoint of the table.
+func (tbl *EdwardsBasepointTable) Basepoint() *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Basepoint()
+	default:
+		return tbl.inner.Basepoint()
+	}
+}
+
+// NewEdwardsBasepointTable creates a table of precomputed multiples of
+// `basepoint`.
+func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	switch supportsVectorizedEdwards {
+	case true:
+		return &EdwardsBasepointTable{
+			innerVector: newEdwardsBasepointTableVector(basepoint),
+		}
+	default:
+		return &EdwardsBasepointTable{
+			inner: newEdwardsBasepointTableGeneric(basepoint),
+		}
+	}
+}
+
 // NewEdwardsPoint constructs a new Edwards point set to the identity element.
 func NewEdwardsPoint() *EdwardsPoint {
 	var p EdwardsPoint

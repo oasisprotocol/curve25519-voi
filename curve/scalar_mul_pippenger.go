@@ -123,3 +123,99 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 
 	return out.Set(&sum)
 }
+
+func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	size := len(scalars)
+
+	// Digit width in bits. As digit width grows,
+	// number of point additions goes down, but amount of
+	// buckets and bucket additions grows exponentially.
+	var w uint
+	switch {
+	case size < 500:
+		w = 6
+	case size < 800:
+		w = 7
+	default:
+		w = 8
+	}
+
+	maxDigit := 1 << w
+	digitsCount := scalar.ToRadix2wSizeHint(w)
+	bucketsCount := maxDigit / 2 // digits are signed+centered hence 2^w/2, excluding 0-th bucket.
+
+	// Collect optimized scalars and points in buffers for repeated access
+	// (scanning the whole set per digit position).
+	optScalars := make([][43]int8, 0, size)
+	for _, scalar := range scalars {
+		optScalars = append(optScalars, scalar.ToRadix2w(w))
+	}
+
+	optPoints := make([]cachedPoint, size)
+	for i, point := range points {
+		var ep extendedPoint
+		optPoints[i].SetExtended(ep.SetEdwards(point))
+	}
+
+	// Prepare 2^w/2 buckets.
+	// buckets[i] corresponds to a multiplication factor (i+1).
+	buckets := make([]extendedPoint, bucketsCount)
+	for i := range buckets {
+		buckets[i].Identity()
+	}
+
+	calculateColumn := func(idx int) extendedPoint {
+		// Clear the buckets when processing another digit.
+		for i := 0; i < bucketsCount; i++ {
+			buckets[i].Identity()
+		}
+
+		// Iterate over pairs of (point, scalar)
+		// and add/sub the point to the corresponding bucket.
+		// Note: if we add support for precomputed lookup tables,
+		// we'll be adding/subtracting point premultiplied by `digits[i]` to buckets[0].
+		for i := 0; i < size; i++ {
+			digit := int16(optScalars[i][idx])
+			if digit > 0 {
+				b := uint(digit - 1)
+				buckets[b].AddExtendedCached(&buckets[b], &optPoints[i])
+			} else if digit < 0 {
+				b := uint(-digit - 1)
+				buckets[b].SubExtendedCached(&buckets[b], &optPoints[i])
+			}
+		}
+
+		// Add the buckets applying the multiplication factor to each bucket.
+		// The most efficient way to do that is to have a single sum with two running sums:
+		// an intermediate sum from last bucket to the first, and a sum of intermediate sums.
+		//
+		// For example, to add buckets 1*A, 2*B, 3*C we need to add these points:
+		//   C
+		//   C B
+		//   C B A   Sum = C + (C+B) + (C+B+A)
+
+		bucketsIntermediateSum := buckets[bucketsCount-1]
+		bucketsSum := buckets[bucketsCount-1]
+		for i := int((bucketsCount - 1) - 1); i >= 0; i-- {
+			var cp cachedPoint
+			bucketsIntermediateSum.AddExtendedCached(&bucketsIntermediateSum, cp.SetExtended(&buckets[i]))
+			bucketsSum.AddExtendedCached(&bucketsSum, cp.SetExtended(&bucketsIntermediateSum))
+		}
+
+		return bucketsSum
+	}
+
+	// Take the high column as an initial value to avoid wasting time doubling
+	// the identity element.
+	sum := calculateColumn(int(digitsCount - 1))
+	for i := int(digitsCount-1) - 1; i >= 0; i-- {
+		var (
+			sumMul extendedPoint
+			cp     cachedPoint
+		)
+		ep := calculateColumn(i)
+		sum.AddExtendedCached(sumMul.MulByPow2(&sum, w), cp.SetExtended(&ep))
+	}
+
+	return out.setExtended(&sum)
+}
