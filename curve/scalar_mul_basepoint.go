@@ -32,6 +32,37 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func newEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	switch supportsVectorizedEdwards {
+	case true:
+		return &EdwardsBasepointTable{
+			innerVector: newEdwardsBasepointTableVector(basepoint),
+		}
+	default:
+		return &EdwardsBasepointTable{
+			inner: newEdwardsBasepointTableGeneric(basepoint),
+		}
+	}
+}
+
+func edwardsBasepointTableInner(tbl *EdwardsBasepointTable) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Basepoint()
+	default:
+		return tbl.inner.Basepoint()
+	}
+}
+
+func edwardsBasepointTableMul(out *EdwardsPoint, tbl *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Mul(out, scalar)
+	default:
+		return tbl.inner.Mul(out, scalar)
+	}
+}
+
 // edwardsBasepointTableGeneric is a portable precomputed basepoint multiply.
 type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
 

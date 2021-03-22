@@ -35,6 +35,15 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/lattice"
 )
 
+func edwardsMulAbglsvPorninVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar, C *EdwardsPoint) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMulAbglsvPorninVartimeVector(out, a, A, b, C)
+	default:
+		return edwardsMulAbglsvPorninVartimeGeneric(out, a, A, b, C)
+	}
+}
+
 func edwardsMulAbglsvPorninVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar, C *EdwardsPoint) *EdwardsPoint {
 	// Starting with the target equation:
 	//

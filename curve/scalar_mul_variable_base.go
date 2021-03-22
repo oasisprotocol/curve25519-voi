@@ -32,6 +32,15 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func edwardsMul(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMulVector(out, point, scalar)
+	default:
+		return edwardsMulGeneric(out, point, scalar)
+	}
+}
+
 func edwardsMulGeneric(out, point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	// Construct a lookup table of [P,2P,3P,4P,5P,6P,7P,8P]
 	lookupTable := newProjectiveNielsPointLookupTable(point)

@@ -292,7 +292,7 @@ func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsP
 
 // MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
 func (p *EdwardsPoint) MulBasepoint(basepoint *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
-	return basepoint.mul(p, scalar)
+	return edwardsBasepointTableMul(p, basepoint, scalar)
 }
 
 // DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
@@ -410,38 +410,15 @@ type EdwardsBasepointTable struct {
 	innerVector *edwardsBasepointTableVector
 }
 
-func (tbl *EdwardsBasepointTable) mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
-	switch supportsVectorizedEdwards {
-	case true:
-		return tbl.innerVector.Mul(point, scalar)
-	default:
-		return tbl.inner.Mul(point, scalar)
-	}
-}
-
 // Basepoint returns the basepoint of the table.
 func (tbl *EdwardsBasepointTable) Basepoint() *EdwardsPoint {
-	switch supportsVectorizedEdwards {
-	case true:
-		return tbl.innerVector.Basepoint()
-	default:
-		return tbl.inner.Basepoint()
-	}
+	return edwardsBasepointTableInner(tbl)
 }
 
 // NewEdwardsBasepointTable creates a table of precomputed multiples of
 // `basepoint`.
 func NewEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
-	switch supportsVectorizedEdwards {
-	case true:
-		return &EdwardsBasepointTable{
-			innerVector: newEdwardsBasepointTableVector(basepoint),
-		}
-	default:
-		return &EdwardsBasepointTable{
-			inner: newEdwardsBasepointTableGeneric(basepoint),
-		}
-	}
+	return newEdwardsBasepointTable(basepoint)
 }
 
 // NewEdwardsPoint constructs a new Edwards point set to the identity element.

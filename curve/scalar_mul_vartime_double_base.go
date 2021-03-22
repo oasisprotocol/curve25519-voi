@@ -32,6 +32,15 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsDoubleScalarMulBasepointVartimeVector(out, a, A, b)
+	default:
+		return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+	}
+}
+
 func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	aNaf := a.NonAdjacentForm(5)
 	bNaf := b.NonAdjacentForm(8)

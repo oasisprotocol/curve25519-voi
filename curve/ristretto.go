@@ -321,7 +321,7 @@ func (p *RistrettoPoint) Mul(point *RistrettoPoint, scalar *scalar.Scalar) *Rist
 
 // MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
 func (p *RistrettoPoint) MulBasepoint(basepoint *RistrettoBasepointTable, scalar *scalar.Scalar) *RistrettoPoint {
-	basepoint.inner.mul(&p.inner, scalar)
+	p.inner.MulBasepoint(&basepoint.inner, scalar)
 	return p
 }
 

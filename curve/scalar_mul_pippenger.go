@@ -32,6 +32,15 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
+	}
+}
+
 func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	size := len(scalars)
 

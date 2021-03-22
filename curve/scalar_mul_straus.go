@@ -32,6 +32,24 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func edwardsMultiscalarMulStraus(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMultiscalarMulStrausVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulStrausGeneric(out, scalars, points)
+	}
+}
+
+func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMultiscalarMulStrausVartimeVector(out, scalars, points)
+	default:
+		return edwardsMultiscalarMulStrausVartimeGeneric(out, scalars, points)
+	}
+}
+
 func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	lookupTables := make([]projectiveNielsPointLookupTable, 0, len(points))
 	for _, point := range points {
