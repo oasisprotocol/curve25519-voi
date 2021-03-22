@@ -290,6 +290,11 @@ func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsP
 	return edwardsMul(p, point, scalar)
 }
 
+// MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
+func (p *EdwardsPoint) MulBasepoint(basepoint *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
+	return basepoint.mul(p, scalar)
+}
+
 // DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
 // where B is the Ed25519 basepoint, and returns p.
 func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {

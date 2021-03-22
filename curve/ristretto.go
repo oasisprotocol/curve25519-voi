@@ -319,6 +319,27 @@ func (p *RistrettoPoint) Mul(point *RistrettoPoint, scalar *scalar.Scalar) *Rist
 	return p
 }
 
+// MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
+func (p *RistrettoPoint) MulBasepoint(basepoint *RistrettoBasepointTable, scalar *scalar.Scalar) *RistrettoPoint {
+	basepoint.inner.mul(&p.inner, scalar)
+	return p
+}
+
+// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// where B is the Ristretto basepoint, and returns p.
+func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar) *RistrettoPoint {
+	p.inner.DoubleScalarMulBasepointVartime(a, &A.inner, b)
+	return p
+}
+
+// TripleScalarMulBasepoint sets `p = [delta a]A + [delta b]B - [delta]C`
+// in variable-time, where delta is a value invertible mod ell, which
+// is selected internally to this method.
+func (p *RistrettoPoint) TripleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar, C *RistrettoPoint) *RistrettoPoint {
+	p.inner.TripleScalarMulBasepointVartime(a, &A.inner, b, &C.inner)
+	return p
+}
+
 // MultiscalarMul sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
 // in constant-time, and returns p.
 //
@@ -344,21 +365,6 @@ func (p *RistrettoPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points 
 	}
 
 	p.inner.MultiscalarMulVartime(scalars, edwardsPoints)
-	return p
-}
-
-// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
-// where B is the Ristretto basepoint, and returns p.
-func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar) *RistrettoPoint {
-	p.inner.DoubleScalarMulBasepointVartime(a, &A.inner, b)
-	return p
-}
-
-// TripleScalarMulBasepoint sets `p = [delta a]A + [delta b]B - [delta]C`
-// in variable-time, where delta is a value invertible mod ell, which
-// is selected internally to this method.
-func (p *RistrettoPoint) TripleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar, C *RistrettoPoint) *RistrettoPoint {
-	p.inner.TripleScalarMulBasepointVartime(a, &A.inner, b, &C.inner)
 	return p
 }
 
@@ -420,24 +426,10 @@ type RistrettoBasepointTable struct {
 	inner EdwardsBasepointTable
 }
 
-// Mul constructs a point from a scalar by computing the multiple aB
-// of this basepoint (B).
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *RistrettoBasepointTable) Mul(scalar *scalar.Scalar) RistrettoPoint {
-	return RistrettoPoint{
-		inner: tbl.inner.Mul(scalar),
-	}
-}
-
 // Basepoint returns the basepoint of the table.
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *RistrettoBasepointTable) Basepoint() RistrettoPoint {
-	return RistrettoPoint{
-		inner: tbl.inner.Basepoint(),
+func (tbl *RistrettoBasepointTable) Basepoint() *RistrettoPoint {
+	return &RistrettoPoint{
+		inner: *tbl.inner.Basepoint(),
 	}
 }
 

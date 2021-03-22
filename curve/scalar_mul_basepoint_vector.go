@@ -36,7 +36,7 @@ import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
 type edwardsBasepointTableVector [32]cachedPointLookupTable
 
-func (tbl *edwardsBasepointTableVector) Basepoint() EdwardsPoint {
+func (tbl *edwardsBasepointTableVector) Basepoint() *EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
 	// but as a `cachedPoint`, so convert to extended.
 	cPt := tbl[0].Lookup(1)
@@ -44,10 +44,10 @@ func (tbl *edwardsBasepointTableVector) Basepoint() EdwardsPoint {
 	var ep EdwardsPoint
 	ep.setCached(&cPt)
 
-	return ep
+	return &ep
 }
 
-func (tbl *edwardsBasepointTableVector) Mul(scalar *scalar.Scalar) EdwardsPoint {
+func (tbl *edwardsBasepointTableVector) Mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
 	a := scalar.ToRadix16()
 
 	var p extendedPoint
@@ -65,7 +65,6 @@ func (tbl *edwardsBasepointTableVector) Mul(scalar *scalar.Scalar) EdwardsPoint 
 		p.AddExtendedCached(&p, &cPt)
 	}
 
-	var out EdwardsPoint
 	out.setExtended(&p)
 
 	return out

@@ -81,7 +81,9 @@ func testMontgomeryEqual(t *testing.T) {
 func testMontgomeryMul(t *testing.T) {
 	s := newTestBenchRandomScalar(t)
 
-	pEdwards := ED25519_BASEPOINT_TABLE.Mul(s)
+	var pEdwards EdwardsPoint
+	pEdwards.MulBasepoint(ED25519_BASEPOINT_TABLE, s)
+
 	var pMontgomery MontgomeryPoint
 	pMontgomery.SetEdwards(&pEdwards)
 

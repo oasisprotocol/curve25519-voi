@@ -236,8 +236,7 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 
 	// Check the cofactored batch verification equation.
 	var shouldBeId curve.EdwardsPoint
-	shouldBeId.MultiscalarMulVartime(scalars, points)
-	return shouldBeId.IsSmallOrder()
+	return shouldBeId.MultiscalarMulVartime(scalars, points).IsSmallOrder()
 }
 
 // Verify checks all entries in the current batch using entropy from rand,
@@ -296,8 +295,7 @@ func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
 			valid[i] = cofactorlessVerify(&R, entry.signature)
 		case false:
 			var rDiff curve.EdwardsPoint
-			rDiff.TripleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S, &entry.R)
-			valid[i] = rDiff.IsSmallOrder()
+			valid[i] = rDiff.TripleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S, &entry.R).IsSmallOrder()
 		}
 		allValid = allValid && valid[i]
 	}

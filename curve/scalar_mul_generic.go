@@ -40,20 +40,12 @@ type EdwardsBasepointTable struct {
 	inner *edwardsBasepointTableGeneric
 }
 
-// Mul constructs a point from a scalar by computing the multiple aB
-// of this basepoint (B).
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Mul(scalar *scalar.Scalar) EdwardsPoint {
-	return tbl.inner.Mul(scalar)
+func (tbl *EdwardsBasepointTable) mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
+	return tbl.inner.Mul(out, scalar)
 }
 
 // Basepoint returns the basepoint of the table.
-//
-// Note: This function breaks from convention and does not return a pointer
-// because Go's escape analysis sucks.
-func (tbl *EdwardsBasepointTable) Basepoint() EdwardsPoint {
+func (tbl *EdwardsBasepointTable) Basepoint() *EdwardsPoint {
 	return tbl.inner.Basepoint()
 }
 

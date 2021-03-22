@@ -354,8 +354,8 @@ func testEdwardsBasepointTableBasepoint(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMul(t *testing.T) {
-	var aB_2 EdwardsPoint
-	aB_1 := ED25519_BASEPOINT_TABLE.Mul(edwardsPointTestScalars["A"])
+	var aB_1, aB_2 EdwardsPoint
+	aB_1.MulBasepoint(ED25519_BASEPOINT_TABLE, edwardsPointTestScalars["A"])
 	aB_2.Mul(ED25519_BASEPOINT_POINT, edwardsPointTestScalars["A"])
 	if aB_1.Equal(&aB_2) != 1 {
 		t.Fatalf("aB_1 != aB_2 (Got %v %v)", aB_1, aB_2)
@@ -363,28 +363,32 @@ func testEdwardsBasepointTableMul(t *testing.T) {
 }
 
 func testEdwardsBasepointTableMulOne(t *testing.T) {
-	bp := ED25519_BASEPOINT_TABLE.Mul(scalar.One())
+	var bp EdwardsPoint
+	bp.MulBasepoint(ED25519_BASEPOINT_TABLE, scalar.One())
 	if !bp.testEqualCompressedY("ED25519_BASEPOINT") {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(1) != ED25519_BASEPOINT (Got: %v)", bp)
 	}
 }
 
 func testEdwardsBasepointTableMulVsEd25519py(t *testing.T) {
-	aB := ED25519_BASEPOINT_TABLE.Mul(edwardsPointTestScalars["A"])
+	var aB EdwardsPoint
+	aB.MulBasepoint(ED25519_BASEPOINT_TABLE, edwardsPointTestScalars["A"])
 	if !aB.testEqualCompressedY("A_TIMES_BASEPOINT") {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(a) != A_TIMES_BASEPOINT (Got: %v)", aB)
 	}
 }
 
 func testEdwardsBasepointTableMulByBasepointOrder(t *testing.T) {
-	shouldBeId := ED25519_BASEPOINT_TABLE.Mul(scalar.BASEPOINT_ORDER)
+	var shouldBeId EdwardsPoint
+	shouldBeId.MulBasepoint(ED25519_BASEPOINT_TABLE, scalar.BASEPOINT_ORDER)
 	if !shouldBeId.IsIdentity() {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(BASEPOINT_ORDER).IsIdentity() != true")
 	}
 }
 
 func testEdwardsBasepointTableMulTwo(t *testing.T) {
-	bp2 := ED25519_BASEPOINT_TABLE.Mul(scalar.NewFromUint64(2))
+	var bp2 EdwardsPoint
+	bp2.MulBasepoint(ED25519_BASEPOINT_TABLE, scalar.NewFromUint64(2))
 	if !bp2.testEqualCompressedY("BASE2") {
 		t.Fatalf("ED25519_BASEPOINT_TABLE.Mul(2) != BASE2 (Got: %v)", bp2)
 	}
@@ -442,17 +446,17 @@ func testEdwardsMultiscalarConsistencyIter(t *testing.T, n int) {
 	// Construct points G_i = x_i * B
 	Gs := make([]*EdwardsPoint, 0, n)
 	for _, xi := range xs {
-		tmp := ED25519_BASEPOINT_TABLE.Mul(xi)
-		Gs = append(Gs, &tmp)
+		var tmp EdwardsPoint
+		Gs = append(Gs, tmp.MulBasepoint(ED25519_BASEPOINT_TABLE, xi))
 	}
 
-	var H1, H2 EdwardsPoint
+	var H1, H2, H3 EdwardsPoint
 	// Compute H1 = <xs, Gs> (consttime)
 	H1.MultiscalarMul(xs, Gs)
 	// Compute H2 = <xs, Gs> (vartime)
 	H2.MultiscalarMulVartime(xs, Gs)
 	// Compute H3 = <xs, Gs> = sum(xi^2) * B
-	H3 := ED25519_BASEPOINT_TABLE.Mul(&check)
+	H3.MulBasepoint(ED25519_BASEPOINT_TABLE, &check)
 
 	if H1.Equal(&H3) != 1 {
 		t.Fatalf("H1 != H3 (Got: %v)", H1)
@@ -544,12 +548,12 @@ func testAffineNielsConditionalAssign(t *testing.T) {
 
 func testAffineNielsConversionClearsDenominators(t *testing.T) {
 	var (
-		id, also_aB   EdwardsPoint
-		aBAffineNiels affineNielsPoint
-		sum           completedPoint
+		id, aB, also_aB EdwardsPoint
+		aBAffineNiels   affineNielsPoint
+		sum             completedPoint
 	)
 	id.Identity()
-	aB := ED25519_BASEPOINT_TABLE.Mul(edwardsPointTestScalars["A"])
+	aB.MulBasepoint(ED25519_BASEPOINT_TABLE, edwardsPointTestScalars["A"])
 	also_aB.setCompleted(sum.AddEdwardsAffineNiels(&id, aBAffineNiels.SetEdwards(&aB)))
 
 	if aB.Equal(&also_aB) != 1 {
@@ -581,4 +585,9 @@ func newTestBenchRandomScalars(tb testing.TB, n int) []*scalar.Scalar {
 		v = append(v, newTestBenchRandomScalar(tb))
 	}
 	return v
+}
+
+func newTestBenchRandomPoint(tb testing.TB) *EdwardsPoint {
+	var p EdwardsPoint
+	return p.MulBasepoint(ED25519_BASEPOINT_TABLE, newTestBenchRandomScalar(tb))
 }

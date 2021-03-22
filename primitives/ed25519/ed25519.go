@@ -355,9 +355,11 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	}
 
 	// R = rB
-	R := curve.ED25519_BASEPOINT_TABLE.Mul(&r)
-	var rCompressed curve.CompressedEdwardsY
-	rCompressed.SetEdwardsPoint(&R)
+	var (
+		R           curve.EdwardsPoint
+		rCompressed curve.CompressedEdwardsY
+	)
+	rCompressed.SetEdwardsPoint(R.MulBasepoint(curve.ED25519_BASEPOINT_TABLE, &r))
 
 	// S = H(R,A,m)
 	var (
@@ -519,8 +521,7 @@ func verifyWithOptionsNoPanic(publicKey PublicKey, message, sig []byte, opts *Op
 	//
 	// Note: IsSmallOrder includes a cofactor multiply.
 	var rDiff curve.EdwardsPoint
-	rDiff.TripleScalarMulBasepointVartime(&hram, &A, &S, &checkR)
-	return rDiff.IsSmallOrder(), nil
+	return rDiff.TripleScalarMulBasepointVartime(&hram, &A, &S, &checkR).IsSmallOrder(), nil
 }
 
 // NewKeyFromSeed calculates a private key from a seed. It will panic if
@@ -549,10 +550,11 @@ func newKeyFromSeed(privateKey, seed []byte) {
 		panic("ed25519: failed to deserialize scalar: " + err.Error())
 	}
 
-	A := curve.ED25519_BASEPOINT_TABLE.Mul(&a)
-
-	var aCompressed curve.CompressedEdwardsY
-	aCompressed.SetEdwardsPoint(&A)
+	var (
+		A           curve.EdwardsPoint
+		aCompressed curve.CompressedEdwardsY
+	)
+	aCompressed.SetEdwardsPoint(A.MulBasepoint(curve.ED25519_BASEPOINT_TABLE, &a))
 
 	copy(privateKey, seed)
 	copy(privateKey[32:], aCompressed[:])
