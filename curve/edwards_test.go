@@ -450,20 +450,29 @@ func testEdwardsMultiscalarConsistencyIter(t *testing.T, n int) {
 		var tmp EdwardsPoint
 		Gs = append(Gs, tmp.MulBasepoint(ED25519_BASEPOINT_TABLE, xi))
 	}
+	expandedGs := make([]*ExpandedEdwardsPoint, 0, n)
+	for _, gi := range Gs {
+		expandedGs = append(expandedGs, NewExpandedEdwardsPoint(gi))
+	}
 
-	var H1, H2, H3 EdwardsPoint
+	var H1, H2, H3, H4 EdwardsPoint
 	// Compute H1 = <xs, Gs> (consttime)
 	H1.MultiscalarMul(xs, Gs)
 	// Compute H2 = <xs, Gs> (vartime)
 	H2.MultiscalarMulVartime(xs, Gs)
-	// Compute H3 = <xs, Gs> = sum(xi^2) * B
-	H3.MulBasepoint(ED25519_BASEPOINT_TABLE, &check)
+	// Compute H3 = <xs, expandedGs> + <xs, Gs> (vartime)
+	H3.ExpandedMultiscalarMulVartime(xs, expandedGs, xs, Gs)
+	// Compute H4 = <xs, Gs> = sum(xi^2) * B
+	H4.MulBasepoint(ED25519_BASEPOINT_TABLE, &check)
 
-	if H1.Equal(&H3) != 1 {
-		t.Fatalf("H1 != H3 (Got: %v)", H1)
+	if H1.Equal(&H4) != 1 {
+		t.Fatalf("H1 != H4 (Got: %v)", H1)
 	}
-	if H2.Equal(&H3) != 1 {
-		t.Fatalf("H2 != H3 (Got: %v)", H2)
+	if H2.Equal(&H4) != 1 {
+		t.Fatalf("H2 != H4 (Got: %v)", H2)
+	}
+	if H3.Equal(H4.double(&H4)) != 1 {
+		t.Fatalf("H3 != 2 * H4 (Got: %v)", H3)
 	}
 }
 
@@ -496,6 +505,16 @@ func testEdwardsDoubleScalarMulBasepointVartime(t *testing.T) {
 	)
 	if !result.testEqualCompressedY("DOUBLE_SCALAR_MULT_RESULT") {
 		t.Fatalf("A_SCALAR * A_TIMES_BASEPOINT + B_SCALAR * BASEPOINT != DOUBLE_SCALAR_MULT_RESULT (Got: %v)", result)
+	}
+
+	expandedA := NewExpandedEdwardsPoint(&A)
+	result.ExpandedDoubleScalarMulBasepointVartime(
+		edwardsPointTestScalars["A"],
+		expandedA,
+		edwardsPointTestScalars["B"],
+	)
+	if !result.testEqualCompressedY("DOUBLE_SCALAR_MULT_RESULT") {
+		t.Fatalf("A_SCALAR * EXPANDED_A_TIMES_BASEPOINT + B_SCALAR * BASEPOINT != DOUBLE_SCALAR_MULT_RESULT (Got: %v)", result)
 	}
 }
 

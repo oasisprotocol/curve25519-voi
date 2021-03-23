@@ -35,14 +35,31 @@ import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 func edwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	switch supportsVectorizedEdwards {
 	case true:
-		return edwardsMultiscalarMulPippengerVartimeVector(out, scalars, points)
+		return edwardsMultiscalarMulPippengerVartimeVector(out, nil, nil, scalars, points)
 	default:
-		return edwardsMultiscalarMulPippengerVartimeGeneric(out, scalars, points)
+		return edwardsMultiscalarMulPippengerVartimeGeneric(out, nil, nil, scalars, points)
 	}
 }
 
-func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
-	size := len(scalars)
+func expandedEdwardsMultiscalarMulPippengerVartime(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*ExpandedEdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	// There is no actual precomputed Pippenger's implementation,
+	// but pretending that there is one saves memory and time
+	// when we have to fall back to the non-precomputed version.
+	points := make([]*EdwardsPoint, 0, len(staticPoints))
+	for _, point := range staticPoints {
+		points = append(points, &point.point)
+	}
+
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsMultiscalarMulPippengerVartimeVector(out, staticScalars, points, dynamicScalars, dynamicPoints)
+	default:
+		return edwardsMultiscalarMulPippengerVartimeGeneric(out, staticScalars, points, dynamicScalars, dynamicPoints)
+	}
+}
+
+func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*EdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	size := len(staticScalars) + len(dynamicScalars)
 
 	// Digit width in bits. As digit width grows,
 	// number of point additions goes down, but amount of
@@ -64,13 +81,18 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 	// Collect optimized scalars and points in buffers for repeated access
 	// (scanning the whole set per digit position).
 	optScalars := make([][43]int8, 0, size)
-	for _, scalar := range scalars {
-		optScalars = append(optScalars, scalar.ToRadix2w(w))
+	for _, scalars := range [][]*scalar.Scalar{staticScalars, dynamicScalars} {
+		for _, scalar := range scalars {
+			optScalars = append(optScalars, scalar.ToRadix2w(w))
+		}
 	}
 
-	optPoints := make([]projectiveNielsPoint, size)
-	for i, point := range points {
-		optPoints[i].SetEdwards(point)
+	optPoints, off := make([]projectiveNielsPoint, size), 0
+	for _, points := range [][]*EdwardsPoint{staticPoints, dynamicPoints} {
+		for i, point := range points {
+			optPoints[i+off].SetEdwards(point)
+		}
+		off += len(points)
 	}
 
 	// Prepare 2^w/2 buckets.
@@ -133,12 +155,9 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, scalars []*
 	return out.Set(&sum)
 }
 
-func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
-	size := len(scalars)
+func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*EdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	size := len(staticScalars) + len(dynamicScalars)
 
-	// Digit width in bits. As digit width grows,
-	// number of point additions goes down, but amount of
-	// buckets and bucket additions grows exponentially.
 	var w uint
 	switch {
 	case size < 500:
@@ -151,38 +170,34 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 
 	maxDigit := 1 << w
 	digitsCount := scalar.ToRadix2wSizeHint(w)
-	bucketsCount := maxDigit / 2 // digits are signed+centered hence 2^w/2, excluding 0-th bucket.
+	bucketsCount := maxDigit / 2
 
-	// Collect optimized scalars and points in buffers for repeated access
-	// (scanning the whole set per digit position).
 	optScalars := make([][43]int8, 0, size)
-	for _, scalar := range scalars {
-		optScalars = append(optScalars, scalar.ToRadix2w(w))
+	for _, scalars := range [][]*scalar.Scalar{staticScalars, dynamicScalars} {
+		for _, scalar := range scalars {
+			optScalars = append(optScalars, scalar.ToRadix2w(w))
+		}
 	}
 
-	optPoints := make([]cachedPoint, size)
-	for i, point := range points {
-		var ep extendedPoint
-		optPoints[i].SetExtended(ep.SetEdwards(point))
+	optPoints, off := make([]cachedPoint, size), 0
+	for _, points := range [][]*EdwardsPoint{staticPoints, dynamicPoints} {
+		for i, point := range points {
+			var ep extendedPoint
+			optPoints[i+off].SetExtended(ep.SetEdwards(point))
+		}
+		off += len(points)
 	}
 
-	// Prepare 2^w/2 buckets.
-	// buckets[i] corresponds to a multiplication factor (i+1).
 	buckets := make([]extendedPoint, bucketsCount)
 	for i := range buckets {
 		buckets[i].Identity()
 	}
 
 	calculateColumn := func(idx int) extendedPoint {
-		// Clear the buckets when processing another digit.
 		for i := 0; i < bucketsCount; i++ {
 			buckets[i].Identity()
 		}
 
-		// Iterate over pairs of (point, scalar)
-		// and add/sub the point to the corresponding bucket.
-		// Note: if we add support for precomputed lookup tables,
-		// we'll be adding/subtracting point premultiplied by `digits[i]` to buckets[0].
 		for i := 0; i < size; i++ {
 			digit := int16(optScalars[i][idx])
 			if digit > 0 {
@@ -193,15 +208,6 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 				buckets[b].SubExtendedCached(&buckets[b], &optPoints[i])
 			}
 		}
-
-		// Add the buckets applying the multiplication factor to each bucket.
-		// The most efficient way to do that is to have a single sum with two running sums:
-		// an intermediate sum from last bucket to the first, and a sum of intermediate sums.
-		//
-		// For example, to add buckets 1*A, 2*B, 3*C we need to add these points:
-		//   C
-		//   C B
-		//   C B A   Sum = C + (C+B) + (C+B+A)
 
 		bucketsIntermediateSum := buckets[bucketsCount-1]
 		bucketsSum := buckets[bucketsCount-1]
@@ -214,8 +220,6 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, scalars []*s
 		return bucketsSum
 	}
 
-	// Take the high column as an initial value to avoid wasting time doubling
-	// the identity element.
 	sum := calculateColumn(int(digitsCount - 1))
 	for i := int(digitsCount-1) - 1; i >= 0; i-- {
 		var (

@@ -39,6 +39,8 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
 )
 
+const mulPippengerThreshold = 190
+
 var (
 	errNotValidYCoordinate = fmt.Errorf("curve/edwards: not a valid y-coordinate")
 
@@ -290,7 +292,7 @@ func (p *EdwardsPoint) Mul(point *EdwardsPoint, scalar *scalar.Scalar) *EdwardsP
 	return edwardsMul(p, point, scalar)
 }
 
-// MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
+// MulBasepoint sets `p = basepoint * scalar` in constant-time, and returns p.
 func (p *EdwardsPoint) MulBasepoint(basepoint *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
 	return edwardsBasepointTableMul(p, basepoint, scalar)
 }
@@ -321,7 +323,7 @@ func (p *EdwardsPoint) MultiscalarMul(scalars []*scalar.Scalar, points []*Edward
 	return edwardsMultiscalarMulStraus(p, scalars, points)
 }
 
-// MultiscalarMulVartime sets `p = scalars[0] * points[0] + ... scalars[n] * points[n]`
+// MultiscalarMulVartime sets `p = scalars[0] * points[0] + ... + scalars[n] * points[n]`
 // in variable-time, and returns p.
 //
 // WARNING: This function will panic if `len(scalars) != len(points)`.
@@ -331,7 +333,7 @@ func (p *EdwardsPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points []
 		panic("curve/edwards: len(scalars) != len(points)")
 	}
 
-	if size < 190 {
+	if size < mulPippengerThreshold {
 		return edwardsMultiscalarMulStrausVartime(p, scalars, points)
 	} else {
 		return edwardsMultiscalarMulPippengerVartime(p, scalars, points)
@@ -426,6 +428,3 @@ func NewEdwardsPoint() *EdwardsPoint {
 	var p EdwardsPoint
 	return p.Identity()
 }
-
-// Omitted:
-//  * VartimeEdwardsPrecomputation

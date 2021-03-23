@@ -50,6 +50,15 @@ func edwardsMultiscalarMulStrausVartime(out *EdwardsPoint, scalars []*scalar.Sca
 	}
 }
 
+func expandedEdwardsMultiscalarMulStrausVartime(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*ExpandedEdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return expandedEdwardsMultiscalarMulStrausVartimeVector(out, staticScalars, staticPoints, dynamicScalars, dynamicPoints)
+	default:
+		return expandedEdwardsMultiscalarMulStrausVartimeGeneric(out, staticScalars, staticPoints, dynamicScalars, dynamicPoints)
+	}
+}
+
 func edwardsMultiscalarMulStrausGeneric(out *EdwardsPoint, scalars []*scalar.Scalar, points []*EdwardsPoint) *EdwardsPoint {
 	lookupTables := make([]projectiveNielsPointLookupTable, 0, len(points))
 	for _, point := range points {
@@ -96,12 +105,73 @@ func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*sca
 	for i := 255; i >= 0; i-- {
 		t.Double(&r)
 
-		for j := 0; j < len(points); j++ {
+		for j := 0; j < len(nafs); j++ {
 			naf_i := nafs[j][i]
 			if naf_i > 0 {
 				t.AddCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
 				t.SubCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(-naf_i)))
+			}
+		}
+
+		r.SetCompleted(&t)
+	}
+
+	return out.setProjective(&r)
+}
+
+func expandedEdwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*ExpandedEdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	staticLen, dynamicLen := len(staticScalars), len(dynamicScalars)
+	var (
+		staticTables            []*projectiveNielsPointNafLookupTable
+		dynamicTables           []projectiveNielsPointNafLookupTable
+		staticNafs, dynamicNafs [][256]int8
+	)
+	if staticLen > 0 {
+		staticTables = make([]*projectiveNielsPointNafLookupTable, 0, staticLen)
+		for _, point := range staticPoints {
+			staticTables = append(staticTables, point.inner)
+		}
+
+		staticNafs = make([][256]int8, 0, staticLen)
+		for _, scalar := range staticScalars {
+			staticNafs = append(staticNafs, scalar.NonAdjacentForm(5))
+		}
+	}
+	if dynamicLen > 0 {
+		dynamicTables = make([]projectiveNielsPointNafLookupTable, 0, dynamicLen)
+		for _, point := range dynamicPoints {
+			dynamicTables = append(dynamicTables, newProjectiveNielsPointNafLookupTable(point))
+		}
+
+		dynamicNafs = make([][256]int8, 0, dynamicLen)
+		for _, scalar := range dynamicScalars {
+			dynamicNafs = append(dynamicNafs, scalar.NonAdjacentForm(5))
+		}
+	}
+
+	var r projectivePoint
+	r.Identity()
+
+	var t completedPoint
+	for i := 255; i >= 0; i-- {
+		t.Double(&r)
+
+		for j := 0; j < staticLen; j++ {
+			naf_i := staticNafs[j][i]
+			if naf_i > 0 {
+				t.AddCompletedProjectiveNiels(&t, staticTables[j].Lookup(uint8(naf_i)))
+			} else if naf_i < 0 {
+				t.SubCompletedProjectiveNiels(&t, staticTables[j].Lookup(uint8(-naf_i)))
+			}
+		}
+
+		for j := 0; j < dynamicLen; j++ {
+			naf_i := dynamicNafs[j][i]
+			if naf_i > 0 {
+				t.AddCompletedProjectiveNiels(&t, dynamicTables[j].Lookup(uint8(naf_i)))
+			} else if naf_i < 0 {
+				t.SubCompletedProjectiveNiels(&t, dynamicTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 
@@ -156,12 +226,71 @@ func edwardsMultiscalarMulStrausVartimeVector(out *EdwardsPoint, scalars []*scal
 	for i := 255; i >= 0; i-- {
 		q.Double(&q)
 
-		for j := 0; j < len(points); j++ {
+		for j := 0; j < len(scalars); j++ {
 			naf_i := nafs[j][i]
 			if naf_i > 0 {
 				q.AddExtendedCached(&q, lookupTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
 				q.SubExtendedCached(&q, lookupTables[j].Lookup(uint8(-naf_i)))
+			}
+		}
+
+	}
+
+	return out.setExtended(&q)
+}
+
+func expandedEdwardsMultiscalarMulStrausVartimeVector(out *EdwardsPoint, staticScalars []*scalar.Scalar, staticPoints []*ExpandedEdwardsPoint, dynamicScalars []*scalar.Scalar, dynamicPoints []*EdwardsPoint) *EdwardsPoint {
+	staticLen, dynamicLen := len(staticScalars), len(dynamicScalars)
+	var (
+		staticTables            []*cachedPointNafLookupTable
+		dynamicTables           []cachedPointNafLookupTable
+		staticNafs, dynamicNafs [][256]int8
+	)
+	if staticLen > 0 {
+		staticTables = make([]*cachedPointNafLookupTable, 0, staticLen)
+		for _, point := range staticPoints {
+			staticTables = append(staticTables, point.innerVector)
+		}
+
+		staticNafs = make([][256]int8, 0, staticLen)
+		for _, scalar := range staticScalars {
+			staticNafs = append(staticNafs, scalar.NonAdjacentForm(5))
+		}
+	}
+	if dynamicLen > 0 {
+		dynamicTables = make([]cachedPointNafLookupTable, 0, dynamicLen)
+		for _, point := range dynamicPoints {
+			dynamicTables = append(dynamicTables, newCachedPointNafLookupTable(point))
+		}
+
+		dynamicNafs = make([][256]int8, 0, dynamicLen)
+		for _, scalar := range dynamicScalars {
+			dynamicNafs = append(dynamicNafs, scalar.NonAdjacentForm(5))
+		}
+	}
+
+	var q extendedPoint
+	q.Identity()
+
+	for i := 255; i >= 0; i-- {
+		q.Double(&q)
+
+		for j := 0; j < staticLen; j++ {
+			naf_i := staticNafs[j][i]
+			if naf_i > 0 {
+				q.AddExtendedCached(&q, staticTables[j].Lookup(uint8(naf_i)))
+			} else if naf_i < 0 {
+				q.SubExtendedCached(&q, staticTables[j].Lookup(uint8(-naf_i)))
+			}
+		}
+
+		for j := 0; j < dynamicLen; j++ {
+			naf_i := dynamicNafs[j][i]
+			if naf_i > 0 {
+				q.AddExtendedCached(&q, dynamicTables[j].Lookup(uint8(naf_i)))
+			} else if naf_i < 0 {
+				q.SubExtendedCached(&q, dynamicTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 	}
