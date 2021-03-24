@@ -423,4 +423,9 @@ func BenchmarkExpanded(b *testing.B) {
 			}
 		})
 	})
+	b.Run("VerifyBatchOnly", func(b *testing.B) {
+		for _, n := range benchBatchSizes {
+			doBenchVerifyBatchOnly(b, n, true)
+		}
+	})
 }

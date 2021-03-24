@@ -57,10 +57,12 @@ type entry struct {
 	// are invalid is wanted a lot of the time), without having to
 	// redo a non-trivial amount of computation.
 	//
-	// In terms of total heap space consumed to verify a given batch,
-	// this adds ~`2*sizeof(scalar.Scalar)` bytes per entry.
+	// Additionally A is stored as a expanded public key to allow
+	// for the code to be reused for the expanded case, and to
+	// accelerate the serial verification in the event of a batch
+	// verification failure.
 	R    curve.EdwardsPoint
-	A    curve.EdwardsPoint
+	A    *ExpandedPublicKey
 	S    scalar.Scalar
 	hram scalar.Scalar
 
@@ -68,7 +70,7 @@ type entry struct {
 	canBeValid       bool
 }
 
-func (e *entry) doInit(publicKey, message, sig []byte, opts *Options) {
+func (e *entry) doInit(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) {
 	// Until everything has been deserialized correctly, assume the
 	// entry is totally invalid.
 	e.canBeValid = false
@@ -88,14 +90,11 @@ func (e *entry) doInit(publicKey, message, sig []byte, opts *Options) {
 		e.signature = sig
 	}
 
-	// Deserialize R, A, and S.
-	//
-	// TODO/perf: The clever thing to do would be to decouple A from
-	// the rest of the entry contents so that it is possible to avoid
-	// having to decompress public keys repeatedly.  Though at that
-	// point dalek's `VartimeEdwardsPrecomputation` also starts to
-	// look attractive.
-	if ok := vOpts.unpackPublicKey(publicKey, &e.A); !ok {
+	// Validate A, Deserialize R and S.
+	if e.A = publicKey; e.A == nil {
+		return
+	}
+	if ok := vOpts.checkExpandedPublicKey(publicKey); !ok {
 		return
 	}
 	if ok := vOpts.unpackSignature(sig, &e.R, &e.S); !ok {
@@ -118,7 +117,7 @@ func (e *entry) doInit(publicKey, message, sig []byte, opts *Options) {
 		_, _ = h.Write(dom2)
 	}
 	_, _ = h.Write(sig[:32])
-	_, _ = h.Write(publicKey[:])
+	_, _ = h.Write(publicKey.compressed[:])
 	_, _ = h.Write(message)
 	h.Sum(hash[:0])
 	if _, err = e.hram.SetBytesModOrderWide(hash[:]); err != nil {
@@ -140,6 +139,23 @@ func (v *BatchVerifier) Add(publicKey PublicKey, message, sig []byte) {
 //
 // WARNING: This routine will panic if opts is nil.
 func (v *BatchVerifier) AddWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) {
+	// The error is explicitly discarded as doInit will do the
+	// right thing if the public key is nil.
+	precomputedPublicKey, _ := NewExpandedPublicKey(publicKey)
+	v.AddExpandedWithOptions(precomputedPublicKey, message, sig, opts)
+}
+
+// AddExpanded adds a (expanded public key, message, sig) triple to the
+// current batch.
+func (v *BatchVerifier) AddExpanded(publicKey *ExpandedPublicKey, message, sig []byte) {
+	v.AddExpandedWithOptions(publicKey, message, sig, optionsDefault)
+}
+
+// AddExpandedWithOptions adds a (precomputed public key, message, sig,
+// opts) quad to the current batch.
+//
+// WARNING: This routine will panic if opts is nil.
+func (v *BatchVerifier) AddExpandedWithOptions(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) {
 	var e entry
 
 	e.doInit(publicKey, message, sig, opts)
@@ -163,7 +179,8 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	}
 
 	vl := len(v.entries)
-	numTerms := 1 + vl + vl
+	numDynamic := 1 + vl
+	numTerms := numDynamic + vl
 
 	// Handle some early aborts.
 	switch {
@@ -200,18 +217,20 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	Bcoeff := scalars[0]
 	Rcoeffs := scalars[1 : 1+vl]
 	Acoeffs := scalars[1+vl:]
+	dynamicScalars := scalars[0 : 1+vl] // Bcoeff | Rcoeffs
 
 	// No need to allocate a backing-store since B, Rs and As already
 	// have concrete instances.
-	points := make([]*curve.EdwardsPoint, numTerms)
+	dynamicPoints := make([]*curve.EdwardsPoint, numDynamic) // B | Rs
+	staticPoints := make([]*curve.ExpandedEdwardsPoint, vl)  // As
 
-	points[0] = curve.ED25519_BASEPOINT_POINT // B
+	dynamicPoints[0] = curve.ED25519_BASEPOINT_POINT // B
 	var randomBytes [scalar.ScalarWideSize]byte
 	for i := range v.entries {
 		// Avoid range copying each v.entries[i] literal.
 		entry := &v.entries[i]
-		points[1+i] = &entry.R
-		points[1+vl+i] = &entry.A
+		dynamicPoints[1+i] = &entry.R
+		staticPoints[i] = &entry.A.negA
 
 		// An inquisitive reader would ask why this doesn't just do
 		// `z.SetRandom(rand)`, and instead, opts to duplicate the code.
@@ -230,13 +249,20 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		var sz scalar.Scalar
 		Bcoeff.Add(Bcoeff, sz.Mul(Rcoeffs[i], &entry.S))
 
+		// The precomputation calculates multiples for -A_i, so
+		// this needs to calculate -[z_i * k_i] to fix the sign.
+		//
+		// While this does incur some extra overhead, it is
+		// negligible, and saves having to calculate and store
+		// a separate table.
 		Acoeffs[i].Mul(Rcoeffs[i], &entry.hram)
+		Acoeffs[i].Neg(Acoeffs[i])
 	}
 	Bcoeff.Neg(Bcoeff) // this term is subtracted in the summation
 
 	// Check the cofactored batch verification equation.
 	var shouldBeId curve.EdwardsPoint
-	return shouldBeId.MultiscalarMulVartime(scalars, points).IsSmallOrder()
+	return shouldBeId.ExpandedMultiscalarMulVartime(Acoeffs, staticPoints, dynamicScalars, dynamicPoints).IsSmallOrder()
 }
 
 // Verify checks all entries in the current batch using entropy from rand,
@@ -245,9 +271,10 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 // serially, and the returned bit-vector will provide information about
 // each individual entry.  If rand is nil, crypto/rand.Reader will be used.
 //
-// Note: Unless specific information about which signature(s) were invalid
-// is not required, calling Verify will be faster than VerifyBatchOnly
-// followed by serial verification in the event of a failure.
+// Note: This method is only faster than individually verifying each
+// signature if every signature is valid.  That said, this method will
+// always out-perform calling VerifyBatchOnly followed by falling back
+// to serial verification.
 func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
 	vl := len(v.entries)
 	if vl == 0 {
@@ -284,18 +311,16 @@ func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
 		}
 
 		entry := &v.entries[i]
-
-		var Aneg curve.EdwardsPoint
-		Aneg.Neg(&entry.A)
+		negA := &entry.A.negA
 
 		switch entry.wantCofactorless {
 		case true:
 			var R curve.EdwardsPoint
-			R.DoubleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S)
+			R.ExpandedDoubleScalarMulBasepointVartime(&entry.hram, negA, &entry.S)
 			valid[i] = cofactorlessVerify(&R, entry.signature)
 		case false:
 			var rDiff curve.EdwardsPoint
-			valid[i] = rDiff.TripleScalarMulBasepointVartime(&entry.hram, &Aneg, &entry.S, &entry.R).IsSmallOrder()
+			valid[i] = rDiff.ExpandedTripleScalarMulBasepointVartime(&entry.hram, negA, &entry.S, &entry.R).IsSmallOrder()
 		}
 		allValid = allValid && valid[i]
 	}

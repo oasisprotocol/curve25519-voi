@@ -51,6 +51,7 @@ const (
 	implVanilla verificationImpl = iota
 	implBatch
 	implExpanded
+	implExpandedBatch
 )
 
 var speccheckExpectedResults = []bool{
@@ -152,14 +153,24 @@ func (v *speccheckTestVector) Run(t *testing.T, impl verificationImpl, opts *Opt
 		t.Fatal(err)
 	}
 
+	expPub, err := NewExpandedPublicKey(pk)
+	if err != nil {
+		t.Fatalf("NewExpandedPublicKey: %v", err)
+	}
+
 	var sigOk bool
 	switch impl {
 	case implVanilla:
 		sigOk = VerifyWithOptions(pk, msg, sig, opts)
-	case implBatch:
+	case implBatch, implExpandedBatch:
 		v := NewBatchVerifier()
 		for i := 0; i < testBatchSize; i++ {
-			v.AddWithOptions(pk, msg, sig, opts)
+			switch impl {
+			case implBatch:
+				v.AddWithOptions(pk, msg, sig, opts)
+			case implExpandedBatch:
+				v.AddExpandedWithOptions(expPub, msg, sig, opts)
+			}
 		}
 
 		var valid []bool
@@ -169,11 +180,11 @@ func (v *speccheckTestVector) Run(t *testing.T, impl verificationImpl, opts *Opt
 				t.Fatalf("sigOk != valid[%d]", i)
 			}
 		}
-	case implExpanded:
-		expPub, err := NewExpandedPublicKey(pk)
-		if err != nil {
-			t.Fatalf("NewExpandedPublicKey: %v", err)
+
+		if len(valid) != testBatchSize {
+			t.Fatalf("len(valid) != testBatchSize: %v", len(valid))
 		}
+	case implExpanded:
 		sigOk = ExpandedVerifyWithOptions(expPub, msg, sig, opts)
 	default:
 		return false
@@ -209,13 +220,18 @@ func TestSpeccheck(t *testing.T) {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})
-			t.Run(fmt.Sprintf("%s_Batch/%d", n, idx), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/Batch/%d", n, idx), func(t *testing.T) {
 				if sigOk := tc.Run(t, implBatch, opts); sigOk != expected {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})
-			t.Run(fmt.Sprintf("%s_Expanded/%d", n, idx), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%s/Expanded/%d", n, idx), func(t *testing.T) {
 				if sigOk := tc.Run(t, implExpanded, opts); sigOk != expected {
+					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+				}
+			})
+			t.Run(fmt.Sprintf("%s/Expanded_Batch/%d", n, idx), func(t *testing.T) {
+				if sigOk := tc.Run(t, implExpandedBatch, opts); sigOk != expected {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})
