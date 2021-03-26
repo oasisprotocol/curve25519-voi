@@ -49,6 +49,7 @@ func BenchmarkEdwards(b *testing.B) {
 	b.Run("TripleScalarMulBasepointVartime", benchEdwardsTripleScalarMulBasepointVartime)
 	b.Run("MultiscalarMul", benchEdwardsMultiscalarMul)
 	b.Run("MultiscalarMulVartime", benchEdwardsMultiscalarMulVartime)
+	b.Run("Window", benchEdwardsWindow)
 }
 
 func benchEdwardsCompress(b *testing.B) {
@@ -162,6 +163,22 @@ func benchEdwardsMultiscalarMulVartime(b *testing.B) {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 			benchEdwardsMultiscalarMulIter(b, n, true)
+		})
+	}
+}
+
+func benchEdwardsWindow(b *testing.B) {
+	b.Run("newAffineNielsPointNafLookupTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = newAffineNielsPointNafLookupTable(ED25519_BASEPOINT_POINT)
+		}
+	})
+
+	if supportsVectorizedEdwards {
+		b.Run("newCachedPointNafLookupTable8", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = newCachedPointNafLookupTable8(ED25519_BASEPOINT_POINT)
+			}
 		})
 	}
 }

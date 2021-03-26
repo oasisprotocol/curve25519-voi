@@ -297,8 +297,8 @@ func edwardsMulAbglsvPorninVartimeVectorInner(out *EdwardsPoint, d0IsNeg bool, t
 		}
 	}
 
-	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
-	tableB_SHL_128 := &constVECTOR_ODD_MULTIPLES_OF_B_SHL_128
+	tableB := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
+	tableB_SHL_128 := constVECTOR_ODD_MULTIPLES_OF_B_SHL_128
 
 	var q extendedPoint
 	q.Identity()

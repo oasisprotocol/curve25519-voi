@@ -37,6 +37,7 @@ import (
 )
 
 func TestConstants(t *testing.T) {
+	t.Run("Constants/BShl128", testConstantsBShl128)
 	t.Run("Constants/EightTorsion", testConstantsEightTorsion)
 	t.Run("Constants/FourTorsion", testConstantsFourTorsion)
 	t.Run("Constants/TwoTorsion", testConstantsTwoTorsion)
@@ -45,6 +46,17 @@ func TestConstants(t *testing.T) {
 	t.Run("Constants/AffineBasepointOddLookupTable", testConstantsAffineBasepointOddLookupTable)
 	t.Run("Constants/AffineBasepointOddShl128LookupTable", testConstantsAffineBasepointOddShl128LookupTable)
 	// ED25519_BASEPOINT_TABLE is checked by `testEdwardsBasepointTableNew`.
+}
+
+func testConstantsBShl128(t *testing.T) {
+	var p EdwardsPoint
+	p.mulByPow2(ED25519_BASEPOINT_POINT, 128)
+
+	t.Logf("p: %v", p)
+
+	if p.Equal(constB_SHL_128) != 1 {
+		t.Fatalf("B_SHL_128 != 2^128 B (Got: %v)", constB_SHL_128)
+	}
 }
 
 func testConstantsEightTorsion(t *testing.T) {
@@ -120,7 +132,7 @@ func testConstantsAffineBasepointOddLookupTable(t *testing.T) {
 }
 
 func testConstantsAffineBasepointOddShl128LookupTable(t *testing.T) {
-	gen := newAffineNielsPointShl128NafLookupTable(ED25519_BASEPOINT_POINT)
+	gen := newAffineNielsPointNafLookupTable(constB_SHL_128)
 
 	for i, pt := range gen {
 		entry := constAFFINE_ODD_MULTIPLES_OF_B_SHL_128[i]

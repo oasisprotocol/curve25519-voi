@@ -39,7 +39,24 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
-var supportsVectorizedEdwards bool
+var (
+	supportsVectorizedEdwards bool
+
+	// The identity element as an `extendedPoint`.
+	constEXTENDEDPOINT_IDENTITY = extendedPoint{
+		inner: fieldElement2625x4{
+			inner: [5][8]uint32{
+				{0, 1, 0, 0, 1, 0, 0, 0},
+			},
+		},
+	}
+
+	// Odd multiples of the Ed25519 basepoint.
+	constVECTOR_ODD_MULTIPLES_OF_BASEPOINT *cachedPointNafLookupTable8
+
+	// Odd multiples of `[2^128]B`.
+	constVECTOR_ODD_MULTIPLES_OF_B_SHL_128 *cachedPointNafLookupTable8
+)
 
 // This is the dalek AVX2 backend, ported to a mix of Go and Go's assembly
 // dialect.
@@ -199,12 +216,6 @@ func (p *cachedPoint) ConditionalNegate(choice int) {
 	p.ConditionalAssign(&pNeg, choice)
 }
 
-func (p *cachedPoint) LazyEqual(other *cachedPoint) bool {
-	// Yes, this is explicitly disallowed for good reason, but unit
-	// tests need to do it.
-	return p.inner.inner == other.inner.inner
-}
-
 type fieldElement2625x4 struct {
 	disalloweq.DisallowEqual //nolint:unused
 	inner                    [5][8]uint32
@@ -279,12 +290,23 @@ func newFieldElement2625x4(fe0, fe1, fe2, fe3 *field.FieldElement) fieldElement2
 func init() {
 	supportsVectorizedEdwards = cpu.Initialized && cpu.X86.HasAVX2
 
-	// Enable the vector backend for the hardcoded basepoint table,
-	// if the vector backend is enabled for everything else.
+	// Instead of shipping yet another set of rather large tables,
+	// the vector implementation is fast enough to generate them
+	// on the fly when the module is initialized.
+	//
+	//
+	// Approximate cost (Intel(R) Core(TM) i7-10510U):
+	//  * constVECTOR_ODD_MULTIPLES_OF_BASEPOINT: 7.7 usec
+	//  * constVECTOR_ODD_MULITPLES_OF_B_SHL_128: 7.7 usec
+	//  * ED25519_BASEPOINT_TABLE: 66.7 usec
 	if supportsVectorizedEdwards {
-		ED25519_BASEPOINT_TABLE.inner = nil
-		ED25519_BASEPOINT_TABLE.innerVector = constVECTOR_ED25519_BASEPOINT_TABLE
+		oddTbl := newCachedPointNafLookupTable8(ED25519_BASEPOINT_POINT)
+		oddShl128Tbl := newCachedPointNafLookupTable8(constB_SHL_128)
+		constVECTOR_ODD_MULTIPLES_OF_BASEPOINT = &oddTbl
+		constVECTOR_ODD_MULTIPLES_OF_B_SHL_128 = &oddShl128Tbl
 
+		ED25519_BASEPOINT_TABLE.inner = nil
+		ED25519_BASEPOINT_TABLE.innerVector = newEdwardsBasepointTableVector(ED25519_BASEPOINT_POINT)
 		RISTRETTO_BASEPOINT_TABLE.inner = *ED25519_BASEPOINT_TABLE
 	}
 }

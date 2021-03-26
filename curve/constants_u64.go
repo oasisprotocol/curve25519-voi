@@ -6234,6 +6234,38 @@ var constINVSQRT_A_MINUS_D = field.NewFieldElement51(
 // `APLUS2_OVER_FOUR` is (A+2)/4. (This is used internally within the Montgomery ladder.)
 var constAPLUS2_OVER_FOUR = field.NewFieldElement51(121666, 0, 0, 0, 0)
 
+// `[2^128]B`
+var constB_SHL_128 = newEdwardsPoint(
+	field.NewFieldElement51(
+		1694250497969519,
+		2055043727391392,
+		1405737588602752,
+		386731588847155,
+		1260687722930339,
+	),
+	field.NewFieldElement51(
+		1728883392172401,
+		153276466962872,
+		1116166591938235,
+		1393379381570381,
+		2065441269379165,
+	),
+	field.NewFieldElement51(
+		1207379401816749,
+		171747509335926,
+		1694497998968523,
+		946669555871190,
+		125787048234050,
+	),
+	field.NewFieldElement51(
+		810795410810128,
+		1897850844826044,
+		1781033826520412,
+		744123856001677,
+		1165149454940150,
+	),
+)
+
 // Odd multiples of the basepoint `[B, 3B, 5B, 7B, 9B, 11B, 13B, 15B, ..., 127B]`.
 var constAFFINE_ODD_MULTIPLES_OF_BASEPOINT = affineNielsPointNafLookupTable{
 	affineNielsPoint{

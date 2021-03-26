@@ -45,11 +45,6 @@ func TestVector(t *testing.T) {
 		t.Run("AddSubCached", testVecAddSubCached)
 		t.Run("Double", testVecDoubleExtended)
 	})
-
-	t.Run("CachedPoint", func(t *testing.T) {
-		t.Run("BasepointOddLookupTable", testVecBasepointOddLookupTable)
-		t.Run("BasepointOddShl128LookupTable", testVecBasepointOddShl128LookupTable)
-	})
 }
 
 func testVecDoubleExtended(t *testing.T) {
@@ -142,28 +137,6 @@ func testVecAddSubCached(t *testing.T) {
 		dV := subEdwardsVector(v.a, v.b)
 		if dS.Equal(dV) != 1 {
 			t.Fatalf("%s - %s incorrect (Got: %v)", v.an, v.bn, dV)
-		}
-	}
-}
-
-func testVecBasepointOddLookupTable(t *testing.T) {
-	gen := newCachedPointNafLookupTable(ED25519_BASEPOINT_POINT)
-
-	for i, pt := range gen {
-		entry := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[i]
-		if !entry.LazyEqual(&pt) {
-			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_BASEPOINT[%d] != pt (Got: %v)", i, entry)
-		}
-	}
-}
-
-func testVecBasepointOddShl128LookupTable(t *testing.T) {
-	gen := newCachedPointShl128NafLookupTable8(ED25519_BASEPOINT_POINT)
-
-	for i, pt := range gen {
-		entry := constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[i]
-		if !entry.LazyEqual(&pt) {
-			t.Fatalf("constVECTOR_ODD_MULTIPLES_OF_B_SHL_128[%d] != pt (Got: %v)", i, entry)
 		}
 	}
 }
