@@ -119,7 +119,7 @@ func edwardsDoubleScalarMulBasepointVartimeVectorInner(out *EdwardsPoint, a *sca
 		}
 	}
 
-	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
+	tableB := constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
 
 	var q extendedPoint
 	q.Identity()

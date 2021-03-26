@@ -49,8 +49,8 @@ var (
 	// These are not actually used, since the vector code is never called
 	// but need to be defined.
 	constEXTENDEDPOINT_IDENTITY            extendedPoint
-	constVECTOR_ODD_MULTIPLES_OF_BASEPOINT cachedPointNafLookupTable8
-	constVECTOR_ODD_MULTIPLES_OF_B_SHL_128 cachedPointNafLookupTable8
+	constVECTOR_ODD_MULTIPLES_OF_BASEPOINT *cachedPointNafLookupTable8
+	constVECTOR_ODD_MULTIPLES_OF_B_SHL_128 *cachedPointNafLookupTable8
 )
 
 type extendedPoint struct {
@@ -86,10 +86,6 @@ func (p *extendedPoint) AddExtendedCached(a *extendedPoint, b *cachedPoint) *ext
 }
 
 func (p *extendedPoint) SubExtendedCached(a *extendedPoint, b *cachedPoint) *extendedPoint {
-	panic(errVectorNotSupported)
-}
-
-func (p *cachedPoint) LazyEqual(other *cachedPoint) bool {
 	panic(errVectorNotSupported)
 }
 

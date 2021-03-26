@@ -342,8 +342,20 @@ func testEdwardsBasepointTableNew(t *testing.T) {
 	// Test table creation by regenerating the hard coded basepoint table.
 	// This also serves to sanity-check that the hardcoded table is correct.
 	tbl := NewEdwardsBasepointTable(ED25519_BASEPOINT_POINT)
-	if !reflect.DeepEqual(tbl, ED25519_BASEPOINT_TABLE) {
-		t.Fatalf("NewEdwardsBasepointTable(ED25519_BASEPOINT_POINT) != ED25519_BASEPOINT_TABLE")
+	switch supportsVectorizedEdwards {
+	case false:
+		for i, subTbl := range tbl.inner {
+			for ii, pt := range subTbl {
+				expectedPt := ED25519_BASEPOINT_TABLE.inner[i][ii]
+				if !pt.testEqual(&expectedPt) {
+					t.Fatalf("tbl[%d][%d] != ED25519_BASEPOINT_TABLE[%d][%d] (Got: %v)", i, ii, i, ii, pt)
+				}
+			}
+		}
+	case true:
+		if !reflect.DeepEqual(tbl, ED25519_BASEPOINT_TABLE) {
+			t.Fatalf("NewEdwardsBasepointTable(ED25519_BASEPOINT_POINT) != ED25519_BASEPOINT_TABLE")
+		}
 	}
 }
 

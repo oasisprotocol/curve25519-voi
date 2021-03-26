@@ -200,6 +200,7 @@ func newProjectiveNielsPointNafLookupTable(ep *EdwardsPoint) projectiveNielsPoin
 
 	var A2 EdwardsPoint
 	A2.double(ep)
+
 	for i := 0; i < 7; i++ {
 		var (
 			tmp  completedPoint
@@ -214,6 +215,13 @@ func newProjectiveNielsPointNafLookupTable(ep *EdwardsPoint) projectiveNielsPoin
 // Holds odd multiples 1A, 3A, ..., 15A of a point A.
 type cachedPointNafLookupTable [8]cachedPoint
 
+func (tbl *cachedPointNafLookupTable) Basepoint() *EdwardsPoint {
+	var ep EdwardsPoint
+	ep.setCached(tbl.Lookup(0))
+
+	return &ep
+}
+
 func (tbl *cachedPointNafLookupTable) Lookup(x uint8) *cachedPoint {
 	return &tbl[x/2]
 }
@@ -222,7 +230,6 @@ func newCachedPointNafLookupTable(ep *EdwardsPoint) cachedPointNafLookupTable {
 	var (
 		epExtended extendedPoint
 		epCached   cachedPoint
-		A2         extendedPoint
 	)
 
 	epCached.SetExtended(epExtended.SetEdwards(ep))
@@ -232,7 +239,9 @@ func newCachedPointNafLookupTable(ep *EdwardsPoint) cachedPointNafLookupTable {
 		epCached, epCached, epCached, epCached,
 	}
 
+	var A2 extendedPoint
 	A2.Double(&epExtended)
+
 	for i := 0; i < 7; i++ {
 		var tmp extendedPoint
 		Ai[i+1].SetExtended(tmp.AddExtendedCached(&A2, &Ai[i]))
@@ -271,18 +280,6 @@ func newAffineNielsPointNafLookupTable(ep *EdwardsPoint) affineNielsPointNafLook
 	return affineNielsPointNafLookupTable(Ai)
 }
 
-func newAffineNielsPointShl128NafLookupTable(ep *EdwardsPoint) affineNielsPointNafLookupTable { //nolint:unused,deadcode
-	table := newAffineNielsPointNafLookupTable(ep)
-	for i, ap := range table {
-		var tmp EdwardsPoint
-		tmp.setAffineNiels(&ap)
-		tmp.mulByPow2(&tmp, 128)
-		table[i].SetEdwards(&tmp)
-	}
-
-	return table
-}
-
 // Holds stuff up to 8.
 type cachedPointNafLookupTable8 [64]cachedPoint
 
@@ -290,18 +287,10 @@ func (tbl *cachedPointNafLookupTable8) Lookup(x uint8) *cachedPoint {
 	return &tbl[x/2]
 }
 
-func (tbl *cachedPointNafLookupTable) Basepoint() *EdwardsPoint {
-	var ep EdwardsPoint
-	ep.setCached(tbl.Lookup(0))
-
-	return &ep
-}
-
-func newCachedPointNafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 { //nolint:unused,deadcode
+func newCachedPointNafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 {
 	var (
 		epExtended extendedPoint
 		epCached   cachedPoint
-		A2         extendedPoint
 	)
 
 	epCached.SetExtended(epExtended.SetEdwards(ep))
@@ -311,23 +300,13 @@ func newCachedPointNafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 
 		Ai[i] = epCached
 	}
 
+	var A2 extendedPoint
 	A2.Double(&epExtended)
+
 	for i := 0; i < 63; i++ {
 		var tmp extendedPoint
 		Ai[i+1].SetExtended(tmp.AddExtendedCached(&A2, &Ai[i]))
 	}
 
 	return cachedPointNafLookupTable8(Ai)
-}
-
-func newCachedPointShl128NafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 { //nolint:unused,deadcode
-	table := newCachedPointNafLookupTable8(ep)
-	for i, cp := range table {
-		var tmp extendedPoint
-		tmp.AddExtendedCached(tmp.Identity(), &cp)
-		tmp.MulByPow2(&tmp, 128)
-		table[i].SetExtended(&tmp)
-	}
-
-	return table
 }
