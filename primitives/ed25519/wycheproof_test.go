@@ -135,6 +135,19 @@ func (tc *wycheproofTestCase) Run(t *testing.T, pubKey PublicKey, privKey Privat
 			expectedResult,
 		)
 	}
+
+	// Ensure that the expanded version also does the right thing.
+	expPub, err := NewExpandedPublicKey(pubKey)
+	if err != nil {
+		t.Fatalf("NewExpandedPublicKey: %v", err)
+	}
+	sigOk = ExpandedVerifyWithOptions(expPub, msg, sig, optionsDefault)
+	if sigOk != expectedResult {
+		t.Errorf("expanded signature validation result mismatch: %v (expected %v)",
+			sigOk,
+			expectedResult,
+		)
+	}
 }
 
 func TestWycheproof(t *testing.T) {

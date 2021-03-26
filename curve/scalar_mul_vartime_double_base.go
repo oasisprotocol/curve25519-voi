@@ -32,7 +32,31 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func edwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsDoubleScalarMulBasepointVartimeVector(out, a, A, b)
+	default:
+		return edwardsDoubleScalarMulBasepointVartimeGeneric(out, a, A, b)
+	}
+}
+
+func expandedEdwardsDoubleScalarMulBasepointVartime(out *EdwardsPoint, a *scalar.Scalar, A *ExpandedEdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return edwardsDoubleScalarMulBasepointVartimeVectorInner(out, a, A.innerVector, b)
+	default:
+		return edwardsDoubleScalarMulBasepointVartimeGenericInner(out, a, A.inner, b)
+	}
+}
+
 func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	tableA := newProjectiveNielsPointNafLookupTable(A)
+
+	return edwardsDoubleScalarMulBasepointVartimeGenericInner(out, a, &tableA, b)
+}
+
+func edwardsDoubleScalarMulBasepointVartimeGenericInner(out *EdwardsPoint, a *scalar.Scalar, tableA *projectiveNielsPointNafLookupTable, b *scalar.Scalar) *EdwardsPoint {
 	aNaf := a.NonAdjacentForm(5)
 	bNaf := b.NonAdjacentForm(8)
 
@@ -45,7 +69,6 @@ func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.
 		}
 	}
 
-	tableA := newProjectiveNielsPointNafLookupTable(A)
 	tableB := &constAFFINE_ODD_MULTIPLES_OF_BASEPOINT
 
 	var r projectivePoint
@@ -79,10 +102,15 @@ func edwardsDoubleScalarMulBasepointVartimeGeneric(out *EdwardsPoint, a *scalar.
 }
 
 func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
+	tableA := newCachedPointNafLookupTable(A)
+
+	return edwardsDoubleScalarMulBasepointVartimeVectorInner(out, a, &tableA, b)
+}
+
+func edwardsDoubleScalarMulBasepointVartimeVectorInner(out *EdwardsPoint, a *scalar.Scalar, tableA *cachedPointNafLookupTable, b *scalar.Scalar) *EdwardsPoint {
 	aNaf := a.NonAdjacentForm(5)
 	bNaf := b.NonAdjacentForm(8)
 
-	// Find the starting index.
 	var i int
 	for j := 255; j >= 0; j-- {
 		i = j
@@ -91,7 +119,6 @@ func edwardsDoubleScalarMulBasepointVartimeVector(out *EdwardsPoint, a *scalar.S
 		}
 	}
 
-	tableA := newCachedPointNafLookupTable(A)
 	tableB := &constVECTOR_ODD_MULTIPLES_OF_BASEPOINT
 
 	var q extendedPoint

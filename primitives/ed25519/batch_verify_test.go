@@ -34,6 +34,8 @@ import (
 	"testing"
 )
 
+var benchBatchSizes = []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024}
+
 type batchTest int
 
 const (
@@ -109,7 +111,7 @@ var batchTestCases = []*batchVerifierTestCase{
 	},
 }
 
-func (tc *batchVerifierTestCase) makeVerifier(t *testing.T, opts *Options) *BatchVerifier {
+func (tc *batchVerifierTestCase) makeVerifier(t *testing.T, opts *Options, expanded bool) *BatchVerifier {
 	const n = 38
 
 	v := NewBatchVerifier()
@@ -189,19 +191,51 @@ func (tc *batchVerifierTestCase) makeVerifier(t *testing.T, opts *Options) *Batc
 	}
 
 	for i := range pubs {
-		switch {
-		case optsVec[i] == nil:
-			v.Add(pubs[i], msgs[i], sigs[i])
-		default:
-			v.AddWithOptions(pubs[i], msgs[i], sigs[i], optsVec[i])
+		switch expanded {
+		case true:
+			expPub, err := NewExpandedPublicKey(pubs[i])
+			if expanded && i == culpritIdx {
+				switch tc.tst {
+				case batchMalformedKey:
+					if err == nil {
+						t.Fatalf("succeded in expanding malformed public key")
+					}
+					t.Skipf("malformed public key expansion failed as expected")
+				case batchCorruptKey:
+					// This is non-deterministic since it is possible for
+					// the corrupted form to still be a valid ed25519 key.
+					//
+					// If the key happens to expand, go through with
+					// the actual tests since the batch should fail.
+					if err != nil {
+						t.Skipf("corrupted public key expansion failed")
+					}
+				}
+			}
+			if err != nil {
+				t.Fatalf("failed to expand public key: %v", err)
+			}
+			switch {
+			case optsVec[i] == nil:
+				v.AddExpanded(expPub, msgs[i], sigs[i])
+			default:
+				v.AddExpandedWithOptions(expPub, msgs[i], sigs[i], optsVec[i])
+			}
+		case false:
+			switch {
+			case optsVec[i] == nil:
+				v.Add(pubs[i], msgs[i], sigs[i])
+			default:
+				v.AddWithOptions(pubs[i], msgs[i], sigs[i], optsVec[i])
+			}
 		}
 	}
 
 	return v
 }
 
-func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options) {
-	v := tc.makeVerifier(t, opts)
+func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options, expanded bool) {
+	v := tc.makeVerifier(t, opts, expanded)
 	expectedBatchOk := tc.culpritIdx < 0
 	expectedVerifyOk := expectedBatchOk
 	if opts != nil && opts.Verify != nil && opts.Verify.CofactorlessVerify {
@@ -233,22 +267,18 @@ func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options) {
 }
 
 func TestBatchVerifier(t *testing.T) {
-	runTestCases := func(t *testing.T, opts *Options) {
+	runTestCases := func(t *testing.T, opts *Options, expanded bool) {
 		for _, tc := range batchTestCases {
 			t.Run(tc.n, func(t *testing.T) {
-				tc.run(t, opts)
+				tc.run(t, opts, expanded)
 			})
 		}
 	}
-
-	t.Run("Ed25519pure", func(t *testing.T) {
-		runTestCases(t, nil)
-	})
-	t.Run("Ed25519ctx", func(t *testing.T) {
+	runCtxTestCases := func(t *testing.T, expanded bool) {
 		opts := &Options{
 			Context: "Ed25519ctx test context",
 		}
-		runTestCases(t, opts)
+		runTestCases(t, opts, expanded)
 
 		tc := &batchVerifierTestCase{
 			"FailsOnMalformedContext",
@@ -257,14 +287,14 @@ func TestBatchVerifier(t *testing.T) {
 			"batch verification should fail due to malformed context",
 		}
 		t.Run(tc.n, func(t *testing.T) {
-			tc.run(t, opts)
+			tc.run(t, opts, expanded)
 		})
-	})
-	t.Run("Ed25519ph", func(t *testing.T) {
+	}
+	runPhTestCases := func(t *testing.T, expanded bool) {
 		opts := &Options{
 			Hash: crypto.SHA512,
 		}
-		runTestCases(t, opts)
+		runTestCases(t, opts, expanded)
 
 		tc := &batchVerifierTestCase{
 			"FailsOnMalformedPreHash",
@@ -273,13 +303,32 @@ func TestBatchVerifier(t *testing.T) {
 			"batch verification should fail due to malformed pre-hash",
 		}
 		t.Run(tc.n, func(t *testing.T) {
-			tc.run(t, opts)
+			tc.run(t, opts, expanded)
 		})
+	}
+
+	t.Run("Ed25519pure", func(t *testing.T) {
+		runTestCases(t, nil, false)
+	})
+	t.Run("Ed25519pure/Expanded", func(t *testing.T) {
+		runTestCases(t, nil, true)
+	})
+	t.Run("Ed25519ctx", func(t *testing.T) {
+		runCtxTestCases(t, false)
+	})
+	t.Run("Ed25519ctx/Expanded", func(t *testing.T) {
+		runCtxTestCases(t, true)
+	})
+	t.Run("Ed25519ph", func(t *testing.T) {
+		runPhTestCases(t, false)
+	})
+	t.Run("Ed25519ph/Expanded", func(t *testing.T) {
+		runPhTestCases(t, true)
 	})
 	t.Run("CofactorlessFallback", func(t *testing.T) {
 		runTestCases(t, &Options{
 			Verify: VerifyOptionsStdLib,
-		})
+		}, false)
 	})
 
 	t.Run("EmptyBatchFails", func(t *testing.T) {
@@ -292,33 +341,44 @@ func TestBatchVerifier(t *testing.T) {
 }
 
 func BenchmarkVerifyBatchOnly(b *testing.B) {
-	benchBatchSizes := []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024}
 	for _, n := range benchBatchSizes {
-		// Attempt to get a more accurate reflection on how much memory
-		// is allocated, by pre-generating all of the batch inputs
-		// prior to entering the benchmark routine, but actually
-		// building the batch as part of the benchmarking process.
-		pub, priv, _ := GenerateKey(nil)
-		msg := []byte("BatchVerifyTest")
-		sig := Sign(priv, msg)
+		doBenchVerifyBatchOnly(b, n, false)
+	}
+}
 
-		b.Run(fmt.Sprint(n), func(b *testing.B) {
-			b.ReportAllocs()
+func doBenchVerifyBatchOnly(b *testing.B, n int, expanded bool) {
+	// Note: Comparative benchmarks are kind of hard to do, especially
+	// against ed25519consensus, which excludes building BatchVerifier
+	// from the benchmarks and memory allocation accounting.
+	//
+	// Since we care about the total, we include it.
 
-			for i := 0; i < b.N; i++ {
-				b.StopTimer()
-				// Exclude the time spent so that comparisons with
-				// ed25519consensus are close.
-				v := NewBatchVerifier()
-				for j := 0; j < n; j++ {
+	pub, priv, _ := GenerateKey(nil)
+	msg := []byte("BatchVerifyTest")
+	sig := Sign(priv, msg)
+
+	expPub, err := NewExpandedPublicKey(pub)
+	if err != nil {
+		b.Fatalf("failed to expand public key: %v", err)
+	}
+
+	b.Run(fmt.Sprint(n), func(b *testing.B) {
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			v := NewBatchVerifier()
+			for j := 0; j < n; j++ {
+				switch expanded {
+				case true:
+					v.AddExpandedWithOptions(expPub, msg, sig, optionsDefault)
+				default:
 					v.Add(pub, msg, sig)
 				}
-				b.StartTimer()
-
-				if !v.VerifyBatchOnly(nil) {
-					b.Fatal("signature set failed batch verification")
-				}
 			}
-		})
-	}
+
+			if !v.VerifyBatchOnly(nil) {
+				b.Fatal("signature set failed batch verification")
+			}
+		}
+	})
 }

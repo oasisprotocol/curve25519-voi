@@ -166,6 +166,81 @@ func benchEdwardsMultiscalarMulVartime(b *testing.B) {
 	}
 }
 
+func BenchmarkExpandedEdwards(b *testing.B) {
+	b.Run("New", benchExpandedEdwardsNew)
+	b.Run("DoubleScalarMulBasepointVartime", benchExpandedEdwardsDoubleScalarMulBasepointVartime)
+	b.Run("TripleScalarMulBasepointVartime", benchExpandedEdwardsTripleScalarMulBasepointVartime)
+	b.Run("MultiscalarMulVartime", benchExpandedEdwardsMultiscalarMulVartime)
+}
+
+func benchExpandedEdwardsNew(b *testing.B) {
+	p := newTestBenchRandomPoint(b)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = NewExpandedEdwardsPoint(p)
+	}
+}
+
+func benchExpandedEdwardsTripleScalarMulBasepointVartime(b *testing.B) {
+	A := NewExpandedEdwardsPoint(newTestBenchRandomPoint(b))
+	C := newTestBenchRandomPoint(b)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var tmp EdwardsPoint
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		aScalar, bScalar := newTestBenchRandomScalar(b), newTestBenchRandomScalar(b)
+		b.StartTimer()
+
+		tmp.ExpandedTripleScalarMulBasepointVartime(aScalar, A, bScalar, C)
+	}
+}
+
+func benchExpandedEdwardsDoubleScalarMulBasepointVartime(b *testing.B) {
+	A := NewExpandedEdwardsPoint(newTestBenchRandomPoint(b))
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var tmp EdwardsPoint
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		aScalar, bScalar := newTestBenchRandomScalar(b), newTestBenchRandomScalar(b)
+		b.StartTimer()
+
+		tmp.ExpandedDoubleScalarMulBasepointVartime(aScalar, A, bScalar)
+	}
+}
+
+func benchExpandedEdwardsMultiscalarMulVartime(b *testing.B) {
+	for _, n := range benchMultiscalarSizes {
+		points := newBenchRandomPoints(b, n)
+		prePoints := make([]*ExpandedEdwardsPoint, 0, n)
+		for _, point := range points {
+			prePoints = append(prePoints, NewExpandedEdwardsPoint(point))
+		}
+
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			b.ReportAllocs()
+
+			b.ResetTimer()
+
+			var tmp EdwardsPoint
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				scalars := newTestBenchRandomScalars(b, n)
+				b.StartTimer()
+
+				tmp.ExpandedMultiscalarMulVartime(scalars, prePoints, nil, nil)
+			}
+		})
+	}
+}
+
 func BenchmarkRistretto(b *testing.B) {
 	b.Run("Compress", benchRistrettoCompress)
 	b.Run("Decompress", benchRistrettoDecompress)

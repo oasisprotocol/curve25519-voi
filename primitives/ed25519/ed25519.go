@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The Go Authors. All rights reserved.
-// Copyright (c) 2019 Oasis Labs Inc.  All rights reserved.
+// Copyright (c) 2019-2021 Oasis Labs Inc.  All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -437,11 +437,14 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
 // publicKey with the extra Options to support Ed25519ph (pre-hashed by
 // SHA-512) or Ed25519ctx (includes a domain separation context). It
 // will panic if len(publicKey) is not PublicKeySize, len(message) is
-// not sha512.Size (if pre-hashed), or len(opts.Context) is greater than
-// ContextMaxSize.
-//
-// Warning: This routine will panic if opts is nil.
+// not sha512.Size (if pre-hashed), len(opts.Context) is greater than
+// ContextMaxSize, or opts is nil.
 func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) bool {
+	// The standard library does this.
+	if l := len(publicKey); l != PublicKeySize {
+		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+	}
+
 	ok, err := verifyWithOptionsNoPanic(publicKey, message, sig, opts)
 	if err != nil {
 		panic(err)

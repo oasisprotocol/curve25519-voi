@@ -350,6 +350,10 @@ func BenchmarkVerification(b *testing.B) {
 	message := []byte("Hello, world!")
 	signature := Sign(priv, message)
 
+	optsStdLib := &Options{
+		Verify: VerifyOptionsStdLib,
+	}
+
 	b.Run("voi", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -359,16 +363,10 @@ func BenchmarkVerification(b *testing.B) {
 		}
 	})
 	b.Run("voi_stdlib", func(b *testing.B) {
-		// The more secure and spec compliant ed25519 variant used by
-		// default is also slower because of the additional checks.
-		//
 		// Benchmark with the StdLib profile to get a better comparison.
 		b.ReportAllocs()
-		opts := &Options{
-			Verify: VerifyOptionsStdLib,
-		}
 		for i := 0; i < b.N; i++ {
-			if !VerifyWithOptions(pub, message, signature, opts) {
+			if !VerifyWithOptions(pub, message, signature, optsStdLib) {
 				b.Fatalf("verification failed")
 			}
 		}
@@ -379,6 +377,55 @@ func BenchmarkVerification(b *testing.B) {
 			if !stded.Verify(stded.PublicKey(pub), message, signature) {
 				b.Fatalf("verification failed")
 			}
+		}
+	})
+}
+
+func BenchmarkExpanded(b *testing.B) {
+	var zero zeroReader
+	pub, priv, err := GenerateKey(zero)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("NewExpandedPublicKey", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_, _ = NewExpandedPublicKey(pub)
+		}
+	})
+	b.Run("Verification", func(b *testing.B) {
+		message := []byte("Hello, world!")
+		signature := Sign(priv, message)
+
+		expPub, err := NewExpandedPublicKey(pub)
+		if err != nil {
+			b.Fatalf("NewExpandedPublicKey: %v", err)
+		}
+
+		optsStdLib := &Options{
+			Verify: VerifyOptionsStdLib,
+		}
+		b.Run("voi", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if !ExpandedVerifyWithOptions(expPub, message, signature, optionsDefault) {
+					b.Fatalf("verification failed")
+				}
+			}
+		})
+		b.Run("voi_stdlib", func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				if !ExpandedVerifyWithOptions(expPub, message, signature, optsStdLib) {
+					b.Fatalf("verification failed")
+				}
+			}
+		})
+	})
+	b.Run("VerifyBatchOnly", func(b *testing.B) {
+		for _, n := range benchBatchSizes {
+			doBenchVerifyBatchOnly(b, n, true)
 		}
 	})
 }

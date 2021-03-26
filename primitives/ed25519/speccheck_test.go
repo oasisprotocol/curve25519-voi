@@ -45,6 +45,15 @@ import (
 	"testing"
 )
 
+type verificationImpl int
+
+const (
+	implVanilla verificationImpl = iota
+	implBatch
+	implExpanded
+	implExpandedBatch
+)
+
 var speccheckExpectedResults = []bool{
 	false, // 0: small order A, small order R
 	false, // 1: small order A, mixed order R
@@ -138,20 +147,30 @@ func (v *speccheckTestVector) toComponents() ([]byte, PublicKey, []byte, error) 
 	return msg, pk, sig, nil
 }
 
-func (v *speccheckTestVector) Run(t *testing.T, isBatch bool, opts *Options) bool {
+func (v *speccheckTestVector) Run(t *testing.T, impl verificationImpl, opts *Options) bool {
 	msg, pk, sig, err := v.toComponents()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	expPub, err := NewExpandedPublicKey(pk)
+	if err != nil {
+		t.Fatalf("NewExpandedPublicKey: %v", err)
+	}
+
 	var sigOk bool
-	switch isBatch {
-	case false:
+	switch impl {
+	case implVanilla:
 		sigOk = VerifyWithOptions(pk, msg, sig, opts)
-	case true:
+	case implBatch, implExpandedBatch:
 		v := NewBatchVerifier()
 		for i := 0; i < testBatchSize; i++ {
-			v.AddWithOptions(pk, msg, sig, opts)
+			switch impl {
+			case implBatch:
+				v.AddWithOptions(pk, msg, sig, opts)
+			case implExpandedBatch:
+				v.AddExpandedWithOptions(expPub, msg, sig, opts)
+			}
 		}
 
 		var valid []bool
@@ -161,6 +180,14 @@ func (v *speccheckTestVector) Run(t *testing.T, isBatch bool, opts *Options) boo
 				t.Fatalf("sigOk != valid[%d]", i)
 			}
 		}
+
+		if len(valid) != testBatchSize {
+			t.Fatalf("len(valid) != testBatchSize: %v", len(valid))
+		}
+	case implExpanded:
+		sigOk = ExpandedVerifyWithOptions(expPub, msg, sig, opts)
+	default:
+		return false
 	}
 
 	return sigOk
@@ -189,12 +216,22 @@ func TestSpeccheck(t *testing.T) {
 		for idx, tc := range testVectors {
 			expected := expectedResults[idx]
 			t.Run(fmt.Sprintf("%s/%d", n, idx), func(t *testing.T) {
-				if sigOk := tc.Run(t, false, opts); sigOk != expected {
+				if sigOk := tc.Run(t, implVanilla, opts); sigOk != expected {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})
-			t.Run(fmt.Sprintf("%s_Batch/%d", n, idx), func(t *testing.T) {
-				if sigOk := tc.Run(t, true, opts); sigOk != expected {
+			t.Run(fmt.Sprintf("%s/Batch/%d", n, idx), func(t *testing.T) {
+				if sigOk := tc.Run(t, implBatch, opts); sigOk != expected {
+					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+				}
+			})
+			t.Run(fmt.Sprintf("%s/Expanded/%d", n, idx), func(t *testing.T) {
+				if sigOk := tc.Run(t, implExpanded, opts); sigOk != expected {
+					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
+				}
+			})
+			t.Run(fmt.Sprintf("%s/Expanded_Batch/%d", n, idx), func(t *testing.T) {
+				if sigOk := tc.Run(t, implExpandedBatch, opts); sigOk != expected {
 					t.Fatalf("behavior mismatch: %v (expected %v)", sigOk, expected)
 				}
 			})

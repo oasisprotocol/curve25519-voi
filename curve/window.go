@@ -97,6 +97,15 @@ func (tbl *affineNielsPointLookupTable) Lookup(x int8) affineNielsPoint {
 	return t
 }
 
+func (tbl *affineNielsPointLookupTable) Basepoint() *EdwardsPoint {
+	aPt := tbl.Lookup(1)
+
+	var ep EdwardsPoint
+	ep.setAffineNiels(&aPt)
+
+	return &ep
+}
+
 func lookupAffineNielsGeneric(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) {
 	out.Identity()
 	for j := 1; j < 9; j++ {
@@ -126,6 +135,15 @@ func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTabl
 }
 
 type cachedPointLookupTable [8]cachedPoint
+
+func (tbl *cachedPointLookupTable) Basepoint() *EdwardsPoint {
+	cPt := tbl.Lookup(1)
+
+	var ep EdwardsPoint
+	ep.setCached(&cPt)
+
+	return &ep
+}
 
 func (tbl *cachedPointLookupTable) Lookup(x int8) cachedPoint {
 	// Compute xabs = |x|
@@ -270,6 +288,13 @@ type cachedPointNafLookupTable8 [64]cachedPoint
 
 func (tbl *cachedPointNafLookupTable8) Lookup(x uint8) *cachedPoint {
 	return &tbl[x/2]
+}
+
+func (tbl *cachedPointNafLookupTable) Basepoint() *EdwardsPoint {
+	var ep EdwardsPoint
+	ep.setCached(tbl.Lookup(0))
+
+	return &ep
 }
 
 func newCachedPointNafLookupTable8(ep *EdwardsPoint) cachedPointNafLookupTable8 { //nolint:unused,deadcode

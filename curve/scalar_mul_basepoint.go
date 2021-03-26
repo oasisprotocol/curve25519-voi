@@ -32,18 +32,44 @@ package curve
 
 import "github.com/oasisprotocol/curve25519-voi/curve/scalar"
 
+func newEdwardsBasepointTable(basepoint *EdwardsPoint) *EdwardsBasepointTable {
+	switch supportsVectorizedEdwards {
+	case true:
+		return &EdwardsBasepointTable{
+			innerVector: newEdwardsBasepointTableVector(basepoint),
+		}
+	default:
+		return &EdwardsBasepointTable{
+			inner: newEdwardsBasepointTableGeneric(basepoint),
+		}
+	}
+}
+
+func edwardsBasepointTableInner(tbl *EdwardsBasepointTable) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Basepoint()
+	default:
+		return tbl.inner.Basepoint()
+	}
+}
+
+func edwardsBasepointTableMul(out *EdwardsPoint, tbl *EdwardsBasepointTable, scalar *scalar.Scalar) *EdwardsPoint {
+	switch supportsVectorizedEdwards {
+	case true:
+		return tbl.innerVector.Mul(out, scalar)
+	default:
+		return tbl.inner.Mul(out, scalar)
+	}
+}
+
 // edwardsBasepointTableGeneric is a portable precomputed basepoint multiply.
 type edwardsBasepointTableGeneric [32]affineNielsPointLookupTable
 
 func (tbl *edwardsBasepointTableGeneric) Basepoint() *EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
 	// but as an `affineNielsPoint`, so convert to extended.
-	aPt := tbl[0].Lookup(1)
-
-	var ep EdwardsPoint
-	ep.setAffineNiels(&aPt)
-
-	return &ep
+	return tbl[0].Basepoint()
 }
 
 func (tbl *edwardsBasepointTableGeneric) Mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {
@@ -87,13 +113,8 @@ type edwardsBasepointTableVector [32]cachedPointLookupTable
 
 func (tbl *edwardsBasepointTableVector) Basepoint() *EdwardsPoint {
 	// tbl[0].lookup(1) = 1*(16^2)^0*B
-	// but as a `cachedPoint`, so convert to extended.
-	cPt := tbl[0].Lookup(1)
-
-	var ep EdwardsPoint
-	ep.setCached(&cPt)
-
-	return &ep
+	// but as an `cachedPoint`, so convert to extended.
+	return tbl[0].Basepoint()
 }
 
 func (tbl *edwardsBasepointTableVector) Mul(out *EdwardsPoint, scalar *scalar.Scalar) *EdwardsPoint {

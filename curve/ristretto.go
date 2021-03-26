@@ -319,9 +319,9 @@ func (p *RistrettoPoint) Mul(point *RistrettoPoint, scalar *scalar.Scalar) *Rist
 	return p
 }
 
-// MulBasepoint sets `p = basepoint * scalar` in constat-time, and returns p.
+// MulBasepoint sets `p = basepoint * scalar` in constant-time, and returns p.
 func (p *RistrettoPoint) MulBasepoint(basepoint *RistrettoBasepointTable, scalar *scalar.Scalar) *RistrettoPoint {
-	basepoint.inner.mul(&p.inner, scalar)
+	p.inner.MulBasepoint(&basepoint.inner, scalar)
 	return p
 }
 
@@ -442,5 +442,4 @@ func NewRistrettoBasepointTable(basepoint *RistrettoPoint) *RistrettoBasepointTa
 }
 
 // Omitted:
-//  * DoubleAndCompressBatch
 //  * VartimeRistrettoPrecomputation

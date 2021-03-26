@@ -67,7 +67,7 @@ func testEdwardsMulAbglsvPorninVartime(t *testing.T) {
 		actual EdwardsPoint
 	)
 
-	// The equation evaluates to the identity, so will be unaffected by δ.
+	// The equation evaluates to the identity, so will be unaffected by delta.
 	a.SetUint64(2)
 	A.double(ED25519_BASEPOINT_POINT)
 	b.SetUint64(4)
@@ -80,6 +80,12 @@ func testEdwardsMulAbglsvPorninVartime(t *testing.T) {
 	}
 	if expected.Equal(&actual) != 1 || !actual.IsIdentity() {
 		t.Fatalf("mul(2, B, 4, 8B) != identity (Got: %v)", actual)
+	}
+
+	expandedA := NewExpandedEdwardsPoint(&A)
+	expandedEdwardsMulAbglsvPorninVartime(&actual, &a, expandedA, &b, &C)
+	if expected.Equal(&actual) != 1 || !actual.IsIdentity() {
+		t.Fatalf("expandedMul(2, B , 4, 4, 8B) != identity (Got: %v)", actual)
 	}
 
 	for i := 0; i < 100; i++ {
@@ -102,6 +108,12 @@ func testEdwardsMulAbglsvPorninVartime(t *testing.T) {
 			t.Fatalf("mul(a, A, b, C) != identity (Got: %v)", actual)
 		}
 
+		expandedA = NewExpandedEdwardsPoint(&A)
+		expandedEdwardsMulAbglsvPorninVartime(&actual, &a, expandedA, &b, &C)
+		if expected.Equal(&actual) != 1 || !actual.IsIdentity() {
+			t.Fatalf("expandedMul(a, A, b, C) != identity (Got: %v)", actual)
+		}
+
 		// With a random C, with high probability we do not get the identity.
 		for {
 			// Loop till we get a C that is sufficiently random.
@@ -114,6 +126,10 @@ func testEdwardsMulAbglsvPorninVartime(t *testing.T) {
 		edwardsMulAbglsvPorninVartime(&actual, &a, &A, &b, &C)
 		if actual.IsIdentity() {
 			t.Fatalf("mul(a, A, b, random C) = identity")
+		}
+		expandedEdwardsMulAbglsvPorninVartime(&actual, &a, expandedA, &b, &C)
+		if actual.IsIdentity() {
+			t.Fatalf("expandedMul(a, A, b, random C) = identity")
 		}
 	}
 }
