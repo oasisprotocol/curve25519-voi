@@ -58,6 +58,13 @@ type projectiveNielsPoint struct {
 	T2d       field.FieldElement
 }
 
+func (p *affineNielsPoint) SetRaw(raw *[96]uint8) *affineNielsPoint {
+	_, _ = p.y_plus_x.SetBytes(raw[0:32])
+	_, _ = p.y_minus_x.SetBytes(raw[32:64])
+	_, _ = p.xy2d.SetBytes(raw[64:96])
+	return p
+}
+
 // Note: dalek has the identity point as the defaut ctors for
 // ProjectiveNielsPoint/AffineNielsPoint.
 

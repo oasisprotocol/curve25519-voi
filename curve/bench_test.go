@@ -173,6 +173,16 @@ func benchEdwardsWindow(b *testing.B) {
 			_ = newAffineNielsPointNafLookupTable(ED25519_BASEPOINT_POINT)
 		}
 	})
+	b.Run("unpackEdwardsBasepointTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = unpackEdwardsBasepointTable()
+		}
+	})
+	b.Run("unpackAffineNielsPointNafLookupTable", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = unpackAffineNielsPointNafLookupTable(packedAffineOddMultiplesOfBasepoint)
+		}
+	})
 
 	if supportsVectorizedEdwards {
 		b.Run("newCachedPointNafLookupTable8", func(b *testing.B) {
