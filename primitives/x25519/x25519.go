@@ -37,7 +37,6 @@ import (
 	"crypto/sha512"
 	"crypto/subtle"
 	"fmt"
-	"runtime"
 
 	xcurve "golang.org/x/crypto/curve25519"
 
@@ -218,19 +217,4 @@ func checkBasepoint() {
 
 func init() {
 	Basepoint = basePoint[:]
-
-	// Decide if `x/crypto/curve25519` is faster for the given
-	// target or not.  For now this is decided entirely by the
-	// presence of an optimized assembly implementation.
-	//
-	// TODO/perf:
-	//  * If `purego` is defined, or `gc` is not defined then
-	//    the assembly implementations will not be used.
-	//  * At least for the generic scalar multiply, voi is likely
-	//    to be slower on 32 bit targets.
-	switch runtime.GOARCH {
-	case "amd64":
-		xcurveFaster = true
-	default:
-	}
 }
