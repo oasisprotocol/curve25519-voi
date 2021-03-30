@@ -58,7 +58,6 @@ var Basepoint []byte
 var (
 	basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
-	xcurveFaster  bool
 	debugNoXcurve bool
 )
 
