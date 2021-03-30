@@ -278,10 +278,6 @@ pegs the minimum required Go version at 1.12 due to the use of
 verification, the lack of a timing guarantee in that version has no
 security impact).
 
-#### TODO
-
- * Add the functions that were omitted in the initial porting effort.
-
 #### Special credits
 
 curve25519-voi would not exist if it were not for the amazing work
