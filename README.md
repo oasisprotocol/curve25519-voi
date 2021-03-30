@@ -282,6 +282,27 @@ security impact).
 
  * Add the functions that were omitted in the initial porting effort.
 
+#### Special credits
+
+curve25519-voi would not exist if it were not for the amazing work
+done by various other projects.  Any bugs in curve25519-voi are the
+fault of the curve25519-voi developers alone.
+
+ * The majority of curve25519-voi is derived from curve25519-dalek.
+
+ * The Ed25519 batch verification started off as a port of the
+   implementation present in ed25519-dalek, but was later switched
+   to be based off ed25519consensus.
+
+ * The ABGLSV-Pornin multiplication implementation is derived from
+   a curve25519-dalek pull request by Jack Grigg (@str4d), with
+   additional inspiration taken from Thomas Pornin's paper and
+   curve9767 implementation.
+
+ * The assembly optimized field element multiplications were taken
+   (with minor modifications) from George Tankersley's ristretto255
+   package.
+
 [1]: https://github.com/novifinancial/ed25519-speccheck
 [2]: https://eprint.iacr.org/2020/1244.pdf
 [3]: https://github.com/golang/go/issues/33388
