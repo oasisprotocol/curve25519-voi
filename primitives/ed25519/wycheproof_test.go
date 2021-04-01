@@ -141,7 +141,7 @@ func (tc *wycheproofTestCase) Run(t *testing.T, pubKey PublicKey, privKey Privat
 	if err != nil {
 		t.Fatalf("NewExpandedPublicKey: %v", err)
 	}
-	sigOk = ExpandedVerifyWithOptions(expPub, msg, sig, optionsDefault)
+	sigOk = VerifyExpandedWithOptions(expPub, msg, sig, optionsDefault)
 	if sigOk != expectedResult {
 		t.Errorf("expanded signature validation result mismatch: %v (expected %v)",
 			sigOk,

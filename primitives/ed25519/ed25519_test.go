@@ -409,7 +409,7 @@ func BenchmarkExpanded(b *testing.B) {
 		b.Run("voi", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				if !ExpandedVerifyWithOptions(expPub, message, signature, optionsDefault) {
+				if !VerifyExpandedWithOptions(expPub, message, signature, optionsDefault) {
 					b.Fatalf("verification failed")
 				}
 			}
@@ -417,7 +417,7 @@ func BenchmarkExpanded(b *testing.B) {
 		b.Run("voi_stdlib", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				if !ExpandedVerifyWithOptions(expPub, message, signature, optsStdLib) {
+				if !VerifyExpandedWithOptions(expPub, message, signature, optsStdLib) {
 					b.Fatalf("verification failed")
 				}
 			}

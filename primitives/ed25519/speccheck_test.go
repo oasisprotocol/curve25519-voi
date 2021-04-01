@@ -185,7 +185,7 @@ func (v *speccheckTestVector) Run(t *testing.T, impl verificationImpl, opts *Opt
 			t.Fatalf("len(valid) != testBatchSize: %v", len(valid))
 		}
 	case implExpanded:
-		sigOk = ExpandedVerifyWithOptions(expPub, msg, sig, opts)
+		sigOk = VerifyExpandedWithOptions(expPub, msg, sig, opts)
 	default:
 		return false
 	}

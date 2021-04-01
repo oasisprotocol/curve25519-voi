@@ -95,14 +95,14 @@ func NewExpandedPublicKey(publicKey PublicKey) (*ExpandedPublicKey, error) {
 	return &pre, nil
 }
 
-// ExpandedVerifyWithOptions reports whether sig is a valid Ed25519
+// VerifyExpandedWithOptions reports whether sig is a valid Ed25519
 // signature by publicKey with the extra Options to support Ed25519ph
 // (pre-hashed by SHA-512) or Ed25519ctx (includes a domain separation
 // context). It will panic if len(message) is not sha512.Size
 // (if pre-hashed), len(opts.Context) is greater than ContextMaxSize,
 // or opts is nil.
-func ExpandedVerifyWithOptions(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) bool {
-	ok, err := expandedVerifyWithOptionsNoPanic(publicKey, message, sig, opts)
+func VerifyExpandedWithOptions(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) bool {
+	ok, err := verifyExpandedWithOptionsNoPanic(publicKey, message, sig, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +110,7 @@ func ExpandedVerifyWithOptions(publicKey *ExpandedPublicKey, message, sig []byte
 	return ok
 }
 
-func expandedVerifyWithOptionsNoPanic(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) (bool, error) {
+func verifyExpandedWithOptionsNoPanic(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) (bool, error) {
 	// This is equivalent to verifyWithOptionsNoPanic, but it uses
 	// a expanded public key.  The reason why this a separate
 	// routine is because creating an ExpanedPublicKey on the fly
