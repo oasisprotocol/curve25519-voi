@@ -112,6 +112,19 @@ var (
 		Verify: VerifyOptionsDefault,
 	}
 
+	// order is the order of Curve25519 in little-endian form.
+	order = func() [4]uint64 {
+		var orderBytes [scalar.ScalarSize]byte
+		_ = scalar.BASEPOINT_ORDER.ToBytes(orderBytes[:])
+
+		var ret [4]uint64
+		for i := range ret {
+			ret[i] = binary.LittleEndian.Uint64(orderBytes[i*8 : (i+1)*8])
+		}
+
+		return ret
+	}()
+
 	_ crypto.Signer = (PrivateKey)(nil)
 )
 
@@ -612,9 +625,6 @@ func makeDom2(f dom2Flag, c []byte) []byte {
 
 	return b
 }
-
-// order is the order of Curve25519 in little-endian form.
-var order = [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
 
 // scMinimal returns true if the given scalar is less than the order of the
 // curve.
