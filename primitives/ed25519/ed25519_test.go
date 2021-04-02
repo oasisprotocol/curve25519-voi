@@ -260,6 +260,14 @@ func testGolden(t *testing.T) {
 }
 
 func testMalleability(t *testing.T) {
+	// At this point I could have just left this hardcoded as in the
+	// Go standard library, but parsing out BASEPOINT_ORDER is probably
+	// better.
+	expectedOrder := [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
+	if order != expectedOrder {
+		t.Fatalf("invalid deserialized BASEPOINT_ORDER: Got %v", order)
+	}
+
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
 	// that s be in [0, order). This prevents someone from adding a multiple of
 	// order to s and obtaining a second valid signature for the same message.
