@@ -380,7 +380,7 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 
 	// S = H(R,A,m)a
 	var a scalar.Scalar
-	if _, err = a.SetBytesModOrder(extsk[:32]); err != nil {
+	if _, err = a.SetBits(extsk[:32]); err != nil {
 		return nil, fmt.Errorf("ed25519: failed to deserialize a scalar: %w", err)
 	}
 	S.Mul(&S, &a)
