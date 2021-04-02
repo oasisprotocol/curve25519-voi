@@ -51,6 +51,12 @@ type ExpandedPublicKey struct {
 	isCanonical  bool
 }
 
+// CompressedY returns the unexpanded public key as a compressed Edwards
+// y-coordinate.
+func (k *ExpandedPublicKey) CompressedY() curve.CompressedEdwardsY {
+	return k.compressed
+}
+
 func (vOpts *VerifyOptions) checkExpandedPublicKey(publicKey *ExpandedPublicKey) bool {
 	// This is equivalent to VerifyOptions.unpackPublicKey, but all of
 	// the outcomes are cached at the precompute step.
@@ -93,6 +99,12 @@ func NewExpandedPublicKey(publicKey PublicKey) (*ExpandedPublicKey, error) {
 	pre.isValidY = true
 
 	return &pre, nil
+}
+
+// VerifyExpanded reports whether sig is a valid Ed25519
+// signature by publicKey.
+func VerifyExpanded(publicKey *ExpandedPublicKey, message, sig []byte) bool {
+	return VerifyExpandedWithOptions(publicKey, message, sig, optionsDefault)
 }
 
 // VerifyExpandedWithOptions reports whether sig is a valid Ed25519
