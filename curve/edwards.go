@@ -66,6 +66,28 @@ var (
 // the sign of x.
 type CompressedEdwardsY [CompressedPointSize]byte
 
+// MarshalBinary encodes the compressed Edwards point into a binary form
+// and returns the result.
+func (p *CompressedEdwardsY) MarshalBinary() ([]byte, error) {
+	b := make([]byte, CompressedPointSize)
+	copy(b, p[:])
+	return b, nil
+}
+
+// UnmarshalBinary decodes a binary serialized compressed Edwards point.
+func (p *CompressedEdwardsY) UnmarshalBinary(data []byte) error {
+	p.Identity() // Foot + gun avoidance.
+
+	var ep EdwardsPoint
+	if err := ep.UnmarshalBinary(data); err != nil {
+		return err
+	}
+
+	_, _ = p.SetBytes(data) // Can not fail.
+
+	return nil
+}
+
 // SetBytes constructs a compressed Edwards point from a byte representation.
 func (p *CompressedEdwardsY) SetBytes(in []byte) (*CompressedEdwardsY, error) {
 	if len(in) != CompressedPointSize {
@@ -165,6 +187,26 @@ type edwardsPointInner struct {
 	Y field.FieldElement
 	Z field.FieldElement
 	T field.FieldElement
+}
+
+// MarshalBinary encodes the Edwards point into a binary form and
+// returns the result.
+func (p *EdwardsPoint) MarshalBinary() ([]byte, error) {
+	var cp CompressedEdwardsY
+	cp.SetEdwardsPoint(p)
+	return cp.MarshalBinary()
+}
+
+// UnmarshalBinary decodes a binary serialized Edwards point.
+func (p *EdwardsPoint) UnmarshalBinary(data []byte) error {
+	p.Identity() // Foot + gun avoidance.
+
+	var cp CompressedEdwardsY
+	if _, err := cp.SetBytes(data); err != nil {
+		return nil
+	}
+	_, err := p.SetCompressedY(&cp)
+	return err
 }
 
 // Identity sets the Edwards point to the identity element.

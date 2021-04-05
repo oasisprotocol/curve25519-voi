@@ -82,6 +82,19 @@ type Scalar struct {
 	inner                    [ScalarSize]byte
 }
 
+// MarshalBinary encodes the scalar into a binary form and returns the
+// result.
+func (s *Scalar) MarshalBinary() ([]byte, error) {
+	b := make([]byte, ScalarSize)
+	return b, s.ToBytes(b)
+}
+
+// UnmarshalBinary decodes a binary serialized scalar.
+func (s *Scalar) UnmarshalBinary(data []byte) error {
+	_, err := s.SetCanonicalBytes(data)
+	return err
+}
+
 // Set sets s to t, and returns s.
 func (s *Scalar) Set(t *Scalar) *Scalar {
 	*s = *t

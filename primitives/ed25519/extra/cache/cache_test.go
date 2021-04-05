@@ -26,10 +26,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Package ed25519 implements a set of caching wrappers around Ed25519
-// signature verification to transparently accelerate repeated verification
-// with the same public key(s).
-package edcache
+package cache
 
 import (
 	"testing"
@@ -41,7 +38,7 @@ const testCacheSize = 10
 
 var testMsg = []byte("This is only a test of the emergency broadcast system")
 
-func BenchmarkEdcache(b *testing.B) {
+func BenchmarkCache(b *testing.B) {
 	b.Run("Verify/Miss", benchCacheMiss)
 	b.Run("Verify/Hit", benchCacheHit)
 }

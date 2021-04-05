@@ -26,10 +26,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Package ed25519 implements a set of caching wrappers around Ed25519
+// Package cache implements a set of caching wrappers around Ed25519
 // signature verification to transparently accelerate repeated verification
 // with the same public key(s).
-package edcache
+package cache
 
 import (
 	"github.com/oasisprotocol/curve25519-voi/curve"
