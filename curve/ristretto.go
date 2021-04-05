@@ -43,6 +43,28 @@ import (
 // CompressedRistretto represents a Ristretto point in wire format.
 type CompressedRistretto [CompressedPointSize]byte
 
+// MarshalBinary encodes the compressed Ristretto point into a binary form
+// and returns the result.
+func (p *CompressedRistretto) MarshalBinary() ([]byte, error) {
+	b := make([]byte, CompressedPointSize)
+	copy(b, p[:])
+	return b, nil
+}
+
+// UnmarshalBinary decodes a binary serialized compressed Ristretto point.
+func (p *CompressedRistretto) UnmarshalBinary(data []byte) error {
+	p.Identity() // Foot + gun avoidance.
+
+	var ep EdwardsPoint
+	if err := ep.UnmarshalBinary(data); err != nil {
+		return err
+	}
+
+	_, _ = p.SetBytes(data) // Can not fail.
+
+	return nil
+}
+
 // SetBytes constructs a compressed Ristretto point from a byte representation.
 func (p *CompressedRistretto) SetBytes(in []byte) (*CompressedRistretto, error) {
 	if len(in) != CompressedPointSize {
@@ -133,6 +155,26 @@ func NewCompressedRistretto() *CompressedRistretto {
 // The default value is NOT valid and MUST only be used as a receiver.
 type RistrettoPoint struct {
 	inner EdwardsPoint
+}
+
+// MarshalBinary encodes the Ristretto point into a binary form and
+// returns the result.
+func (p *RistrettoPoint) MarshalBinary() ([]byte, error) {
+	var cp CompressedRistretto
+	cp.SetRistrettoPoint(p)
+	return cp.MarshalBinary()
+}
+
+// UnmarshalBinary decodes a binary serialized Ristretto point.
+func (p *RistrettoPoint) UnmarshalBinary(data []byte) error {
+	p.Identity() // Foot + gun avoidance.
+
+	var cp CompressedRistretto
+	if _, err := cp.SetBytes(data); err != nil {
+		return nil
+	}
+	_, err := p.SetCompressed(&cp)
+	return err
 }
 
 // Identity sets the Ristretto point to the identity element.
