@@ -52,8 +52,6 @@ func testConstantsBShl128(t *testing.T) {
 	var p EdwardsPoint
 	p.mulByPow2(ED25519_BASEPOINT_POINT, 128)
 
-	t.Logf("p: %v", p)
-
 	if p.Equal(constB_SHL_128) != 1 {
 		t.Fatalf("B_SHL_128 != 2^128 B (Got: %v)", constB_SHL_128)
 	}
