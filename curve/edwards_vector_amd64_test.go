@@ -52,6 +52,38 @@ func TestAVX2(t *testing.T) {
 	})
 }
 
+func TestSSE2(t *testing.T) {
+	// It is increasingly difficult to find hardware that doesn't
+	// support AVX2, but there is specific assembly to accelerate
+	// table lookups.
+	//
+	// Make sure that the SSE2 code is tested, even if the AVX2
+	// backend is enabled.
+	if !supportsVectorizedEdwards {
+		t.Skipf("SSE2 covered by generic tests")
+	}
+
+	// Temporarily replace the vector table with the generic one
+	// and disable vector support.
+	oldBasepointTable := ED25519_BASEPOINT_TABLE
+	defer func() {
+		supportsVectorizedEdwards = true
+		ED25519_BASEPOINT_TABLE = oldBasepointTable
+	}()
+
+	ED25519_BASEPOINT_TABLE = &EdwardsBasepointTable{
+		inner: newEdwardsBasepointTableGeneric(ED25519_BASEPOINT_POINT),
+	}
+	supportsVectorizedEdwards = false
+
+	t.Run("BasepointTable/Basepoint", testEdwardsBasepointTableBasepoint)
+	t.Run("BasepointTable/Mul", testEdwardsBasepointTableMul)
+	t.Run("BasepointTable/Mul/One", testEdwardsBasepointTableMulOne)
+	t.Run("BasepointTable/Mul/Two", testEdwardsBasepointTableMulTwo)
+	t.Run("BasepointTable/Mul/VsEd25519py", testEdwardsBasepointTableMulVsEd25519py)
+	t.Run("BasepointTable/Mul/ByBasepointOrder", testEdwardsBasepointTableMulByBasepointOrder)
+}
+
 func testVecConditionalSelect(t *testing.T) {
 	a := testFieldElement2625x4()
 	var out, b fieldElement2625x4

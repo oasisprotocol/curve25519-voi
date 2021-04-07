@@ -32,19 +32,7 @@
 package curve
 
 //go:noescape
-func lookupAffineNiels_AVX2(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8)
+func lookupAffineNiels(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8)
 
 //go:noescape
 func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
-
-func lookupAffineNiels(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) {
-	// For the purposes of this routine, supportsVectorizedEdwards
-	// is just used as a "Does the system support AVX2" flag, and
-	// nothing else.
-	switch supportsVectorizedEdwards {
-	case true:
-		lookupAffineNiels_AVX2(table, out, xabs)
-	case false:
-		lookupAffineNielsGeneric(table, out, xabs)
-	}
-}
