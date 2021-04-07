@@ -90,25 +90,6 @@ func (p *projectiveNielsPoint) Identity() *projectiveNielsPoint {
 	return p
 }
 
-func (p *projectivePoint) debugIsValid() bool {
-	// Curve equation is    -x^2 + y^2 = 1 + d*x^2*y^2,
-	// homogenized as (-X^2 + Y^2)*Z^2 = Z^4 + d*X^2*Y^2
-	var XX, YY, ZZ, ZZZZ field.FieldElement
-	XX.Square(&p.X)
-	YY.Square(&p.Y)
-	ZZ.Square(&p.Z)
-	ZZZZ.Square(&ZZ)
-
-	var lhs, rhs field.FieldElement
-	lhs.Sub(&YY, &XX)
-	lhs.Mul(&lhs, &ZZ)
-	rhs.Mul(&XX, &YY)
-	rhs.Mul(&rhs, &constEDWARDS_D)
-	rhs.Add(&rhs, &ZZZZ)
-
-	return lhs.Equal(&rhs) == 1
-}
-
 func (p *projectiveNielsPoint) ConditionalSelect(a, b *projectiveNielsPoint, choice int) {
 	p.Y_plus_X.ConditionalSelect(&a.Y_plus_X, &b.Y_plus_X, choice)
 	p.Y_minus_X.ConditionalSelect(&a.Y_minus_X, &b.Y_minus_X, choice)

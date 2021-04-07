@@ -596,6 +596,38 @@ func (p *EdwardsPoint) testEqualCompressedY(s string) bool {
 	return p.EqualCompressedY(edwardsPointTestPoints[s]) == 1
 }
 
+func (p *EdwardsPoint) debugIsValid() bool {
+	var pProjective projectivePoint
+	pProjective.SetEdwards(p)
+	pointOnCurve := pProjective.debugIsValid()
+
+	var XY, ZT field.FieldElement
+	XY.Mul(&p.inner.X, &p.inner.Y)
+	ZT.Mul(&p.inner.Z, &p.inner.T)
+	onSegreImage := XY.Equal(&ZT) == 1
+
+	return pointOnCurve && onSegreImage
+}
+
+func (p *projectivePoint) debugIsValid() bool {
+	// Curve equation is    -x^2 + y^2 = 1 + d*x^2*y^2,
+	// homogenized as (-X^2 + Y^2)*Z^2 = Z^4 + d*X^2*Y^2
+	var XX, YY, ZZ, ZZZZ field.FieldElement
+	XX.Square(&p.X)
+	YY.Square(&p.Y)
+	ZZ.Square(&p.Z)
+	ZZZZ.Square(&ZZ)
+
+	var lhs, rhs field.FieldElement
+	lhs.Sub(&YY, &XX)
+	lhs.Mul(&lhs, &ZZ)
+	rhs.Mul(&XX, &YY)
+	rhs.Mul(&rhs, &constEDWARDS_D)
+	rhs.Add(&rhs, &ZZZZ)
+
+	return lhs.Equal(&rhs) == 1
+}
+
 func (p *affineNielsPoint) testEqual(other *affineNielsPoint) bool {
 	res := p.y_plus_x.Equal(&other.y_plus_x) & p.y_minus_x.Equal(&other.y_minus_x) & p.xy2d.Equal(&other.xy2d)
 

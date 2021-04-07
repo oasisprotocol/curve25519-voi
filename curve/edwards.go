@@ -407,19 +407,6 @@ func (p *EdwardsPoint) IsIdentity() bool {
 	return p.Equal(id.Identity()) == 1
 }
 
-func (p *EdwardsPoint) debugIsValid() bool {
-	var pProjective projectivePoint
-	pProjective.SetEdwards(p)
-	pointOnCurve := pProjective.debugIsValid()
-
-	var XY, ZT field.FieldElement
-	XY.Mul(&p.inner.X, &p.inner.Y)
-	ZT.Mul(&p.inner.Z, &p.inner.T)
-	onSegreImage := XY.Equal(&ZT) == 1
-
-	return pointOnCurve && onSegreImage
-}
-
 // double sets `p = 2t`, and returns p.
 func (p *EdwardsPoint) double(t *EdwardsPoint) *EdwardsPoint {
 	var (
