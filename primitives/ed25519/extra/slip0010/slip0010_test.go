@@ -112,7 +112,7 @@ func (output *hkdOutput) Check(t *testing.T, k ed25519.PrivateKey, c ChainCode) 
 
 	// The test vectors in the spec prefix the public key with a leading
 	// 0x00 for some reason that I'm too small-brained to understand.
-	// since ed25519 public keys by definition are 256-bits, and not
+	// Since ed25519 public keys by definition are 256-bits, and not
 	// 264-bits, prepend the extra mystery byte when comparing the
 	// output.
 	publicKey := k.Public().(ed25519.PublicKey)
