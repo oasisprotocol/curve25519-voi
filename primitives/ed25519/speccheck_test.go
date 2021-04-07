@@ -239,7 +239,7 @@ func TestSpeccheck(t *testing.T) {
 	}
 
 	t.Run("Default", func(t *testing.T) {
-		doTestCases("Default", &Options{Verify: VerifyOptionsDefault}, speccheckExpectedResults)
+		doTestCases("Default", optionsDefault, speccheckExpectedResults)
 	})
 	t.Run("StdLib", func(t *testing.T) {
 		doTestCases("StdLib", &Options{Verify: VerifyOptionsStdLib}, speccheckExpectedResultsStdLib)
