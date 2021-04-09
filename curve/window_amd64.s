@@ -65,7 +65,7 @@ TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ table+0(FP), R14
 	MOVQ out+8(FP), R15
 
-	// This is moderately annoying due to having 5x3 64-bit elements,
+	// This is moderately annoying due to having 3x5 64-bit elements,
 	// which does not nicely fit into vector registers.  This is
 	// handled by duplicating one element in 2 registers, since
 	// doing so keeps the rest of the code straight forward.

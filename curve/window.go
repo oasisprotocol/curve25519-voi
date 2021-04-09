@@ -106,15 +106,6 @@ func (tbl *affineNielsPointLookupTable) Basepoint() *EdwardsPoint {
 	return &ep
 }
 
-func lookupAffineNielsGeneric(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8) { //nolint:unused,deadcode
-	out.Identity()
-	for j := 1; j < 9; j++ {
-		// Copy `points[j-1] == j*P` onto `t` in constant time if `|x| == j`.
-		c := subtle.ConstantTimeCompareByte(byte(xabs), byte(j))
-		out.ConditionalAssign(&table[j-1], c)
-	}
-}
-
 func newAffineNielsPointLookupTable(ep *EdwardsPoint) affineNielsPointLookupTable {
 	var epANiels affineNielsPoint
 	epANiels.SetEdwards(ep)
