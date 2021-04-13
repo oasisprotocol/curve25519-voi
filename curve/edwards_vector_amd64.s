@@ -355,10 +355,6 @@ TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-28
 TEXT ·vecReduce_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 	MOVQ out+0(FP), AX
 
-	VMOVDQA ·reduce_shifts<>(SB), Y15 // ymm15 <- reduce_shifts
-	VMOVDQA ·reduce_masks<>(SB), Y14  // ymm14 <- reduce_masks
-	VPXOR   Y12, Y12, Y12             // ymm12 = 0
-
 	// ymm0 .. ymm4 = out
 	load_vec(AX)
 
@@ -371,14 +367,14 @@ TEXT ·vecReduce_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 TEXT ·vecNegate_AVX2(SB), NOSPLIT|NOFRAME, $0-8
 	MOVQ out+0(FP), AX
 
-	VMOVDQA ·p_times_16_lo<>(SB), Y15 // ymm15 <- P_TIMES_2_LO
-	VMOVDQA ·p_times_16_hi<>(SB), Y14 // ymm14 <- P_TIMES_2_HI
+	VMOVDQA ·p_times_16_lo<>(SB), Y15 // ymm15 <- P_TIMES_16_LO
+	VMOVDQA ·p_times_16_hi<>(SB), Y14 // ymm14 <- P_TIMES_16_HI
 
-	VPSUBD 0(AX), Y15, Y0   // ymm0 = P_TIMES_2_LO - out0
-	VPSUBD 32(AX), Y14, Y1  // ymm1 = P_TIMES_2_HI - out1
-	VPSUBD 64(AX), Y14, Y2  // ymm2 = P_TIMES_2_HI - out2
-	VPSUBD 96(AX), Y14, Y3  // ymm3 = P_TIMES_2_HI - out3
-	VPSUBD 128(AX), Y14, Y4 // ymm4 = P_TIMES_2_HI - out4
+	VPSUBD 0(AX), Y15, Y0   // ymm0 = P_TIMES_16_LO - out0
+	VPSUBD 32(AX), Y14, Y1  // ymm1 = P_TIMES_16_HI - out1
+	VPSUBD 64(AX), Y14, Y2  // ymm2 = P_TIMES_16_HI - out2
+	VPSUBD 96(AX), Y14, Y3  // ymm3 = P_TIMES_16_HI - out3
+	VPSUBD 128(AX), Y14, Y4 // ymm4 = P_TIMES_16_HI - out4
 
 	reduce()
 
