@@ -1448,7 +1448,7 @@ TEXT ·vecAddSubExtendedCached_Step1_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	VZEROUPPER
 	RET
 
-// func vecAddSubEdwards_Step2_AVX2(tmp0, tmp1 *fieldElement2625x4)
+// func vecAddSubExtendedCached_Step2_AVX2(tmp0, tmp1 *fieldElement2625x4)
 TEXT ·vecAddSubExtendedCached_Step2_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 	MOVQ tmp0+0(FP), AX
 	MOVQ tmp1+8(FP), BX
