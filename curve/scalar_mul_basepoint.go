@@ -1,5 +1,6 @@
-// Copyright (c) 2016-2019 Isis Agora Lovecruft, Henry de Valence. All rights reserved.
-// Copyright (c) 2021 Oasis Labs Inc.  All rights reserved.
+// Copyright (c) 2016-2019 isis agora lovecruft. All rights reserved.
+// Copyright (c) 2016-2019 Henry de Valence. All rights reserved.
+// Copyright (c) 2020-2021 Oasis Labs Inc. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
