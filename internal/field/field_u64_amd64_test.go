@@ -33,7 +33,6 @@
 package field
 
 import (
-	"math/bits"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -112,11 +111,16 @@ func (x FieldElement) Generate(rand *rand.Rand, size int) reflect.Value {
 // size bounds after a light reduction, based on the behavior of
 // the amd64 specific assembly multiply/pow2k routines.
 func isInAsmBounds(x *FieldElement) bool {
-	return bits.Len64(x.inner[0]) <= 52 &&
-		bits.Len64(x.inner[1]) <= 51 &&
-		bits.Len64(x.inner[2]) <= 51 &&
-		bits.Len64(x.inner[3]) <= 51 &&
-		bits.Len64(x.inner[4]) <= 51
+	const (
+		l0Max  = 1<<51 + 155629
+		l14Max = 1<<51 + 8191
+	)
+
+	return x.inner[0] < l0Max &&
+		x.inner[1] < l14Max &&
+		x.inner[2] < l14Max &&
+		x.inner[3] < l14Max &&
+		x.inner[4] < l14Max
 }
 
 func TestFeMulAsm(t *testing.T) {

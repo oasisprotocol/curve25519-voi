@@ -85,28 +85,28 @@ func reduce64(r00, r01, r10, r11, r20, r21, r30, r31, r40, r41 GPVirtual) {
 	IMUL3Q(Imm(19), r41, r41) // r41 *= 19
 	ADDQ(r41, r00)            // r00 += r41
 
-	tmp := RDX
-	MOVQ(r00, tmp)            // rdx <-- r00
-	SHRQ(Imm(51), tmp)        // rdx <-- r00 >> 51
-	ADDQ(tmp, r10)            // r10 += r00 >> 51
-	MOVQ(r10, tmp)            // rdx <-- r10
-	SHRQ(Imm(51), tmp)        // rdx <-- r10 >> 51
-	ANDQ(mask51, r00)         // r00 &= mask51
-	ADDQ(tmp, r20)            // r20 += r10 >> 51
-	MOVQ(r20, tmp)            // rdx <-- r20
-	SHRQ(Imm(51), tmp)        // rdx <-- r20 >> 51
-	ANDQ(mask51, r10)         // r10 &= mask51
-	ADDQ(tmp, r30)            // r30 += r20 >> 51
-	MOVQ(r30, tmp)            // rdx <-- r30
-	SHRQ(Imm(51), tmp)        // rdx <-- r30 >> 51
-	ANDQ(mask51, r20)         // r20 &= mask51
-	ADDQ(tmp, r40)            // r40 += r30 >> 51
-	MOVQ(r40, tmp)            // rdx <-- r40
-	SHRQ(Imm(51), tmp)        // rdx <-- r40 >> 51
-	ANDQ(mask51, r30)         // r30 &= mask51
-	IMUL3Q(Imm(19), tmp, tmp) // rdx <-- (r40 >> 51) * 19
-	ADDQ(tmp, r00)            // r00 += (r40 >> 51) *19
-	ANDQ(mask51, r40)         // r40 &= mask51
+	t0, t1, t2, t3, t4 := r01, r11, r21, r31, r41
+	MOVQ(r00, t0)           // t0 <-- r00
+	MOVQ(r10, t1)           // t1 <-- r10
+	MOVQ(r20, t2)           // t2 <-- r20
+	MOVQ(r30, t3)           // t3 <-- r30
+	MOVQ(r40, t4)           // t4 <-- r40
+	ANDQ(mask51, r00)       // r00 &= mask51
+	ANDQ(mask51, r10)       // r10 &= mask51
+	ANDQ(mask51, r20)       // r20 &= mask51
+	ANDQ(mask51, r30)       // r30 &= mask51
+	ANDQ(mask51, r40)       // r40 &= mask51
+	SHRQ(Imm(51), t0)       // t0 <- r00 >> 51
+	SHRQ(Imm(51), t1)       // t1 <- r10 >> 51
+	SHRQ(Imm(51), t2)       // t2 <- r20 >> 51
+	SHRQ(Imm(51), t3)       // t3 <- r30 >> 51
+	SHRQ(Imm(51), t4)       // t4 <- r40 >> 51
+	IMUL3Q(Imm(19), t4, t4) // t4 <-- (r40 >> 51) * 19
+	ADDQ(t0, r10)           // r10 += t0
+	ADDQ(t1, r20)           // r20 += t1
+	ADDQ(t2, r30)           // r30 += t2
+	ADDQ(t3, r40)           // r40 += t3
+	ADDQ(t4, r00)           // r10 += t4
 }
 
 func FeMul() error {
