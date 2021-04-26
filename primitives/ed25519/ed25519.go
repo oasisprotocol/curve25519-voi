@@ -248,7 +248,13 @@ func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.Edward
 }
 
 func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S *scalar.Scalar) bool {
-	if len(sig) != SignatureSize || (sig[63]&224 != 0) {
+	if len(sig) != SignatureSize {
+		return false
+	}
+
+	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
+	// the range [0, order) in order to prevent signature malleability.
+	if !scMinimal(sig[32:]) {
 		return false
 	}
 
@@ -273,12 +279,6 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// Unpack S.
 	if _, err := S.SetBytesModOrder(sig[32:]); err != nil {
-		return false
-	}
-
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !scMinimal(sig[32:]) {
 		return false
 	}
 
