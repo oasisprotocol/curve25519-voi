@@ -633,7 +633,7 @@ func scMinimal(scalar []byte) bool {
 		// 4 most significant bits unset, succeed fast
 		return true
 	}
-	if scalar[31]&244 != 0 {
+	if scalar[31]&224 != 0 {
 		// Any of the 3 most significant bits set, fail fast
 		return false
 	}
