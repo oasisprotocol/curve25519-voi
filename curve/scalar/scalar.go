@@ -136,7 +136,7 @@ func (s *Scalar) SetBytesModOrderWide(in []byte) (*Scalar, error) {
 	return s.pack(us), nil
 }
 
-// SetCanonicalBytes sets s from a canoical byte representation.
+// SetCanonicalBytes sets s from a canonical byte representation.
 func (s *Scalar) SetCanonicalBytes(in []byte) (*Scalar, error) {
 	candidate, err := New().SetBits(in)
 	if err != nil {
@@ -203,7 +203,7 @@ func (s *Scalar) Add(a, b *Scalar) *Scalar {
 
 	// The unpackedScalar.Add function produces reduced outputs
 	// if the inputs are reduced.  However, these inputs may not
-	// be reduced -- they might come from Scalar.FromBits.  So
+	// be reduced -- they might come from Scalar.SetBits.  So
 	// after computing the sum, we explicitly reduce it mod l
 	// before repacking.
 	z := scalarMulInternal(unpacked.Add(unpacked, b.unpack()), &constR)
@@ -216,7 +216,7 @@ func (s *Scalar) Sub(a, b *Scalar) *Scalar {
 
 	// The unpackedScalar.Sub function requires reduced inputs
 	// and produces reduced output. However, these inputs may not
-	// be reduced -- they might come from Scalar.FromBits.  So
+	// be reduced -- they might come from Scalar.SetBits.  So
 	// we explicitly reduce the inputs.
 	z := scalarMulInternal(unpacked, &constR)
 	unpacked.MontgomeryReduce(&z)

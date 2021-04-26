@@ -53,7 +53,7 @@ var (
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
 		},
-		// y = 2^255-18
+		// y = 2^255-20
 		{
 			0xec, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -285,7 +285,7 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	return sXoZ.Equal(&oXsZ) & sYoZ.Equal(&oYsZ)
 }
 
-// EqualCompresedY returns 1 iff the point is equal to the compressed
+// EqualCompressedY returns 1 iff the point is equal to the compressed
 // point, 0 otherwise.  This function will execute in constant time.
 func (p *EdwardsPoint) EqualCompressedY(other *CompressedEdwardsY) int {
 	var pCompressed CompressedEdwardsY

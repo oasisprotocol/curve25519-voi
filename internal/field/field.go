@@ -45,7 +45,7 @@ var (
 		return one
 	}()
 
-	// One is the field element -1.
+	// MinusOne is the field element -1.
 	MinusOne = func() FieldElement {
 		var minusOne FieldElement
 		minusOne.MinusOne()
