@@ -217,7 +217,7 @@ func (s *unpackedScalar) FromMontgomery(a *unpackedScalar) *unpackedScalar {
 }
 
 // MontgomeryReduce sets `s = limbs/R (mod l)`, where R is the Montgomery
-// modulus 2^260, and returns s.
+// modulus 2^261, and returns s.
 func (s *unpackedScalar) MontgomeryReduce(limbs *[17]uint64) *unpackedScalar {
 	part1 := func(sum uint64) (uint64, uint32) {
 		p := uint32(sum) * constLFACTOR & ((1 << 29) - 1)
