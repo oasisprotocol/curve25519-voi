@@ -133,13 +133,13 @@ DATA cached_id_2_4<>+28(SB)/4, $0x01ffffff
 GLOBL cached_id_2_4<>(SB), RODATA|NOPTR, $32
 
 // func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
-// Requires: AVX, AVX2, SSE2
+// Requires: AVX, AVX2
 TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-24
 	MOVQ table+0(FP), AX
 
 	// Build the mask, zero all the registers
 	MOVBQZX      xabs+16(FP), CX
-	MOVD         CX, X0
+	VMOVD        CX, X0
 	VPBROADCASTD X0, Y0
 	VPXOR        Y2, Y2, Y2
 	VPXOR        Y3, Y3, Y3

@@ -194,8 +194,9 @@ func LookupCached() error {
 
 	Comment("Build the mask, zero all the registers")
 	xabsVec, mask := YMM(), YMM()
-	tmp := Load(Param("xabs"), GP64())
-	MOVD(tmp, xabsVec.AsX())
+	tmpReg := GP64()
+	tmp := Load(Param("xabs"), tmpReg)
+	VMOVD(tmpReg.As32(), xabsVec.AsX())
 	VPBROADCASTD(xabsVec.AsX(), xabsVec)
 
 	v0, v1, v2, v3, v4 := YMM(), YMM(), YMM(), YMM(), YMM()
