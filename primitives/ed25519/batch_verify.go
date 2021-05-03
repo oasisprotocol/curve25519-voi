@@ -225,7 +225,7 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	staticPoints := make([]*curve.ExpandedEdwardsPoint, vl)  // As
 
 	dynamicPoints[0] = curve.ED25519_BASEPOINT_POINT // B
-	var randomBytes [scalar.ScalarWideSize]byte
+	var randomBytes [scalar.ScalarSize]byte
 	for i := range v.entries {
 		// Avoid range copying each v.entries[i] literal.
 		entry := &v.entries[i]
@@ -239,10 +239,14 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		// doesn't escape, so doing this saves n-1 allocations,
 		// which can be quite large, especially as the batch size
 		// increases.
-		if _, err := io.ReadFull(rand, randomBytes[:]); err != nil {
+		//
+		// Additionally, we want z_i to be 128-bit scalars, so only
+		// sampling 128-bits, and skipping the reduction is more
+		// performant.
+		if _, err := io.ReadFull(rand, randomBytes[:scalar.ScalarSize/2]); err != nil {
 			return false
 		}
-		if _, err := Rcoeffs[i].SetBytesModOrderWide(randomBytes[:]); err != nil {
+		if _, err := Rcoeffs[i].SetBits(randomBytes[:]); err != nil {
 			return false
 		}
 
