@@ -80,6 +80,7 @@ func TestX25519(t *testing.T) {
 func testX25519(t *testing.T) {
 	t.Run("Basepoint", testX25519Basepoint)
 	t.Run("LowOrderPoints", testX25519LowOrderPoints)
+	t.Run("NonCanonicalPoint", testX25519NonCanonicalPoint)
 	t.Run("TestVectors", func(t *testing.T) {
 		testTestVectors(t, func(dst, scalar, point *[32]byte) {
 			out, err := X25519(scalar[:], point[:])
@@ -122,6 +123,30 @@ func testX25519LowOrderPoints(t *testing.T) {
 		if out != nil {
 			t.Errorf("%d: expected nil output, got %x", i, out)
 		}
+	}
+}
+
+func testX25519NonCanonicalPoint(t *testing.T) {
+	scalar := []byte{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x40,
+	}
+	myPointH := []byte{
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	}
+	myPointL := []byte{
+		0x12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	}
+	outH, err := X25519(scalar, myPointH)
+	if err != nil {
+		t.Errorf("problem deserializing myPointH %s", err)
+	}
+	outL, err := X25519(scalar, myPointL)
+	if err != nil {
+		t.Errorf("problem deserializing myPointL %s", err)
+	}
+	if !bytes.Equal(outH, outL) {
+		t.Errorf("X25519(scalar, nonCanonical) != X25519(scalar, canonical)")
 	}
 }
 
