@@ -108,8 +108,8 @@ func LookupAffineNiels() error {
 	}
 
 	Comment("0: Identity element (1, 1, 0)")
-	MOVQ(U64(0), index)
-	makeMask()
+	PXOR(mask, mask) // Skip the MOVQ, MOVD, PSHUFD that makeMask would do.
+	PCMPEQL(xabsVec, mask)
 	MOVQ(U64(1), tmp)
 	MOVQ(tmp, m0) // m0 = uint64{1, 0} (y_plus_x[0], y_plus_x[1])
 	PXOR(m1, m1)
@@ -214,23 +214,18 @@ func LookupCached() error {
 	}
 
 	Comment("0: Identity element")
-	MOVQ(U64(0), index)
-	makeMask()
+	VPXOR(mask, mask, mask) // Skip the MOVQ, VMOVD, VPBROADCASTD that makeMask would do.
+	VPCMPEQD(xabsVec, mask, mask)
 	VMOVDQA(cached_id_0, m0)
 	VMOVDQA(cached_id_1, m1)
 	VMOVDQA(cached_id_2_4, m2)
 	VMOVDQA(m2, m3)
 	VMOVDQA(m2, m4)
-	VPAND(m0, mask, m0)
-	VPAND(m1, mask, m1)
-	VPAND(m2, mask, m2)
-	VPAND(m3, mask, m3)
-	VPAND(m4, mask, m4)
-	VPOR(v0, m0, v0)
-	VPOR(v1, m1, v1)
-	VPOR(v2, m2, v2)
-	VPOR(v3, m3, v3)
-	VPOR(v4, m4, v4)
+	VPAND(m0, mask, v0) // Can just write directly skipping VPORs, v0 .. v4 are all 0s.
+	VPAND(m1, mask, v1)
+	VPAND(m2, mask, v2)
+	VPAND(m3, mask, v3)
+	VPAND(m4, mask, v4)
 
 	Comment("1 .. 8")
 	MOVQ(U64(1), index)
