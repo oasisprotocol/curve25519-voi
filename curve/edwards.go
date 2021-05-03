@@ -69,6 +69,8 @@ type CompressedEdwardsY [CompressedPointSize]byte
 
 // MarshalBinary encodes the compressed Edwards point into a binary form
 // and returns the result.
+//
+// This function always produces output in canonical form.
 func (p *CompressedEdwardsY) MarshalBinary() ([]byte, error) {
 	b := make([]byte, CompressedPointSize)
 	copy(b, p[:])
@@ -76,6 +78,9 @@ func (p *CompressedEdwardsY) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a binary serialized compressed Edwards point.
+//
+// This function accepts non-canonical encodings, and rejects invalid
+// points.
 func (p *CompressedEdwardsY) UnmarshalBinary(data []byte) error {
 	p.Identity() // Foot + gun avoidance.
 
@@ -115,6 +120,9 @@ func (p *CompressedEdwardsY) SetEdwardsPoint(point *EdwardsPoint) *CompressedEdw
 
 // Equal returns 1 iff the compressed points are equal, 0 otherwise.
 // This function will execute in constant-time.
+//
+// This routine does a byte-comparison and will return 0 if comparing
+// the canonical and non-canonical encodings of the same point.
 func (p *CompressedEdwardsY) Equal(other *CompressedEdwardsY) int {
 	return subtle.ConstantTimeCompareBytes(p[:], other[:])
 }
@@ -192,6 +200,8 @@ type edwardsPointInner struct {
 
 // MarshalBinary encodes the Edwards point into a binary form and
 // returns the result.
+//
+// This function always produces output in canonical form.
 func (p *EdwardsPoint) MarshalBinary() ([]byte, error) {
 	var cp CompressedEdwardsY
 	cp.SetEdwardsPoint(p)
@@ -199,6 +209,9 @@ func (p *EdwardsPoint) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes a binary serialized Edwards point.
+//
+// This function accepts non-canonical encodings, and rejects invalid
+// points.
 func (p *EdwardsPoint) UnmarshalBinary(data []byte) error {
 	p.Identity() // Foot + gun avoidance.
 
@@ -230,6 +243,8 @@ func (p *EdwardsPoint) Set(t *EdwardsPoint) *EdwardsPoint {
 
 // SetCompressedY attempts to decompress a CompressedEdwardsY into an
 // EdwardsPoint.
+//
+// This function accepts non-canonical encodings of points.
 func (p *EdwardsPoint) SetCompressedY(compressedY *CompressedEdwardsY) (*EdwardsPoint, error) {
 	var Y, Z, YY, u, v, X field.FieldElement
 	if _, err := Y.SetBytes(compressedY[:]); err != nil {
@@ -270,6 +285,10 @@ func (p *EdwardsPoint) ConditionalSelect(a, b *EdwardsPoint, choice int) {
 
 // Equal returns 1 iff the points are equal, 0 otherwise. This function
 // will execute in constant-time.
+//
+// This function performs a canonicalized comparision.  For example it
+// will treat EdwardsPoints derived from the canonical and non-canonical
+// compressed encodings as equal.
 func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	// We would like to check that the point (X/Z, Y/Z) is equal to
 	// the point (X'/Z', Y'/Z') without converting into affine
