@@ -97,10 +97,10 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, staticScala
 
 	// Prepare 2^w/2 buckets.
 	// buckets[i] corresponds to a multiplication factor (i+1).
+	//
+	// No need to initialize the buckets since calculateColumn intializes
+	// them as needed as the first thing in the routine.
 	buckets := make([]EdwardsPoint, bucketsCount)
-	for i := range buckets {
-		buckets[i].Identity()
-	}
 
 	calculateColumn := func(idx int) EdwardsPoint {
 		// Clear the buckets when processing another digit.
@@ -189,9 +189,6 @@ func edwardsMultiscalarMulPippengerVartimeVector(out *EdwardsPoint, staticScalar
 	}
 
 	buckets := make([]extendedPoint, bucketsCount)
-	for i := range buckets {
-		buckets[i].Identity()
-	}
 
 	calculateColumn := func(idx int) extendedPoint {
 		for i := 0; i < bucketsCount; i++ {
