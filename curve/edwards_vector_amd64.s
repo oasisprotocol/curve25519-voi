@@ -200,33 +200,26 @@ TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-32
 	// maskVec = [mask, .., mask]
 	VPBROADCASTD mask+24(FP), Y0
 
-	// Load a
-	VMOVDQU (CX), Y1
-	VMOVDQU 32(CX), Y2
-	VMOVDQU 64(CX), Y3
-	VMOVDQU 96(CX), Y4
-	VMOVDQU 128(CX), Y5
+	// b = b & maskVec
+	VPAND (DX), Y0, Y1
+	VPAND 32(DX), Y0, Y2
+	VPAND 64(DX), Y0, Y3
+	VPAND 96(DX), Y0, Y4
+	VPAND 128(DX), Y0, Y5
 
-	// tmp = a ^ b
-	VPXOR (DX), Y1, Y6
-	VPXOR 32(DX), Y2, Y7
-	VPXOR 64(DX), Y3, Y8
-	VPXOR 96(DX), Y4, Y9
-	VPXOR 128(DX), Y5, Y10
+	// tmp = (!a) & maskVec
+	VPANDN (CX), Y0, Y6
+	VPANDN 32(CX), Y0, Y7
+	VPANDN 64(CX), Y0, Y8
+	VPANDN 96(CX), Y0, Y9
+	VPANDN 128(CX), Y0, Y0
 
-	// tmp &= maskVec
-	VPAND Y0, Y6, Y6
-	VPAND Y0, Y7, Y7
-	VPAND Y0, Y8, Y8
-	VPAND Y0, Y9, Y9
-	VPAND Y0, Y10, Y10
-
-	// out = a ^ ((a ^ b) & mask
-	VPXOR Y1, Y6, Y1
-	VPXOR Y2, Y7, Y2
-	VPXOR Y3, Y8, Y3
-	VPXOR Y4, Y9, Y4
-	VPXOR Y5, Y10, Y5
+	// b |= tmp
+	VPOR Y1, Y6, Y1
+	VPOR Y2, Y7, Y2
+	VPOR Y3, Y8, Y3
+	VPOR Y4, Y9, Y4
+	VPOR Y5, Y0, Y5
 
 	// Store output
 	VMOVDQU Y1, (AX)
