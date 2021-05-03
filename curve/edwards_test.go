@@ -614,7 +614,8 @@ func testIsCanonical(t *testing.T) {
 }
 
 func (p *EdwardsPoint) testEqualCompressedY(s string) bool {
-	return p.EqualCompressedY(edwardsPointTestPoints[s]) == 1
+	pCompressed := NewCompressedEdwardsY().SetEdwardsPoint(p)
+	return pCompressed.Equal(edwardsPointTestPoints[s]) == 1
 }
 
 func (p *EdwardsPoint) debugIsValid() bool {

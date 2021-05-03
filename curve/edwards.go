@@ -304,13 +304,6 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	return sXoZ.Equal(&oXsZ) & sYoZ.Equal(&oYsZ)
 }
 
-// EqualCompressedY returns 1 iff the point is equal to the compressed
-// point, 0 otherwise.  This function will execute in constant time.
-func (p *EdwardsPoint) EqualCompressedY(other *CompressedEdwardsY) int {
-	var pCompressed CompressedEdwardsY
-	return other.Equal(pCompressed.SetEdwardsPoint(p))
-}
-
 // Add sets `p = a + b`, and returns p.
 func (p *EdwardsPoint) Add(a, b *EdwardsPoint) *EdwardsPoint {
 	var (

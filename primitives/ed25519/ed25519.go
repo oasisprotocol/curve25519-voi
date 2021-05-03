@@ -165,6 +165,12 @@ func (opt *Options) verify() (dom2Flag, []byte, error) {
 		f       dom2Flag = fPure
 	)
 
+	if vOpts := opt.Verify; vOpts != nil {
+		if vOpts.AllowNonCanonicalR && vOpts.CofactorlessVerify {
+			return f, nil, fmt.Errorf("ed25519: incompatible verification options")
+		}
+	}
+
 	if l := len(opt.Context); l > 0 {
 		if l > ContextMaxSize {
 			return f, nil, fmt.Errorf("ed25519: bad context length: %d", l)
@@ -216,11 +222,17 @@ type VerifyOptions struct {
 
 	// AllowNonCanonicalR allows signatures with a non-canonical
 	// encoding of R.
+	//
+	// Note: Setting this option is incompatible with CofactorlessVerify.
 	AllowNonCanonicalR bool
 
-	// CofactorlessVerify uses the cofactorless verification equation.
+	// CofactorlessVerify uses the cofactorless verification equation,
+	// with the final comparison being done as a byte-compare between
+	// the signature's R component and the canonical serialization of
+	// the equation result (ref10 and derivative behavior).
 	//
-	// Note: Setting this option is incompatible with batch verification.
+	// Note: Setting this option is incompatible with batch verification,
+	// and is also incompatible with AllowNonCanonicalR.
 	CofactorlessVerify bool
 }
 
@@ -656,7 +668,18 @@ func scMinimal(scalar []byte) bool {
 }
 
 func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
+	// This could instead do `R ?= canonicalized sig` to support
+	// AllowNonCanonicalR with CofactorlessVerify.
+	//
+	// However, as far as I am aware, there is no commonly used
+	// implementation in the wild that is both cofactor-less and
+	// accepts non-canonical R (ref10 and derivatives will reject
+	// the latter).
+	//
+	// For now just assume that anyone explicitly wanting to use
+	// cofactorless verification wants interoperability with ref10.
 	var RCompressed curve.CompressedEdwardsY
-	_, _ = RCompressed.SetBytes(sig[:32])
-	return R.EqualCompressedY(&RCompressed) == 1
+	RCompressed.SetEdwardsPoint(R)
+
+	return bytes.Equal(RCompressed[:], sig[:32])
 }
