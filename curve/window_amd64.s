@@ -41,9 +41,7 @@ TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-24
 	PXOR    X9, X9
 
 	// 0: Identity element (1, 1, 0)
-	MOVQ       $0x0000000000000000, CX
-	MOVD       CX, X1
-	PSHUFD     $0x00, X1, X1
+	PXOR       X1, X1
 	PCMPEQL    X0, X1
 	MOVQ       $0x0000000000000001, CX
 	MOVQ       CX, X10
@@ -133,13 +131,13 @@ DATA cached_id_2_4<>+28(SB)/4, $0x01ffffff
 GLOBL cached_id_2_4<>(SB), RODATA|NOPTR, $32
 
 // func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
-// Requires: AVX, AVX2, SSE2
+// Requires: AVX, AVX2
 TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-24
 	MOVQ table+0(FP), AX
 
 	// Build the mask, zero all the registers
 	MOVBQZX      xabs+16(FP), CX
-	MOVD         CX, X0
+	VMOVD        CX, X0
 	VPBROADCASTD X0, Y0
 	VPXOR        Y2, Y2, Y2
 	VPXOR        Y3, Y3, Y3
@@ -148,25 +146,18 @@ TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-24
 	VPXOR        Y6, Y6, Y6
 
 	// 0: Identity element
-	MOVQ         $0x0000000000000000, CX
-	VMOVQ        CX, X1
-	VPBROADCASTD X1, Y1
-	VPCMPEQD     Y0, Y1, Y1
-	VMOVDQA      cached_id_0<>+0(SB), Y7
-	VMOVDQA      cached_id_1<>+0(SB), Y8
-	VMOVDQA      cached_id_2_4<>+0(SB), Y9
-	VMOVDQA      Y9, Y10
-	VMOVDQA      Y9, Y11
-	VPAND        Y7, Y1, Y7
-	VPAND        Y8, Y1, Y8
-	VPAND        Y9, Y1, Y9
-	VPAND        Y10, Y1, Y10
-	VPAND        Y11, Y1, Y11
-	VPOR         Y2, Y7, Y2
-	VPOR         Y3, Y8, Y3
-	VPOR         Y4, Y9, Y4
-	VPOR         Y5, Y10, Y5
-	VPOR         Y6, Y11, Y6
+	VPXOR    Y1, Y1, Y1
+	VPCMPEQD Y0, Y1, Y1
+	VMOVDQA  cached_id_0<>+0(SB), Y7
+	VMOVDQA  cached_id_1<>+0(SB), Y8
+	VMOVDQA  cached_id_2_4<>+0(SB), Y9
+	VMOVDQA  Y9, Y10
+	VMOVDQA  Y9, Y11
+	VPAND    Y7, Y1, Y2
+	VPAND    Y8, Y1, Y3
+	VPAND    Y9, Y1, Y4
+	VPAND    Y10, Y1, Y5
+	VPAND    Y11, Y1, Y6
 
 	// 1 .. 8
 	MOVQ $0x0000000000000001, CX

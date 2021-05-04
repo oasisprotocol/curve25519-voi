@@ -66,10 +66,10 @@ func m(x, y uint32) uint64 {
 
 const low_29_bit_mask uint32 = (1 << 29) - 1
 
-// unpackedScalar represents a scalar in Z/lZ as 9 32-bit limbs.
+// unpackedScalar represents a scalar in Z/lZ as 9 29-bit limbs.
 type unpackedScalar [9]uint32
 
-// SetBytes unpacks a 32 byte / 256 bit scalar into 9 32-bit limbs.
+// SetBytes unpacks a 32 byte / 256 bit scalar into 9 29-bit limbs.
 func (s *unpackedScalar) SetBytes(in []byte) *unpackedScalar {
 	if len(in) != ScalarSize {
 		panic("curve/scalar/u32: unexpected input size")
@@ -217,7 +217,7 @@ func (s *unpackedScalar) FromMontgomery(a *unpackedScalar) *unpackedScalar {
 }
 
 // MontgomeryReduce sets `s = limbs/R (mod l)`, where R is the Montgomery
-// modulus 2^260, and returns s.
+// modulus 2^261, and returns s.
 func (s *unpackedScalar) MontgomeryReduce(limbs *[17]uint64) *unpackedScalar {
 	part1 := func(sum uint64) (uint64, uint32) {
 		p := uint32(sum) * constLFACTOR & ((1 << 29) - 1)

@@ -53,14 +53,14 @@ func (s *unpackedScalar) Square(a *unpackedScalar) *unpackedScalar {
 }
 
 // MontgomeryMul sets `s = (a * b) / R (mod l)`, where R is the Montgomery
-// modulus 2^260, and returns s.
+// modulus, and returns s.
 func (s *unpackedScalar) MontgomeryMul(a, b *unpackedScalar) *unpackedScalar {
 	limbs := scalarMulInternal(a, b)
 	return s.MontgomeryReduce(&limbs)
 }
 
 // MontgomerySquare sets `s = (a^2) / R` (mod l), where R is the Montgomery
-// modulus 2^260, and returns s.
+// modulus, and returns s.
 func (s *unpackedScalar) MontgomerySquare(a *unpackedScalar) *unpackedScalar {
 	limbs := a.squareInternal()
 	return s.MontgomeryReduce(&limbs)

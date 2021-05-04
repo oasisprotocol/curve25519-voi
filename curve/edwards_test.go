@@ -143,6 +143,7 @@ func TestEdwards(t *testing.T) {
 	t.Run("MultiscalarMulPippengerVartime", testEdwardsMultiscalarMulPippengerVartime)
 	t.Run("AffineNielsPoint/ConditionalAssign", testAffineNielsConditionalAssign)
 	t.Run("AffineNielsPoint/ConversionClearsDenominators", testAffineNielsConversionClearsDenominators)
+	t.Run("IsCanonical", testIsCanonical)
 }
 
 func testEdwardsDecompressionCompression(t *testing.T) {
@@ -593,8 +594,28 @@ func testAffineNielsConversionClearsDenominators(t *testing.T) {
 	}
 }
 
+func testIsCanonical(t *testing.T) {
+	// Check to see that the hard-coded compressed points with non-canonical
+	// sign bits are indeed non-canonical.
+	for _, p := range noncanonicalSignBits {
+		ep, err := NewEdwardsPoint().SetCompressedY(&p)
+		if err != nil {
+			t.Fatalf("ep.SetCompressedY(): %v", err)
+		}
+		pCheck := NewCompressedEdwardsY().SetEdwardsPoint(ep)
+		if pCheck.Equal(&p) == 1 {
+			t.Fatalf("pCheck == p (p: %v pCheck: %v)", p, pCheck)
+		}
+
+		if p.IsCanonical() {
+			t.Fatalf("p.IsCanonical() == true (p: %v)", p)
+		}
+	}
+}
+
 func (p *EdwardsPoint) testEqualCompressedY(s string) bool {
-	return p.EqualCompressedY(edwardsPointTestPoints[s]) == 1
+	pCompressed := NewCompressedEdwardsY().SetEdwardsPoint(p)
+	return pCompressed.Equal(edwardsPointTestPoints[s]) == 1
 }
 
 func (p *EdwardsPoint) debugIsValid() bool {

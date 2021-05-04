@@ -192,7 +192,7 @@ func testSqrtRatioI(t *testing.T) {
 	two_i.Mul(&two, &SQRT_M1)
 	four.Add(&two, &two)
 
-	// 0/0 should return (1, 0) since u is 0
+	// 0/0 should return (0, 1) since u is 0
 	_, choice := sqrt.SqrtRatioI(&zero, &zero)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(0, 0) choice != 1")
@@ -216,7 +216,7 @@ func testSqrtRatioI(t *testing.T) {
 		t.Fatalf("sqrt.IsNegative() != 0")
 	}
 
-	// 2/1 is nonsquare, so we expect (0, sqrt(i*2))
+	// 2/1 is nonsquare, so we expect (sqrt(i*2), 0)
 	_, choice = sqrt.SqrtRatioI(&two, &One)
 	if choice != 0 {
 		t.Fatalf("sqrt.RatioI(2, 1) choice != 0")
@@ -230,7 +230,7 @@ func testSqrtRatioI(t *testing.T) {
 		t.Fatalf("sqrt.IsNegative() != 0")
 	}
 
-	// 4/1 is square, so we expect (1, sqrt(4))
+	// 4/1 is square, so we expect (sqrt(4), 1)
 	_, choice = sqrt.SqrtRatioI(&four, &One)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(4, 1) choice != 1")
@@ -243,7 +243,7 @@ func testSqrtRatioI(t *testing.T) {
 		t.Fatalf("sqrt.IsNegative() != 0")
 	}
 
-	// 1/4 is square, so we expect (1, 1/sqrt(4))
+	// 1/4 is square, so we expect (1/sqrt(4), 1)
 	_, choice = sqrt.SqrtRatioI(&One, &four)
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(4, 1) choice != 1")

@@ -75,7 +75,7 @@ func ScalarMult(dst, in, base *[32]byte) {
 		return
 	}
 
-	var ec [32]byte
+	var ec [ScalarSize]byte
 	copy(ec[:], in[:])
 	clampScalar(ec[:])
 
@@ -103,7 +103,7 @@ func ScalarBaseMult(dst, in *[32]byte) {
 	// There is no codepath to use `x/crypto/curve25519`'s version
 	// as none of the targets use a precomputed implementation.
 
-	var ec [32]byte
+	var ec [ScalarSize]byte
 	copy(ec[:], in[:])
 	clampScalar(ec[:])
 
@@ -133,24 +133,24 @@ func ScalarBaseMult(dst, in *[32]byte) {
 func X25519(scalar, point []byte) ([]byte, error) {
 	// Outline the body of function, to let the allocation be inlined in the
 	// caller, and possibly avoid escaping to the heap.
-	var dst [32]byte
+	var dst [PointSize]byte
 	return x25519(&dst, scalar, point)
 }
 
-func x25519(dst *[32]byte, scalar, point []byte) ([]byte, error) {
-	var in [32]byte
-	if l := len(scalar); l != 32 {
-		return nil, fmt.Errorf("bad scalar length: %d, expected %d", l, 32)
+func x25519(dst *[PointSize]byte, scalar, point []byte) ([]byte, error) {
+	var in [ScalarSize]byte
+	if l := len(scalar); l != ScalarSize {
+		return nil, fmt.Errorf("bad scalar length: %d, expected %d", l, ScalarSize)
 	}
-	if l := len(point); l != 32 {
-		return nil, fmt.Errorf("bad point length: %d, expected %d", l, 32)
+	if l := len(point); l != PointSize {
+		return nil, fmt.Errorf("bad point length: %d, expected %d", l, PointSize)
 	}
 	copy(in[:], scalar)
 	if &point[0] == &Basepoint[0] {
 		checkBasepoint()
 		ScalarBaseMult(dst, &in)
 	} else {
-		var base, zero [32]byte
+		var base, zero [PointSize]byte
 		copy(base[:], point)
 		ScalarMult(dst, &in, &base)
 		if subtle.ConstantTimeCompare(dst[:], zero[:]) == 1 {

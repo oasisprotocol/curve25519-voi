@@ -200,27 +200,27 @@ TEXT ·feMul(SB), NOSPLIT|NOFRAME, $0-24
 	ADDQ   R13, R14
 	IMUL3Q $0x13, R15, R15
 	ADDQ   R15, SI
-	MOVQ   SI, DX
-	SHRQ   $0x33, DX
-	ADDQ   DX, R8
-	MOVQ   R8, DX
-	SHRQ   $0x33, DX
+	MOVQ   SI, DI
+	MOVQ   R8, R9
+	MOVQ   R10, R11
+	MOVQ   R12, R13
+	MOVQ   R14, R15
 	ANDQ   AX, SI
-	ADDQ   DX, R10
-	MOVQ   R10, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R8
-	ADDQ   DX, R12
-	MOVQ   R12, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R10
-	ADDQ   DX, R14
-	MOVQ   R14, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R12
-	IMUL3Q $0x13, DX, DX
-	ADDQ   DX, SI
 	ANDQ   AX, R14
+	SHRQ   $0x33, DI
+	SHRQ   $0x33, R9
+	SHRQ   $0x33, R11
+	SHRQ   $0x33, R13
+	SHRQ   $0x33, R15
+	IMUL3Q $0x13, R15, R15
+	ADDQ   DI, R8
+	ADDQ   R9, R10
+	ADDQ   R11, R12
+	ADDQ   R13, R14
+	ADDQ   R15, SI
 
 	// Write out the results
 	MOVQ out+0(FP), AX
@@ -367,27 +367,27 @@ pow2k_loop:
 	ADDQ   R13, R14
 	IMUL3Q $0x13, R15, R15
 	ADDQ   R15, SI
-	MOVQ   SI, DX
-	SHRQ   $0x33, DX
-	ADDQ   DX, R8
-	MOVQ   R8, DX
-	SHRQ   $0x33, DX
+	MOVQ   SI, DI
+	MOVQ   R8, R9
+	MOVQ   R10, R11
+	MOVQ   R12, R13
+	MOVQ   R14, R15
 	ANDQ   AX, SI
-	ADDQ   DX, R10
-	MOVQ   R10, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R8
-	ADDQ   DX, R12
-	MOVQ   R12, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R10
-	ADDQ   DX, R14
-	MOVQ   R14, DX
-	SHRQ   $0x33, DX
 	ANDQ   AX, R12
-	IMUL3Q $0x13, DX, DX
-	ADDQ   DX, SI
 	ANDQ   AX, R14
+	SHRQ   $0x33, DI
+	SHRQ   $0x33, R9
+	SHRQ   $0x33, R11
+	SHRQ   $0x33, R13
+	SHRQ   $0x33, R15
+	IMUL3Q $0x13, R15, R15
+	ADDQ   DI, R8
+	ADDQ   R9, R10
+	ADDQ   R11, R12
+	ADDQ   R13, R14
+	ADDQ   R15, SI
 
 	// Write out the results
 	MOVQ out+0(FP), CX

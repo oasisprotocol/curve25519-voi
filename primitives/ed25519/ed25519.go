@@ -54,6 +54,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
 )
 
 const (
@@ -164,6 +165,12 @@ func (opt *Options) verify() (dom2Flag, []byte, error) {
 		f       dom2Flag = fPure
 	)
 
+	if vOpts := opt.Verify; vOpts != nil {
+		if vOpts.AllowNonCanonicalR && vOpts.CofactorlessVerify {
+			return f, nil, fmt.Errorf("ed25519: incompatible verification options")
+		}
+	}
+
 	if l := len(opt.Context); l > 0 {
 		if l > ContextMaxSize {
 			return f, nil, fmt.Errorf("ed25519: bad context length: %d", l)
@@ -215,11 +222,17 @@ type VerifyOptions struct {
 
 	// AllowNonCanonicalR allows signatures with a non-canonical
 	// encoding of R.
+	//
+	// Note: Setting this option is incompatible with CofactorlessVerify.
 	AllowNonCanonicalR bool
 
-	// CofactorlessVerify uses the cofactorless verification equation.
+	// CofactorlessVerify uses the cofactorless verification equation,
+	// with the final comparison being done as a byte-compare between
+	// the signature's R component and the canonical serialization of
+	// the equation result (ref10 and derivative behavior).
 	//
-	// Note: Setting this option is incompatible with batch verification.
+	// Note: Setting this option is incompatible with batch verification,
+	// and is also incompatible with AllowNonCanonicalR.
 	CofactorlessVerify bool
 }
 
@@ -247,7 +260,13 @@ func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.Edward
 }
 
 func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S *scalar.Scalar) bool {
-	if len(sig) != SignatureSize || (sig[63]&224 != 0) {
+	if len(sig) != SignatureSize {
+		return false
+	}
+
+	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
+	// the range [0, order) in order to prevent signature malleability.
+	if !scMinimal(sig[32:]) {
 		return false
 	}
 
@@ -275,12 +294,6 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 		return false
 	}
 
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !scMinimal(sig[32:]) {
-		return false
-	}
-
 	return true
 }
 
@@ -294,13 +307,14 @@ func (priv PrivateKey) Public() crypto.PublicKey {
 	return PublicKey(pub)
 }
 
-// Equal reports whether priv and x have the same value.
+// Equal reports whether priv and x have the same value. This function will
+// execute in constant time.
 func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
 	xx, ok := x.(PrivateKey)
 	if !ok {
 		return false
 	}
-	return bytes.Equal(priv, xx)
+	return subtle.ConstantTimeCompareBytes(priv, xx) == 1
 }
 
 // Seed returns the private key seed corresponding to priv. It is provided for
@@ -417,7 +431,7 @@ type PublicKey []byte
 // Any methods implemented on PublicKey might need to also be implemented on
 // PrivateKey, as the latter embeds the former and will expose its methods.
 
-// Equal reports whether pub and x have the same value.
+// Equal reports whether pub and x have the same value, in variable-time.
 func (pub PublicKey) Equal(x crypto.PublicKey) bool {
 	xx, ok := x.(PublicKey)
 	if !ok {
@@ -633,7 +647,7 @@ func scMinimal(scalar []byte) bool {
 		// 4 most significant bits unset, succeed fast
 		return true
 	}
-	if scalar[31]&244 != 0 {
+	if scalar[31]&224 != 0 {
 		// Any of the 3 most significant bits set, fail fast
 		return false
 	}
@@ -654,7 +668,18 @@ func scMinimal(scalar []byte) bool {
 }
 
 func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
+	// This could instead do `R ?= canonicalized sig` to support
+	// AllowNonCanonicalR with CofactorlessVerify.
+	//
+	// However, as far as I am aware, there is no commonly used
+	// implementation in the wild that is both cofactor-less and
+	// accepts non-canonical R (ref10 and derivatives will reject
+	// the latter).
+	//
+	// For now just assume that anyone explicitly wanting to use
+	// cofactorless verification wants interoperability with ref10.
 	var RCompressed curve.CompressedEdwardsY
-	_, _ = RCompressed.SetBytes(sig[:32])
-	return R.EqualCompressedY(&RCompressed) == 1
+	RCompressed.SetEdwardsPoint(R)
+
+	return bytes.Equal(RCompressed[:], sig[:32])
 }

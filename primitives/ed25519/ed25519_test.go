@@ -60,6 +60,7 @@ func TestStdLib(t *testing.T) {
 	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
 	t.Run("Equal", testEqual)
 	t.Run("Golden", testGolden)
+	t.Run("ScMinimal", testScMinimal)
 	t.Run("Malleability", testMalleability)
 }
 
@@ -80,8 +81,8 @@ func testSignVerify(t *testing.T) {
 }
 
 func testSignVerifyHashed(t *testing.T) {
-	key, _ := hex.DecodeString("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
-	expectedSig, _ := hex.DecodeString("98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
+	key := mustUnhex("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
+	expectedSig := mustUnhex("98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
 
 	private := PrivateKey(key)
 	hash := sha512.Sum512([]byte("abc"))
@@ -215,10 +216,10 @@ func testGolden(t *testing.T) {
 			t.Fatalf("bad number of parts on line %d", lineNo)
 		}
 
-		privBytes, _ := hex.DecodeString(parts[0])
-		pubKey, _ := hex.DecodeString(parts[1])
-		msg, _ := hex.DecodeString(parts[2])
-		sig, _ := hex.DecodeString(parts[3])
+		privBytes := mustUnhex(parts[0])
+		pubKey := mustUnhex(parts[1])
+		msg := mustUnhex(parts[2])
+		sig := mustUnhex(parts[3])
 		// The signatures in the test vectors also include the message
 		// at the end, but we just want R and S.
 		sig = sig[:SignatureSize]
@@ -259,7 +260,7 @@ func testGolden(t *testing.T) {
 	}
 }
 
-func testMalleability(t *testing.T) {
+func testScMinimal(t *testing.T) {
 	// At this point I could have just left this hardcoded as in the
 	// Go standard library, but parsing out BASEPOINT_ORDER is probably
 	// better.
@@ -268,6 +269,28 @@ func testMalleability(t *testing.T) {
 		t.Fatalf("invalid deserialized BASEPOINT_ORDER: Got %v", order)
 	}
 
+	// External review caught an early version of the fail-fast check
+	// that had a bug due to an incorrect constant.  Run through a few
+	// test cases to make sure that everything is ok.
+	for _, v := range []struct {
+		scalarHex string
+		expected  bool
+	}{
+		{"0000000000000000000000000000000000000000000000000000000000000010", true},  // From review
+		{"ddd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", true},  // Order - 1
+		{"edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", false}, // Order
+		{"0000000000000000000000000000000000000000000000000000000000000020", false},
+		{"0000000000000000000000000000000000000000000000000000000000000040", false},
+		{"0000000000000000000000000000000000000000000000000000000000000080", false},
+	} {
+		b := mustUnhex(v.scalarHex)
+		if scMinimal(b) != v.expected {
+			t.Fatalf("scMinimal(%s) != %v", v.scalarHex, v.expected)
+		}
+	}
+}
+
+func testMalleability(t *testing.T) {
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
 	// that s be in [0, order). This prevents someone from adding a multiple of
 	// order to s and obtaining a second valid signature for the same message.
@@ -436,4 +459,12 @@ func BenchmarkExpanded(b *testing.B) {
 			doBenchVerifyBatchOnly(b, n, true)
 		}
 	})
+}
+
+func mustUnhex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		panic("ed25519_test: failed to parse hex: " + err.Error())
+	}
+	return b
 }

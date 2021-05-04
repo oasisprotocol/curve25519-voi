@@ -29,7 +29,6 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // +build ignore
 
 package main
@@ -538,27 +537,25 @@ func VecConditionalSelect() error {
 	maskVec := YMM()
 	VPBROADCASTD(mask, maskVec)
 
-	Comment("Load a")
-	a := LoadVecPoint(aMem)
+	Comment("b = b & maskVec")
+	b := NewVecPoint()
+	for i := range b {
+		VPAND(bMem.Offset(i*32), maskVec, b[i])
+	}
 
-	Comment("tmp = a ^ b")
+	Comment("tmp = (!a) & maskVec")
 	tmp := NewVecPoint()
-	for i := range a {
-		VPXOR(bMem.Offset(i*32), a[i], tmp[i])
+	for i := range tmp {
+		VPANDN(aMem.Offset(i*32), maskVec, tmp[i])
 	}
 
-	Comment("tmp &= maskVec")
-	for _, ymm := range tmp {
-		VPAND(maskVec, ymm, ymm)
-	}
-
-	Comment("out = a ^ ((a ^ b) & mask")
-	for i := range a {
-		VPXOR(a[i], tmp[i], a[i])
+	Comment("b |= tmp")
+	for i := range b {
+		VPOR(b[i], tmp[i], b[i])
 	}
 
 	Comment("Store output")
-	a.Store(out)
+	b.Store(out)
 
 	VZEROUPPER()
 	RET()

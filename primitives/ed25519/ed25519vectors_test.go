@@ -31,7 +31,6 @@ package ed25519
 
 import (
 	"compress/gzip"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -89,14 +88,6 @@ func (v *ed25519Vector) Signature() []byte {
 
 func (v *ed25519Vector) Message() []byte {
 	return []byte(v.M)
-}
-
-func mustUnhex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic("ed25519vectors: failed to parse hex: " + err.Error())
-	}
-	return b
 }
 
 func shouldVectorVerifyWithOpts(v *ed25519Vector, vOpts *VerifyOptions) bool {
