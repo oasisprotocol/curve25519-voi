@@ -15,8 +15,6 @@ in the light of curve25519-dalek's lineage does not escape this author.
 
 ***DO NOT BOTHER THE curve25519-dalek DEVELOPERS ABOUT THIS PACKAGE***
 
-This package has yet to be reviewed.  Use something else.
-
 #### Package structure
 
  * curve: A mid-level API in the spirit of curve25519-dalek.
