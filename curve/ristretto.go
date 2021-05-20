@@ -56,8 +56,8 @@ func (p *CompressedRistretto) MarshalBinary() ([]byte, error) {
 func (p *CompressedRistretto) UnmarshalBinary(data []byte) error {
 	p.Identity() // Foot + gun avoidance.
 
-	var ep EdwardsPoint
-	if err := ep.UnmarshalBinary(data); err != nil {
+	var rp RistrettoPoint
+	if err := rp.UnmarshalBinary(data); err != nil {
 		return err
 	}
 
@@ -409,6 +409,13 @@ func (p *RistrettoPoint) MultiscalarMulVartime(scalars []*scalar.Scalar, points 
 
 	p.inner.MultiscalarMulVartime(scalars, edwardsPoints)
 	return p
+}
+
+// IsIdentity returns true iff the point is equivalent to the identity element
+// of the curve.
+func (p *RistrettoPoint) IsIdentity() bool {
+	var id RistrettoPoint
+	return p.Equal(id.Identity()) == 1
 }
 
 func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {

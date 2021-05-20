@@ -32,6 +32,7 @@
 package curve
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
@@ -60,6 +61,7 @@ func TestRistretto(t *testing.T) {
 	t.Run("Ristretto/FourTorsion/Random", testRistrettoFourTorsionRandom)
 	t.Run("Ristretto/Elligator", testRistrettoElligator)
 	t.Run("Ristretto/TestVectors", testRistrettoVectors)
+	t.Run("Ristretto/Serialization", testRistrettoSerialization)
 }
 
 func testRistrettoSum(t *testing.T) {
@@ -268,5 +270,51 @@ func testRistrettoRandomRoundtrip(t *testing.T) {
 		if p.Equal(&q) != 1 {
 			t.Fatalf("p != q (Got %v, %v)", p, q)
 		}
+	}
+}
+
+func testRistrettoSerialization(t *testing.T) {
+	var p RistrettoPoint
+
+	if _, err := p.SetRandom(nil); err != nil {
+		t.Fatalf("p.SetRandom: %v", err)
+	}
+	if p.IsIdentity() {
+		t.Fatalf("random point is identity???")
+	}
+
+	b, err := p.MarshalBinary()
+	if err != nil {
+		t.Fatalf("RistrettoPoint.MarshalBinary: %v", err)
+	}
+
+	// Check that RistrettoPoints round-trip.
+	var pp RistrettoPoint
+	if err = pp.UnmarshalBinary(b); err != nil {
+		t.Fatalf("RistrettoPoint.UnmarshalBinary: %v", err)
+	}
+	if p.Equal(&pp) != 1 {
+		t.Fatalf("p != pp (Got %v, %v)", p, pp)
+	}
+
+	// Check that CompressedRistrettos round-trip.
+	var pc CompressedRistretto
+	pp.Identity()
+	if err = pc.UnmarshalBinary(b); err != nil {
+		t.Fatalf("CompressedRistretto.UnmarshalBinary: %v", err)
+	}
+	if _, err = pp.SetCompressed(&pc); err != nil {
+		t.Fatalf("RistrettoPoint.SetCompressed: %v", err)
+	}
+	if p.Equal(&pp) != 1 {
+		t.Fatalf("compressed p != pp (Got %v, %v)", p, pp)
+	}
+
+	bb, err := pc.MarshalBinary()
+	if err != nil {
+		t.Fatalf("CompressedRistretto.MarshalBinary: %v", err)
+	}
+	if !bytes.Equal(bb, b) {
+		t.Fatalf("b != bb (Got %v, %v)", b, bb)
 	}
 }
