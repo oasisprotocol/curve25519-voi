@@ -33,6 +33,7 @@ package scalar
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"strconv"
 	"testing"
 )
@@ -116,6 +117,7 @@ func TestScalar(t *testing.T) {
 	t.Run("BatchInvert/Empty", testBatchInvertEmpty)
 	t.Run("BatchInvert/Consistency", testBatchInvertConsistency)
 	t.Run("PippengerRadix", testPippengerRadix)
+	t.Run("ScMinimal", testScMinimal)
 }
 
 func testFuzzerTestcaseReduction(t *testing.T) {
@@ -675,6 +677,39 @@ func testPippengerRadix(t *testing.T) {
 	for _, s := range cases {
 		for _, w := range []uint{6, 7, 8} {
 			testPippengerRadixIter(t, s, w)
+		}
+	}
+}
+
+func testScMinimal(t *testing.T) {
+	// At this point I could have just left this hardcoded as in the
+	// Go standard library, but parsing out BASEPOINT_ORDER is probably
+	// better.
+	expectedOrder := [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
+	if order != expectedOrder {
+		t.Fatalf("invalid deserialized BASEPOINT_ORDER: Got %v", order)
+	}
+
+	// External review caught an early version of the fail-fast check
+	// that had a bug due to an incorrect constant.  Run through a few
+	// test cases to make sure that everything is ok.
+	for _, v := range []struct {
+		scalarHex string
+		expected  bool
+	}{
+		{"0000000000000000000000000000000000000000000000000000000000000010", true},  // From review
+		{"ddd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", true},  // Order - 1
+		{"edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", false}, // Order
+		{"0000000000000000000000000000000000000000000000000000000000000020", false},
+		{"0000000000000000000000000000000000000000000000000000000000000040", false},
+		{"0000000000000000000000000000000000000000000000000000000000000080", false},
+	} {
+		b, err := hex.DecodeString(v.scalarHex)
+		if err != nil {
+			t.Fatalf("failed to decode test scalar: %v", err)
+		}
+		if ScMinimal(b) != v.expected {
+			t.Fatalf("ScMinimal(%s) != %v", v.scalarHex, v.expected)
 		}
 	}
 }

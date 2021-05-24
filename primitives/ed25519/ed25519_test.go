@@ -53,7 +53,6 @@ func TestStdLib(t *testing.T) {
 	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
 	t.Run("Equal", testEqual)
 	t.Run("Golden", testGolden)
-	t.Run("ScMinimal", testScMinimal)
 	t.Run("Malleability", testMalleability)
 }
 
@@ -250,36 +249,6 @@ func testGolden(t *testing.T) {
 
 	if err := scanner.Err(); err != nil {
 		t.Fatalf("error reading test data: %s", err)
-	}
-}
-
-func testScMinimal(t *testing.T) {
-	// At this point I could have just left this hardcoded as in the
-	// Go standard library, but parsing out BASEPOINT_ORDER is probably
-	// better.
-	expectedOrder := [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
-	if order != expectedOrder {
-		t.Fatalf("invalid deserialized BASEPOINT_ORDER: Got %v", order)
-	}
-
-	// External review caught an early version of the fail-fast check
-	// that had a bug due to an incorrect constant.  Run through a few
-	// test cases to make sure that everything is ok.
-	for _, v := range []struct {
-		scalarHex string
-		expected  bool
-	}{
-		{"0000000000000000000000000000000000000000000000000000000000000010", true},  // From review
-		{"ddd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", true},  // Order - 1
-		{"edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", false}, // Order
-		{"0000000000000000000000000000000000000000000000000000000000000020", false},
-		{"0000000000000000000000000000000000000000000000000000000000000040", false},
-		{"0000000000000000000000000000000000000000000000000000000000000080", false},
-	} {
-		b := mustUnhex(v.scalarHex)
-		if scMinimal(b) != v.expected {
-			t.Fatalf("scMinimal(%s) != %v", v.scalarHex, v.expected)
-		}
 	}
 }
 
