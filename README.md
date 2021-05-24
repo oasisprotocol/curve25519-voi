@@ -4,12 +4,13 @@
 > frankly.  There must still be some residual damage-repair capability.
 > We Demarchists build for posterity, you know.
 
-This package aims to provide a modern X25519/Ed25519 implementation
-for Go, mostly derived from curve25519-dalek.  The primary motivation
-is to hopefully provide a worthy alternative to the current state of
-available Go implementations, which is best described as "a gigantic
-mess of ref10 and donna ports".  The irony of the previous statement
-in the light of curve25519-dalek's lineage does not escape this author.
+This package aims to provide a modern X25519/Ed25519/sr25519
+implementation for Go, mostly derived from curve25519-dalek.  The
+primary motivation is to hopefully provide a worthy alternative to
+the current state of available Go implementations, which is best
+described as "a gigantic mess of ref10 and donna ports".  The irony
+of the previous statement in the light of curve25519-dalek's lineage
+does not escape this author.
 
 #### WARNING
 
@@ -20,6 +21,7 @@ in the light of curve25519-dalek's lineage does not escape this author.
  * curve: A mid-level API in the spirit of curve25519-dalek.
  * primitives/x25519: A X25519 implementation like `x/crypto/curve25519`.
  * primitives/ed25519: A Ed25519 implementation like `crypto/ed25519`.
+ * primitives/sr25519: A sr25519 implementation like `https://github.com/w3f/schnorrkel`.
 
 #### Ed25519 verification semantics
 
