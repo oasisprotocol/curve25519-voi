@@ -41,16 +41,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 )
-
-type zeroReader struct{}
-
-func (zeroReader) Read(buf []byte) (int, error) {
-	for i := range buf {
-		buf[i] = 0
-	}
-	return len(buf), nil
-}
 
 func TestStdLib(t *testing.T) {
 	// Tests mostly shamelessly stolen from the standard library.
@@ -65,7 +58,7 @@ func TestStdLib(t *testing.T) {
 }
 
 func testSignVerify(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	message := []byte("test message")
@@ -104,7 +97,7 @@ func testSignVerifyHashed(t *testing.T) {
 }
 
 func testCryptoSigner(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	signer := crypto.Signer(private)
@@ -141,7 +134,7 @@ func testCryptoSigner(t *testing.T) {
 }
 
 func testCryptoSignerHashed(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	signer := crypto.Signer(private)
@@ -315,7 +308,7 @@ func testMalleability(t *testing.T) {
 }
 
 func BenchmarkGenerateKey(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	b.Run("voi", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -351,7 +344,7 @@ func BenchmarkNewKeyFromSeed(b *testing.B) {
 }
 
 func BenchmarkSigning(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	_, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)
@@ -373,7 +366,7 @@ func BenchmarkSigning(b *testing.B) {
 }
 
 func BenchmarkVerification(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	pub, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)
@@ -413,7 +406,7 @@ func BenchmarkVerification(b *testing.B) {
 }
 
 func BenchmarkExpanded(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	pub, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)

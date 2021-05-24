@@ -32,7 +32,10 @@
 package merlin
 
 import (
+	"crypto/rand"
 	"encoding/binary"
+	"fmt"
+	"io"
 
 	"github.com/mimoo/StrobeGo/strobe"
 )
@@ -97,4 +100,80 @@ func (t *Transcript) ExtractBytes(label []byte, outLen int) []byte {
 	// here.
 	outBytes := t.s.PRF(outLen)
 	return outBytes
+}
+
+// BuildRng constructs a transcript RNG builder bound to the current
+// transcript state.
+func (t *Transcript) BuildRng() *TranscriptRngBuilder {
+	return &TranscriptRngBuilder{
+		s: t.s.Clone(),
+	}
+}
+
+// TranscriptRngBuilder constructs a transcript RNG by rekeying the transcript
+// with prover secrets and an external RNG.
+type TranscriptRngBuilder struct {
+	s *strobe.Strobe
+}
+
+// RekeyWithWitnessBytes rekeys the transcript using the provided witness data.
+func (rb *TranscriptRngBuilder) RekeyWithWitnessBytes(label, witness []byte) *TranscriptRngBuilder {
+	// AD[label || le32(len(witness))](witness)
+
+	sizeBuffer := make([]byte, 4)
+	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(witness)))
+
+	// The StrobeGo API does not support continuation operations,
+	// so we have to pass the label and length as a single buffer.
+	// Otherwise it will record two meta-AD operations instead of one.
+	labelSize := append(label, sizeBuffer...)
+	rb.s.AD(true, labelSize)
+
+	rb.s.KEY(witness)
+
+	return rb
+}
+
+// Finalize rekeys and finalizes the transcript, and constructs the RNG.
+// If rng is nil, crypto/rand.Reader will be used.
+//
+// Note: This invalidates the TranscriptRngBuilder.
+func (rb *TranscriptRngBuilder) Finalize(rng io.Reader) (io.Reader, error) {
+	if rng == nil {
+		rng = rand.Reader
+	}
+
+	randomBytes := make([]byte, 32)
+	if _, err := io.ReadFull(rng, randomBytes); err != nil {
+		return nil, fmt.Errorf("internal/merlin: failed to read entropy: %w", err)
+	}
+
+	rb.s.AD(true, []byte("rng"))
+	rb.s.KEY(randomBytes)
+
+	r := &transcriptRng{
+		s: rb.s,
+	}
+	rb.s = nil // Crash on further calls to rb.
+
+	return r, nil
+}
+
+type transcriptRng struct {
+	s *strobe.Strobe
+}
+
+func (rng *transcriptRng) Read(p []byte) (int, error) {
+	l := len(p)
+
+	sizeBuffer := make([]byte, 4)
+	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(l))
+	rng.s.AD(true, sizeBuffer)
+
+	// The StrobeGo API does not allow specifying a destination buffer
+	// for the PRF call, so this incurs the hit of an allocate + copy.
+	b := rng.s.PRF(l)
+	copy(p, b)
+
+	return l, nil
 }

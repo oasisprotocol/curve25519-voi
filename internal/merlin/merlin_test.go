@@ -33,7 +33,11 @@ package merlin
 
 import (
 	"fmt"
+	"io"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 )
 
 // Initialize STROBE-128(4d65726c696e2076312e30)   # b"Merlin v1.0"
@@ -109,5 +113,84 @@ func TestClone(t *testing.T) {
 	cHex = fmt.Sprintf("%x", cBytes)
 	if cHex != expectedHex {
 		t.Errorf("\nmtCopy Got : %s\nWant: %s", cHex, expectedHex)
+	}
+}
+
+func TestTranscriptRng(t *testing.T) {
+	protocolLabel := "test TranscriptRng collisions"
+
+	t1 := NewTranscript(protocolLabel)
+	t2 := NewTranscript(protocolLabel)
+	t3 := NewTranscript(protocolLabel)
+	t4 := NewTranscript(protocolLabel)
+
+	commitmentLabel := []byte("com")
+	commitment1 := []byte("commitment data 1")
+	commitment2 := []byte("commitment data 2")
+
+	t1.AppendMessage(commitmentLabel, commitment1)
+	t2.AppendMessage(commitmentLabel, commitment2)
+	t3.AppendMessage(commitmentLabel, commitment2)
+	t4.AppendMessage(commitmentLabel, commitment2)
+
+	witnessLabel := []byte("witness")
+	witness1 := []byte("witness data 1")
+	witness2 := []byte("witness data 2")
+
+	mustBuildRng := func(tr *Transcript, wb []byte, n string) io.Reader {
+		var badRng zeroreader.ZeroReader
+		r, err := tr.BuildRng().RekeyWithWitnessBytes(witnessLabel, wb).Finalize(badRng)
+		if err != nil {
+			t.Fatalf("\n%s Finalize failed: %v", n, err)
+		}
+		return r
+	}
+
+	r1 := mustBuildRng(t1, witness1, "t1")
+	r2 := mustBuildRng(t2, witness1, "t2")
+	r3 := mustBuildRng(t3, witness2, "t3")
+	r4 := mustBuildRng(t4, witness2, "t4")
+
+	mustRandomScalar := func(r io.Reader, n string) *scalar.Scalar {
+		s, err := scalar.New().SetRandom(r)
+		if err != nil {
+			t.Fatalf("\nscalar.New().SetRandom(%s) failed: %v", n, err)
+		}
+		return s
+	}
+
+	s1 := mustRandomScalar(r1, "r1")
+	s2 := mustRandomScalar(r2, "r2")
+	s3 := mustRandomScalar(r3, "r3")
+	s4 := mustRandomScalar(r4, "r4")
+
+	// Transcript t1 has different commitments than t2, t3, t4, so
+	// it should produce distinct challenges from all of them.
+	if s1.Equal(s2) == 1 {
+		t.Fatalf("s1 == s2")
+	}
+	if s1.Equal(s3) == 1 {
+		t.Fatalf("s1 == s3")
+	}
+	if s1.Equal(s4) == 1 {
+		t.Fatalf("s1 == s4")
+	}
+
+	// Transcript t2 has different witness variables from t3, t4,
+	// so it should produce distinct challenges from all of them.
+	if s2.Equal(s3) == 1 {
+		t.Fatalf("s2 == s3")
+	}
+	if s2.Equal(s4) == 1 {
+		t.Fatalf("s2 == s4")
+	}
+
+	// Transcripts t3 and t4 have the same commitments and
+	// witnesses, so they should give different challenges only
+	// based on the RNG. Checking that they're equal in the
+	// presence of a bad RNG checks that the different challenges
+	// above aren't because the RNG is accidentally different.
+	if s3.Equal(s4) != 1 {
+		t.Fatalf("s3 != s4")
 	}
 }
