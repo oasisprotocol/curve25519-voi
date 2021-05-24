@@ -1,5 +1,6 @@
 // Copyright (c) 2019 George Tankersley
 // Copyright (c) 2019 Henry de Valence
+// Copyright (c) 2021 Oasis Labs Inc. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -78,5 +79,35 @@ func TestComplexTranscript(t *testing.T) {
 
 	if chlHex != expectedChlHex {
 		t.Errorf("\nGot : %s\nWant: %s", chlHex, expectedChlHex)
+	}
+}
+
+func TestClone(t *testing.T) {
+	mt := NewTranscript("test protocol")
+	mt.AppendMessage([]byte("some label"), []byte("some data"))
+
+	mtCopy, mtCopy2 := mt.Clone(), mt.Clone()
+
+	// Ensure that mtCopy matches what we would get from mt.
+	cBytes := mtCopy.ExtractBytes([]byte("challenge"), 32)
+	cHex := fmt.Sprintf("%x", cBytes)
+	expectedHex := "d5a21972d0d5fe320c0d263fac7fffb8145aa640af6e9bca177c03c7efcf0615"
+	if cHex != expectedHex {
+		t.Errorf("\nmtCopy Got : %s\nWant: %s", cHex, expectedHex)
+	}
+
+	// Append more to mtCopy2, ensure that it is different.
+	mtCopy2.AppendMessage([]byte("someother label"), []byte("someother data"))
+	cBytes = mtCopy2.ExtractBytes([]byte("challenge"), 32)
+	cHex = fmt.Sprintf("%x", cBytes)
+	if cHex == expectedHex {
+		t.Errorf("\nmtCopy2 Got : %s\nWant: %s", cHex, expectedHex)
+	}
+
+	// Finally, extract from mt.
+	cBytes = mt.ExtractBytes([]byte("challenge"), 32)
+	cHex = fmt.Sprintf("%x", cBytes)
+	if cHex != expectedHex {
+		t.Errorf("\nmtCopy Got : %s\nWant: %s", cHex, expectedHex)
 	}
 }

@@ -1,5 +1,6 @@
 // Copyright (c) 2019 George Tankersley
 // Copyright (c) 2019 Henry de Valence
+// Copyright (c) 2021 Oasis Labs Inc. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -52,6 +53,13 @@ func NewTranscript(appLabel string) *Transcript {
 
 	t.AppendMessage([]byte(domainSeparatorLabel), []byte(appLabel))
 	return &t
+}
+
+// Clone returns a deep-copy of the transcript.
+func (t *Transcript) Clone() *Transcript {
+	return &Transcript{
+		s: *t.s.Clone(),
+	}
 }
 
 // Append adds the message to the transcript with the supplied label.
