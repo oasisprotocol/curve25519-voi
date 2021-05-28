@@ -41,16 +41,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 )
-
-type zeroReader struct{}
-
-func (zeroReader) Read(buf []byte) (int, error) {
-	for i := range buf {
-		buf[i] = 0
-	}
-	return len(buf), nil
-}
 
 func TestStdLib(t *testing.T) {
 	// Tests mostly shamelessly stolen from the standard library.
@@ -60,12 +53,11 @@ func TestStdLib(t *testing.T) {
 	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
 	t.Run("Equal", testEqual)
 	t.Run("Golden", testGolden)
-	t.Run("ScMinimal", testScMinimal)
 	t.Run("Malleability", testMalleability)
 }
 
 func testSignVerify(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	message := []byte("test message")
@@ -104,7 +96,7 @@ func testSignVerifyHashed(t *testing.T) {
 }
 
 func testCryptoSigner(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	signer := crypto.Signer(private)
@@ -141,7 +133,7 @@ func testCryptoSigner(t *testing.T) {
 }
 
 func testCryptoSignerHashed(t *testing.T) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	public, private, _ := GenerateKey(zero)
 
 	signer := crypto.Signer(private)
@@ -260,36 +252,6 @@ func testGolden(t *testing.T) {
 	}
 }
 
-func testScMinimal(t *testing.T) {
-	// At this point I could have just left this hardcoded as in the
-	// Go standard library, but parsing out BASEPOINT_ORDER is probably
-	// better.
-	expectedOrder := [4]uint64{0x5812631a5cf5d3ed, 0x14def9dea2f79cd6, 0, 0x1000000000000000}
-	if order != expectedOrder {
-		t.Fatalf("invalid deserialized BASEPOINT_ORDER: Got %v", order)
-	}
-
-	// External review caught an early version of the fail-fast check
-	// that had a bug due to an incorrect constant.  Run through a few
-	// test cases to make sure that everything is ok.
-	for _, v := range []struct {
-		scalarHex string
-		expected  bool
-	}{
-		{"0000000000000000000000000000000000000000000000000000000000000010", true},  // From review
-		{"ddd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", true},  // Order - 1
-		{"edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010", false}, // Order
-		{"0000000000000000000000000000000000000000000000000000000000000020", false},
-		{"0000000000000000000000000000000000000000000000000000000000000040", false},
-		{"0000000000000000000000000000000000000000000000000000000000000080", false},
-	} {
-		b := mustUnhex(v.scalarHex)
-		if scMinimal(b) != v.expected {
-			t.Fatalf("scMinimal(%s) != %v", v.scalarHex, v.expected)
-		}
-	}
-}
-
 func testMalleability(t *testing.T) {
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 adds an additional test
 	// that s be in [0, order). This prevents someone from adding a multiple of
@@ -315,7 +277,7 @@ func testMalleability(t *testing.T) {
 }
 
 func BenchmarkGenerateKey(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	b.Run("voi", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -351,7 +313,7 @@ func BenchmarkNewKeyFromSeed(b *testing.B) {
 }
 
 func BenchmarkSigning(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	_, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)
@@ -373,7 +335,7 @@ func BenchmarkSigning(b *testing.B) {
 }
 
 func BenchmarkVerification(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	pub, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)
@@ -413,7 +375,7 @@ func BenchmarkVerification(b *testing.B) {
 }
 
 func BenchmarkExpanded(b *testing.B) {
-	var zero zeroReader
+	var zero zeroreader.ZeroReader
 	pub, priv, err := GenerateKey(zero)
 	if err != nil {
 		b.Fatal(err)

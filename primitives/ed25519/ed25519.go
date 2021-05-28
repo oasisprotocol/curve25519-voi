@@ -47,7 +47,6 @@ import (
 	"crypto"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -112,19 +111,6 @@ var (
 	optionsDefault = &Options{
 		Verify: VerifyOptionsDefault,
 	}
-
-	// order is the order of Curve25519 in little-endian form.
-	order = func() [4]uint64 {
-		var orderBytes [scalar.ScalarSize]byte
-		_ = scalar.BASEPOINT_ORDER.ToBytes(orderBytes[:])
-
-		var ret [4]uint64
-		for i := range ret {
-			ret[i] = binary.LittleEndian.Uint64(orderBytes[i*8 : (i+1)*8])
-		}
-
-		return ret
-	}()
 
 	_ crypto.Signer = (PrivateKey)(nil)
 )
@@ -266,7 +252,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
 	// the range [0, order) in order to prevent signature malleability.
-	if !scMinimal(sig[32:]) {
+	if !scalar.ScMinimal(sig[32:]) {
 		return false
 	}
 
@@ -638,33 +624,6 @@ func makeDom2(f dom2Flag, c []byte) []byte {
 	b = append(b, c...)
 
 	return b
-}
-
-// scMinimal returns true if the given scalar is less than the order of the
-// curve.
-func scMinimal(scalar []byte) bool {
-	if scalar[31]&240 == 0 {
-		// 4 most significant bits unset, succeed fast
-		return true
-	}
-	if scalar[31]&224 != 0 {
-		// Any of the 3 most significant bits set, fail fast
-		return false
-	}
-
-	// 4th most significant bit set (unlikely), actually check vs order
-	for i := 3; ; i-- {
-		v := binary.LittleEndian.Uint64(scalar[i*8:])
-		if v > order[i] {
-			return false
-		} else if v < order[i] {
-			break
-		} else if i == 0 {
-			return false
-		}
-	}
-
-	return true
 }
 
 func cofactorlessVerify(R *curve.EdwardsPoint, sig []byte) bool {
