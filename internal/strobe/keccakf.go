@@ -31,6 +31,8 @@
 
 package strobe
 
+import "encoding/binary"
+
 // rc stores the round constants for use in the ι step.
 var rc = [24]uint64{
 	0x0000000000000001,
@@ -433,5 +435,26 @@ func keccakF1600(a *[25]uint64) {
 		a[22] = bc2 ^ (bc4 &^ bc3)
 		a[23] = bc3 ^ (bc0 &^ bc4)
 		a[24] = bc4 ^ (bc1 &^ bc0)
+	}
+}
+
+func keccakF1600Bytes(s *[25 * 8]byte) {
+	// TODO/perf: This could be split out to a separate set of files so
+	// that architectures that don't care about memory alignment that
+	// aren't amd64 do not have to take the added overhead.
+	//
+	// But if there are people using this library on 386, ppc64,
+	// ppc64le or s390x, they can submit a PR for it.
+
+	var a [25]uint64
+
+	for i := 0; i < 25; i++ {
+		a[i] = binary.LittleEndian.Uint64(s[i*8:])
+	}
+
+	keccakF1600(&a)
+
+	for i := 0; i < 25; i++ {
+		binary.LittleEndian.PutUint64(s[i*8:], a[i])
 	}
 }

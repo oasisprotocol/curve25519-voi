@@ -31,8 +31,15 @@
 
 package strobe
 
+import "unsafe"
+
 // This function is implemented in keccakf_amd64.s.
 
 //go:noescape
 
 func keccakF1600(a *[25]uint64)
+
+func keccakF1600Bytes(s *[25 * 8]byte) {
+	a := (*[25]uint64)(unsafe.Pointer(&s[0]))
+	keccakF1600(a)
+}
