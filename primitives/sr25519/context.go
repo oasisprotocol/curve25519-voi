@@ -146,13 +146,14 @@ func (st *SigningTranscript) commitPoint(label []byte, compressed *curve.Compres
 	st.commitBytes(label, compressed[:])
 }
 
-func (st *SigningTranscript) challengeBytes(label []byte, outLen int) []byte {
-	return st.t.ExtractBytes(label, outLen)
+func (st *SigningTranscript) challengeBytes(label, dest []byte) {
+	st.t.ExtractBytes(label, dest)
 }
 
 func (st *SigningTranscript) challengeScalar(label []byte) *scalar.Scalar {
-	buf := st.challengeBytes(label, scalar.ScalarWideSize)
-	s, err := scalar.NewFromBytesModOrderWide(buf)
+	var scalarBytes [scalar.ScalarWideSize]byte
+	st.challengeBytes(label, scalarBytes[:])
+	s, err := scalar.NewFromBytesModOrderWide(scalarBytes[:])
 	if err != nil {
 		panic("sr25519: scalar.NewFromBytesModOrderWide: " + err.Error())
 	}

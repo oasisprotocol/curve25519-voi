@@ -112,18 +112,17 @@ func (msk *MiniSecretKey) ExpandUniform() *SecretKey {
 	t := merlin.NewTranscript("ExpandSecretKeys")
 	t.AppendMessage([]byte("mini"), msk[:])
 
-	scalarBytes := t.ExtractBytes([]byte("sk"), 64)
-	keyScalar, err := scalar.NewFromBytesModOrderWide(scalarBytes)
+	var scalarBytes [scalar.ScalarWideSize]byte
+	t.ExtractBytes([]byte("sk"), scalarBytes[:])
+	keyScalar, err := scalar.NewFromBytesModOrderWide(scalarBytes[:])
 	if err != nil {
 		panic("sr25519: scalar.NewFromBytesModOrderWide: " + err.Error())
 	}
 
-	nonceBytes := t.ExtractBytes([]byte("no"), 32)
-
 	sk := &SecretKey{
 		key: keyScalar,
 	}
-	copy(sk.nonce[:], nonceBytes)
+	t.ExtractBytes([]byte("no"), sk.nonce[:])
 
 	return sk
 }
