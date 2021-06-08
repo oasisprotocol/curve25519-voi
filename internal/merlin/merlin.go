@@ -37,7 +37,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mimoo/StrobeGo/strobe"
+	"github.com/oasisprotocol/curve25519-voi/internal/strobe"
 )
 
 const (
@@ -51,7 +51,7 @@ type Transcript struct {
 
 func NewTranscript(appLabel string) *Transcript {
 	t := Transcript{
-		s: strobe.InitStrobe(merlinProtocolLabel, 128),
+		s: strobe.New(merlinProtocolLabel),
 	}
 
 	t.AppendMessage([]byte(domainSeparatorLabel), []byte(appLabel))
@@ -69,37 +69,27 @@ func (t *Transcript) Clone() *Transcript {
 func (t *Transcript) AppendMessage(label, message []byte) {
 	// AD[label || le32(len(message))](message)
 
-	sizeBuffer := make([]byte, 4)
+	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(message)))
 
-	// The StrobeGo API does not support continuation operations,
-	// so we have to pass the label and length as a single buffer.
-	// Otherwise it will record two meta-AD operations instead of one.
-	labelSize := append(label, sizeBuffer...)
-	t.s.AD(true, labelSize)
+	t.s.MetaAD(label, false)
+	t.s.MetaAD(sizeBuffer[:], true)
 
-	t.s.AD(false, message)
+	t.s.AD(message, false)
 }
 
 // ExtractBytes returns a buffer filled with the verifier's challenge bytes.
 // The label parameter is metadata about the challenge, and is also appended to
 // the transcript. See the Transcript Protocols section of the Merlin website
 // for details on labels.
-func (t *Transcript) ExtractBytes(label []byte, outLen int) []byte {
-	sizeBuffer := make([]byte, 4)
-	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(outLen))
+func (t *Transcript) ExtractBytes(label, dest []byte) {
+	var sizeBuffer [4]byte
+	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(dest)))
 
-	// The StrobeGo API does not support continuation operations,
-	// so we have to pass the label and length as a single buffer.
-	// Otherwise it will record two meta-AD operations instead of one.
-	labelSize := append(label, sizeBuffer...)
-	t.s.AD(true, labelSize)
+	t.s.MetaAD(label, false)
+	t.s.MetaAD(sizeBuffer[:], true)
 
-	// A PRF call directly to the output buffer (in the style of an append API)
-	// would be better, but our underlying STROBE library forces an allocation
-	// here.
-	outBytes := t.s.PRF(outLen)
-	return outBytes
+	t.s.PRF(dest)
 }
 
 // BuildRng constructs a transcript RNG builder bound to the current
@@ -120,14 +110,11 @@ type TranscriptRngBuilder struct {
 func (rb *TranscriptRngBuilder) RekeyWithWitnessBytes(label, witness []byte) *TranscriptRngBuilder {
 	// AD[label || le32(len(witness))](witness)
 
-	sizeBuffer := make([]byte, 4)
+	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(witness)))
 
-	// The StrobeGo API does not support continuation operations,
-	// so we have to pass the label and length as a single buffer.
-	// Otherwise it will record two meta-AD operations instead of one.
-	labelSize := append(label, sizeBuffer...)
-	rb.s.AD(true, labelSize)
+	rb.s.MetaAD(label, false)
+	rb.s.MetaAD(sizeBuffer[:], true)
 
 	rb.s.KEY(witness)
 
@@ -148,7 +135,8 @@ func (rb *TranscriptRngBuilder) Finalize(rng io.Reader) (io.Reader, error) {
 		return nil, fmt.Errorf("internal/merlin: failed to read entropy: %w", err)
 	}
 
-	rb.s.AD(true, []byte("rng"))
+	rb.s.MetaAD([]byte("rng"), false)
+
 	rb.s.KEY(randomBytes)
 
 	r := &transcriptRng{
@@ -166,14 +154,12 @@ type transcriptRng struct {
 func (rng *transcriptRng) Read(p []byte) (int, error) {
 	l := len(p)
 
-	sizeBuffer := make([]byte, 4)
+	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(l))
-	rng.s.AD(true, sizeBuffer)
 
-	// The StrobeGo API does not allow specifying a destination buffer
-	// for the PRF call, so this incurs the hit of an allocate + copy.
-	b := rng.s.PRF(l)
-	copy(p, b)
+	rng.s.MetaAD(sizeBuffer[:], false)
+
+	rng.s.PRF(p)
 
 	return l, nil
 }

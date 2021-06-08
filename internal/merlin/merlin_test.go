@@ -40,6 +40,14 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 )
 
+// testExtractBytes is a simple wrapper around ExtractBytes that allocates
+// the destination buffer.
+func (t *Transcript) testExtractBytes(label []byte, outLen int) []byte {
+	dest := make([]byte, outLen)
+	t.ExtractBytes(label, dest)
+	return dest
+}
+
 // Initialize STROBE-128(4d65726c696e2076312e30)   # b"Merlin v1.0"
 // meta-AD : 646f6d2d736570 || LE32(13)    # b"dom-sep"
 // AD : 746573742070726f746f636f6c    # b"test protocol"
@@ -53,7 +61,7 @@ func TestSimpleTranscript(t *testing.T) {
 	mt := NewTranscript("test protocol")
 	mt.AppendMessage([]byte("some label"), []byte("some data"))
 
-	cBytes := mt.ExtractBytes([]byte("challenge"), 32)
+	cBytes := mt.testExtractBytes([]byte("challenge"), 32)
 	cHex := fmt.Sprintf("%x", cBytes)
 	expectedHex := "d5a21972d0d5fe320c0d263fac7fffb8145aa640af6e9bca177c03c7efcf0615"
 
@@ -73,7 +81,7 @@ func TestComplexTranscript(t *testing.T) {
 
 	var chlBytes []byte
 	for i := 0; i < 32; i++ {
-		chlBytes = tr.ExtractBytes([]byte("challenge"), 32)
+		chlBytes = tr.testExtractBytes([]byte("challenge"), 32)
 		tr.AppendMessage([]byte("bigdata"), data)
 		tr.AppendMessage([]byte("challengedata"), chlBytes)
 	}
@@ -93,7 +101,7 @@ func TestClone(t *testing.T) {
 	mtCopy, mtCopy2 := mt.Clone(), mt.Clone()
 
 	// Ensure that mtCopy matches what we would get from mt.
-	cBytes := mtCopy.ExtractBytes([]byte("challenge"), 32)
+	cBytes := mtCopy.testExtractBytes([]byte("challenge"), 32)
 	cHex := fmt.Sprintf("%x", cBytes)
 	expectedHex := "d5a21972d0d5fe320c0d263fac7fffb8145aa640af6e9bca177c03c7efcf0615"
 	if cHex != expectedHex {
@@ -102,14 +110,14 @@ func TestClone(t *testing.T) {
 
 	// Append more to mtCopy2, ensure that it is different.
 	mtCopy2.AppendMessage([]byte("someother label"), []byte("someother data"))
-	cBytes = mtCopy2.ExtractBytes([]byte("challenge"), 32)
+	cBytes = mtCopy2.testExtractBytes([]byte("challenge"), 32)
 	cHex = fmt.Sprintf("%x", cBytes)
 	if cHex == expectedHex {
 		t.Errorf("\nmtCopy2 Got : %s\nWant: %s", cHex, expectedHex)
 	}
 
 	// Finally, extract from mt.
-	cBytes = mt.ExtractBytes([]byte("challenge"), 32)
+	cBytes = mt.testExtractBytes([]byte("challenge"), 32)
 	cHex = fmt.Sprintf("%x", cBytes)
 	if cHex != expectedHex {
 		t.Errorf("\nmtCopy Got : %s\nWant: %s", cHex, expectedHex)

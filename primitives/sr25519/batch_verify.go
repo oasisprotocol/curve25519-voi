@@ -160,7 +160,7 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	As := points[1+vl:]
 
 	// Accumulate public keys, signatures, and transcripts for
-	// delineariazation.
+	// delinearization.
 	//
 	// Note: Iterating over v repeatedly is kind of gross, but it's
 	// what the Rust implementation does.  I'm not convinced that
