@@ -29,6 +29,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Package merlin implements Merlin proof transcripts.
 package merlin
 
 import (
@@ -36,6 +37,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/oasisprotocol/curve25519-voi/internal/strobe"
 )
@@ -45,16 +47,18 @@ const (
 	domainSeparatorLabel = "dom-sep"
 )
 
+// Transcript is a Merlin proof transcript.
 type Transcript struct {
 	s strobe.Strobe
 }
 
+// NewTranscript initializes a new transcript with the specified protocol label.
 func NewTranscript(appLabel string) *Transcript {
 	t := Transcript{
 		s: strobe.New(merlinProtocolLabel),
 	}
 
-	t.AppendMessage([]byte(domainSeparatorLabel), []byte(appLabel))
+	t.AppendMessage(domainSeparatorLabel, []byte(appLabel))
 	return &t
 }
 
@@ -66,27 +70,44 @@ func (t *Transcript) Clone() *Transcript {
 }
 
 // Append adds the message to the transcript with the supplied label.
-func (t *Transcript) AppendMessage(label, message []byte) {
+// If the length of label or message will overflow a 32-bit unsigned
+// integer this method will panic.
+func (t *Transcript) AppendMessage(label string, message []byte) {
+	if lLen := uint64(len(label)); lLen > math.MaxUint32 {
+		panic("merlin: label length exceeds limits")
+	}
+	if mLen := uint64(len(message)); mLen > math.MaxUint32 {
+		panic("merlin: message length exceeds limits")
+	}
+
 	// AD[label || le32(len(message))](message)
 
 	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(message)))
 
-	t.s.MetaAD(label, false)
+	t.s.MetaAD([]byte(label), false)
 	t.s.MetaAD(sizeBuffer[:], true)
 
 	t.s.AD(message, false)
 }
 
-// ExtractBytes returns a buffer filled with the verifier's challenge bytes.
-// The label parameter is metadata about the challenge, and is also appended to
+// ExtractBytes fills dest with the verifier's challenge bytes. The label
+// parameter is metadata about the challenge, and is also appended to
 // the transcript. See the Transcript Protocols section of the Merlin website
-// for details on labels.
-func (t *Transcript) ExtractBytes(label, dest []byte) {
+// for details on labels.  If the length of label or dest will overflow
+// a 32-bit unsigned integer this method will panic.
+func (t *Transcript) ExtractBytes(dest []byte, label string) {
+	if lLen := uint64(len(label)); lLen > math.MaxUint32 {
+		panic("merlin: label length exceeds limits")
+	}
+	if dLen := uint64(len(dest)); dLen > math.MaxUint32 {
+		panic("merlin: dest length exceeds limits")
+	}
+
 	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(dest)))
 
-	t.s.MetaAD(label, false)
+	t.s.MetaAD([]byte(label), false)
 	t.s.MetaAD(sizeBuffer[:], true)
 
 	t.s.PRF(dest)
@@ -106,14 +127,23 @@ type TranscriptRngBuilder struct {
 	s *strobe.Strobe
 }
 
-// RekeyWithWitnessBytes rekeys the transcript using the provided witness data.
-func (rb *TranscriptRngBuilder) RekeyWithWitnessBytes(label, witness []byte) *TranscriptRngBuilder {
+// RekeyWithitnessBytes rekeys the transcript using the provided witness data.
+// If the length of label or witness will overflow a 32-bit unsigned
+// integer this method will panic.
+func (rb *TranscriptRngBuilder) RekeyWithWitnessBytes(label string, witness []byte) *TranscriptRngBuilder {
+	if lLen := uint64(len(label)); lLen > math.MaxUint32 {
+		panic("merlin: label length exceeds limits")
+	}
+	if wLen := uint64(len(witness)); wLen > math.MaxUint32 {
+		panic("merlin: witness length exceeds limits")
+	}
+
 	// AD[label || le32(len(witness))](witness)
 
 	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(len(witness)))
 
-	rb.s.MetaAD(label, false)
+	rb.s.MetaAD([]byte(label), false)
 	rb.s.MetaAD(sizeBuffer[:], true)
 
 	rb.s.KEY(witness)
@@ -132,7 +162,7 @@ func (rb *TranscriptRngBuilder) Finalize(rng io.Reader) (io.Reader, error) {
 
 	randomBytes := make([]byte, 32)
 	if _, err := io.ReadFull(rng, randomBytes); err != nil {
-		return nil, fmt.Errorf("internal/merlin: failed to read entropy: %w", err)
+		return nil, fmt.Errorf("merlin: failed to read entropy: %w", err)
 	}
 
 	rb.s.MetaAD([]byte("rng"), false)
@@ -153,6 +183,9 @@ type transcriptRng struct {
 
 func (rng *transcriptRng) Read(p []byte) (int, error) {
 	l := len(p)
+	if l > math.MaxUint32 {
+		return 0, fmt.Errorf("merlin: read length exceeds limits")
+	}
 
 	var sizeBuffer [4]byte
 	binary.LittleEndian.PutUint32(sizeBuffer[0:], uint32(l))

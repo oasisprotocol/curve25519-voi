@@ -39,23 +39,23 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
-// SignatureSize is the size of a sr25519 signature in bytes.
-const SignatureSize = 64
+const (
+	// SignatureSize is the size of a sr25519 signature in bytes.
+	SignatureSize = 64
+
+	protoLabel = "Schnorr-sig"
+	aLabel     = "sign:pk"
+	rLabel     = "sign:R"
+	cLabel     = "sign:c"
+
+	witnessScalarLabel = "signing"
+)
+
+var errSignatureNotMarkedSchnorrkel = fmt.Errorf("sr25519: not a sr25519 signature")
 
 func markSignatureSchnorrkel(b []byte) {
 	b[63] |= 128
 }
-
-var (
-	errSignatureNotMarkedSchnorrkel = fmt.Errorf("sr25519: not a sr25519 signature")
-
-	protoLabel = []byte("Schnorr-sig")
-	aLabel     = []byte("sign:pk")
-	rLabel     = []byte("sign:R")
-	cLabel     = []byte("sign:c")
-
-	witnessScalarLabel = []byte("signing")
-)
 
 type Signature struct {
 	rCompressed curve.CompressedRistretto

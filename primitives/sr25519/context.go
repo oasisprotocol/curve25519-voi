@@ -34,13 +34,12 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"math"
 
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-	"github.com/oasisprotocol/curve25519-voi/internal/merlin"
+	"github.com/oasisprotocol/curve25519-voi/primitives/merlin"
 )
 
 // SigningContext is a Schnoor signing context.
@@ -52,7 +51,7 @@ type SigningContext struct {
 // string that identifies the signer's role in the larger protocol.
 func NewSigningContext(context []byte) *SigningContext {
 	t := merlin.NewTranscript("SigningContext")
-	t.AppendMessage([]byte{}, context)
+	t.AppendMessage("", context)
 	return &SigningContext{
 		t: t,
 	}
@@ -67,7 +66,7 @@ func NewSigningContext(context []byte) *SigningContext {
 // performance.
 func (sc *SigningContext) NewTranscriptBytes(b []byte) *SigningTranscript {
 	t := sc.t.Clone()
-	t.AppendMessage([]byte("sign-bytes"), b)
+	t.AppendMessage("sign-bytes", b)
 	return &SigningTranscript{
 		t: t,
 	}
@@ -78,12 +77,12 @@ func (sc *SigningContext) NewTranscriptBytes(b []byte) *SigningTranscript {
 // 512-bits.  If the digest size is neither 256-bits nor 512-bits, this
 // method will panic.
 func (sc *SigningContext) NewTranscriptHash(h hash.Hash) *SigningTranscript {
-	var hLabel []byte
+	var hLabel string
 	switch h.Size() {
 	case 32:
-		hLabel = []byte("sign-256")
+		hLabel = "sign-256"
 	case 64:
-		hLabel = []byte("sign-512")
+		hLabel = "sign-512"
 	default:
 		panic("sr25519: invalid hash digest size")
 	}
@@ -110,7 +109,7 @@ func (sc *SigningContext) NewTranscriptXOF(xof blake2b.XOF) *SigningTranscript {
 	}
 
 	t := sc.t.Clone()
-	t.AppendMessage([]byte("sign-XoF"), prehash)
+	t.AppendMessage("sign-XoF", prehash)
 	return &SigningTranscript{
 		t: t,
 	}
@@ -127,32 +126,25 @@ func (st *SigningTranscript) clone() *SigningTranscript {
 	}
 }
 
-func (st *SigningTranscript) commitBytes(label, b []byte) {
-	if lLen := uint64(len(label)); lLen > math.MaxUint32 {
-		panic("sr25519: label length exceeds merlin limits")
-	}
-	if bLen := uint64(len(b)); bLen > math.MaxUint32 {
-		panic("sr25519: b length exceeds merlin limits")
-	}
-
+func (st *SigningTranscript) commitBytes(label string, b []byte) {
 	st.t.AppendMessage(label, b)
 }
 
-func (st *SigningTranscript) protoName(label []byte) {
-	st.commitBytes([]byte("proto-name"), label)
+func (st *SigningTranscript) protoName(name string) {
+	st.commitBytes("proto-name", []byte(name))
 }
 
-func (st *SigningTranscript) commitPoint(label []byte, compressed *curve.CompressedRistretto) {
+func (st *SigningTranscript) commitPoint(label string, compressed *curve.CompressedRistretto) {
 	st.commitBytes(label, compressed[:])
 }
 
-func (st *SigningTranscript) challengeBytes(label, dest []byte) {
-	st.t.ExtractBytes(label, dest)
+func (st *SigningTranscript) challengeBytes(dest []byte, label string) {
+	st.t.ExtractBytes(dest, label)
 }
 
-func (st *SigningTranscript) challengeScalar(label []byte) *scalar.Scalar {
+func (st *SigningTranscript) challengeScalar(label string) *scalar.Scalar {
 	var scalarBytes [scalar.ScalarWideSize]byte
-	st.challengeBytes(label, scalarBytes[:])
+	st.challengeBytes(scalarBytes[:], label)
 	s, err := scalar.NewFromBytesModOrderWide(scalarBytes[:])
 	if err != nil {
 		panic("sr25519: scalar.NewFromBytesModOrderWide: " + err.Error())
@@ -160,7 +152,7 @@ func (st *SigningTranscript) challengeScalar(label []byte) *scalar.Scalar {
 	return s
 }
 
-func (st *SigningTranscript) witnessScalar(label []byte, nonceSeeds [][]byte, rng io.Reader) (*scalar.Scalar, error) {
+func (st *SigningTranscript) witnessScalar(label string, nonceSeeds [][]byte, rng io.Reader) (*scalar.Scalar, error) {
 	rng, err := st.witnessRng(label, nonceSeeds, rng)
 	if err != nil {
 		return nil, fmt.Errorf("sr25519: failed to construct transcript rng: %w", err)
@@ -168,7 +160,7 @@ func (st *SigningTranscript) witnessScalar(label []byte, nonceSeeds [][]byte, rn
 	return scalar.New().SetRandom(rng)
 }
 
-func (st *SigningTranscript) witnessBytes(label, dest []byte, nonceSeeds [][]byte, rng io.Reader) error {
+func (st *SigningTranscript) witnessBytes(dest []byte, label string, nonceSeeds [][]byte, rng io.Reader) error {
 	rng, err := st.witnessRng(label, nonceSeeds, rng)
 	if err != nil {
 		return fmt.Errorf("sr25519: failed to construct transcript rng: %w", err)
@@ -181,7 +173,7 @@ func (st *SigningTranscript) witnessBytes(label, dest []byte, nonceSeeds [][]byt
 	return nil
 }
 
-func (st *SigningTranscript) witnessRng(label []byte, nonceSeeds [][]byte, rng io.Reader) (io.Reader, error) {
+func (st *SigningTranscript) witnessRng(label string, nonceSeeds [][]byte, rng io.Reader) (io.Reader, error) {
 	br := st.t.BuildRng()
 	for _, ns := range nonceSeeds {
 		br.RekeyWithWitnessBytes(label, ns)
