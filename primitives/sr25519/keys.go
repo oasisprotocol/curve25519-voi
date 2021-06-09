@@ -40,7 +40,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-	"github.com/oasisprotocol/curve25519-voi/internal/merlin"
+	"github.com/oasisprotocol/curve25519-voi/primitives/merlin"
 )
 
 const (
@@ -72,8 +72,8 @@ func scalarDivideByCofactor(b []byte) (*scalar.Scalar, error) {
 	)
 	for i := scalar.ScalarSize - 1; i >= 0; i-- {
 		v := b[i]
-		r := v & 0b00000111 // save remainder
-		v = v >> 3          // divide by 8
+		r := v & 7 // save remainder
+		v = v >> 3 // divide by 8
 		scalarBytes[i] = v + low
 		low = r << 5
 	}
@@ -110,10 +110,10 @@ func (msk *MiniSecretKey) Equal(other *MiniSecretKey) bool {
 // ExpandUniform expands a MiniSecretKey into a SecretKey using merlin.
 func (msk *MiniSecretKey) ExpandUniform() *SecretKey {
 	t := merlin.NewTranscript("ExpandSecretKeys")
-	t.AppendMessage([]byte("mini"), msk[:])
+	t.AppendMessage("mini", msk[:])
 
 	var scalarBytes [scalar.ScalarWideSize]byte
-	t.ExtractBytes([]byte("sk"), scalarBytes[:])
+	t.ExtractBytes(scalarBytes[:], "sk")
 	keyScalar, err := scalar.NewFromBytesModOrderWide(scalarBytes[:])
 	if err != nil {
 		panic("sr25519: scalar.NewFromBytesModOrderWide: " + err.Error())
@@ -122,7 +122,7 @@ func (msk *MiniSecretKey) ExpandUniform() *SecretKey {
 	sk := &SecretKey{
 		key: keyScalar,
 	}
-	t.ExtractBytes([]byte("no"), sk.nonce[:])
+	t.ExtractBytes(sk.nonce[:], "no")
 
 	return sk
 }

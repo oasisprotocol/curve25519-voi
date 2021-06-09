@@ -30,7 +30,6 @@
 package sr25519
 
 import (
-	//"crypto"
 	"fmt"
 	"testing"
 )

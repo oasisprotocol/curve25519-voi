@@ -37,8 +37,8 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
-	"github.com/oasisprotocol/curve25519-voi/internal/merlin"
 	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
+	"github.com/oasisprotocol/curve25519-voi/primitives/merlin"
 )
 
 type BatchVerifier struct {
@@ -86,7 +86,7 @@ func (e *entry) doInit(pk *PublicKey, transcript *SigningTranscript, signature *
 	e.hram.Set(deriveVerifyChallengeScalar(pk, transcript, signature))
 
 	// Calculate the transcript's delinearization component.
-	if err := transcript.witnessBytes([]byte{}, e.witnessBytes[:], nil, zeroreader.ZeroReader{}); err != nil {
+	if err := transcript.witnessBytes(e.witnessBytes[:], "", nil, zeroreader.ZeroReader{}); err != nil {
 		panic("sr25519: failed to generate transcript delinearization value: " + err.Error())
 	}
 	e.witnessA = pk.compressed
@@ -169,15 +169,15 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		t: merlin.NewTranscript("V-RNG"),
 	}
 	for i := range v.entries {
-		zs_t.commitPoint([]byte{}, &v.entries[i].witnessA)
+		zs_t.commitPoint("", &v.entries[i].witnessA)
 	}
 	for i := range v.entries {
-		zs_t.commitPoint([]byte{}, &v.entries[i].witnessR)
+		zs_t.commitPoint("", &v.entries[i].witnessR)
 	}
 	for i := range v.entries {
-		zs_t.commitBytes([]byte{}, v.entries[i].witnessBytes[:])
+		zs_t.commitBytes("", v.entries[i].witnessBytes[:])
 	}
-	zs_rng, err := zs_t.witnessRng([]byte{}, nil, rand)
+	zs_rng, err := zs_t.witnessRng("", nil, rand)
 	if err != nil {
 		panic("sr25519: failed to instantiate delinearization rng: " + err.Error())
 	}

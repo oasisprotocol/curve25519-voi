@@ -42,9 +42,9 @@ import (
 
 // testExtractBytes is a simple wrapper around ExtractBytes that allocates
 // the destination buffer.
-func (t *Transcript) testExtractBytes(label []byte, outLen int) []byte {
+func (t *Transcript) testExtractBytes(label string, outLen int) []byte {
 	dest := make([]byte, outLen)
-	t.ExtractBytes(label, dest)
+	t.ExtractBytes(dest, label)
 	return dest
 }
 
@@ -59,9 +59,9 @@ func (t *Transcript) testExtractBytes(label []byte, outLen int) []byte {
 
 func TestSimpleTranscript(t *testing.T) {
 	mt := NewTranscript("test protocol")
-	mt.AppendMessage([]byte("some label"), []byte("some data"))
+	mt.AppendMessage("some label", []byte("some data"))
 
-	cBytes := mt.testExtractBytes([]byte("challenge"), 32)
+	cBytes := mt.testExtractBytes("challenge", 32)
 	cHex := fmt.Sprintf("%x", cBytes)
 	expectedHex := "d5a21972d0d5fe320c0d263fac7fffb8145aa640af6e9bca177c03c7efcf0615"
 
@@ -72,7 +72,7 @@ func TestSimpleTranscript(t *testing.T) {
 
 func TestComplexTranscript(t *testing.T) {
 	tr := NewTranscript("test protocol")
-	tr.AppendMessage([]byte("step1"), []byte("some data"))
+	tr.AppendMessage("step1", []byte("some data"))
 
 	data := make([]byte, 1024)
 	for i := range data {
@@ -81,9 +81,9 @@ func TestComplexTranscript(t *testing.T) {
 
 	var chlBytes []byte
 	for i := 0; i < 32; i++ {
-		chlBytes = tr.testExtractBytes([]byte("challenge"), 32)
-		tr.AppendMessage([]byte("bigdata"), data)
-		tr.AppendMessage([]byte("challengedata"), chlBytes)
+		chlBytes = tr.testExtractBytes("challenge", 32)
+		tr.AppendMessage("bigdata", data)
+		tr.AppendMessage("challengedata", chlBytes)
 	}
 
 	expectedChlHex := "a8c933f54fae76e3f9bea93648c1308e7dfa2152dd51674ff3ca438351cf003c"
@@ -96,12 +96,12 @@ func TestComplexTranscript(t *testing.T) {
 
 func TestClone(t *testing.T) {
 	mt := NewTranscript("test protocol")
-	mt.AppendMessage([]byte("some label"), []byte("some data"))
+	mt.AppendMessage("some label", []byte("some data"))
 
 	mtCopy, mtCopy2 := mt.Clone(), mt.Clone()
 
 	// Ensure that mtCopy matches what we would get from mt.
-	cBytes := mtCopy.testExtractBytes([]byte("challenge"), 32)
+	cBytes := mtCopy.testExtractBytes("challenge", 32)
 	cHex := fmt.Sprintf("%x", cBytes)
 	expectedHex := "d5a21972d0d5fe320c0d263fac7fffb8145aa640af6e9bca177c03c7efcf0615"
 	if cHex != expectedHex {
@@ -109,15 +109,15 @@ func TestClone(t *testing.T) {
 	}
 
 	// Append more to mtCopy2, ensure that it is different.
-	mtCopy2.AppendMessage([]byte("someother label"), []byte("someother data"))
-	cBytes = mtCopy2.testExtractBytes([]byte("challenge"), 32)
+	mtCopy2.AppendMessage("someother label", []byte("someother data"))
+	cBytes = mtCopy2.testExtractBytes("challenge", 32)
 	cHex = fmt.Sprintf("%x", cBytes)
 	if cHex == expectedHex {
 		t.Errorf("\nmtCopy2 Got : %s\nWant: %s", cHex, expectedHex)
 	}
 
 	// Finally, extract from mt.
-	cBytes = mt.testExtractBytes([]byte("challenge"), 32)
+	cBytes = mt.testExtractBytes("challenge", 32)
 	cHex = fmt.Sprintf("%x", cBytes)
 	if cHex != expectedHex {
 		t.Errorf("\nmtCopy Got : %s\nWant: %s", cHex, expectedHex)
@@ -132,7 +132,7 @@ func TestTranscriptRng(t *testing.T) {
 	t3 := NewTranscript(protocolLabel)
 	t4 := NewTranscript(protocolLabel)
 
-	commitmentLabel := []byte("com")
+	commitmentLabel := "com"
 	commitment1 := []byte("commitment data 1")
 	commitment2 := []byte("commitment data 2")
 
@@ -141,7 +141,7 @@ func TestTranscriptRng(t *testing.T) {
 	t3.AppendMessage(commitmentLabel, commitment2)
 	t4.AppendMessage(commitmentLabel, commitment2)
 
-	witnessLabel := []byte("witness")
+	witnessLabel := "witness"
 	witness1 := []byte("witness data 1")
 	witness2 := []byte("witness data 2")
 

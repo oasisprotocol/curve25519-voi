@@ -22,6 +22,7 @@ does not escape this author.
  * primitives/x25519: A X25519 implementation like `x/crypto/curve25519`.
  * primitives/ed25519: A Ed25519 implementation like `crypto/ed25519`.
  * primitives/sr25519: A sr25519 implementation like `https://github.com/w3f/schnorrkel`.
+ * primitives/merlin: A Merlin transcript implementation.
 
 #### Ed25519 verification semantics
 
