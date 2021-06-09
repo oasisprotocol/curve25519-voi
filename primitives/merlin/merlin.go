@@ -183,7 +183,7 @@ type transcriptRng struct {
 
 func (rng *transcriptRng) Read(p []byte) (int, error) {
 	l := len(p)
-	if l > math.MaxUint32 {
+	if uint64(l) > math.MaxUint32 {
 		return 0, fmt.Errorf("merlin: read length exceeds limits")
 	}
 
