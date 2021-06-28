@@ -200,6 +200,55 @@ func TestBatchVerifier(t *testing.T) {
 			t.Error("batch verification should fail on an empty batch")
 		}
 	})
+	t.Run("Reset", func(t *testing.T) {
+		v := NewBatchVerifier()
+
+		// Reseting an empty batch verifier should work.
+		v.Reset()
+
+		ctx := NewSigningContext([]byte("test-batch-verify:reset"))
+		kp, err := GenerateKeyPair(nil)
+		if err != nil {
+			t.Fatalf("failed to GenerateKeyPair: %v", err)
+		}
+		pub := kp.PublicKey()
+		st := ctx.NewTranscriptBytes([]byte("ResetTest"))
+		sig, err := kp.Sign(nil, st)
+		if err != nil {
+			t.Fatalf("failed to Sign: %v", err)
+		}
+
+		for i := 0; i < 10; i++ {
+			v.Add(pub, st, sig)
+		}
+		v.Add(pub, st, &Signature{})
+		if v.anyInvalid == false {
+			t.Fatalf("Uninitialized signature did not invalidate batch")
+		}
+
+		v.Reset()
+		if len(v.entries) != 0 {
+			t.Fatalf("Reset did not shrink entries")
+		}
+		if cap(v.entries) == 0 {
+			// Can't check for an exact capacity since this is at the
+			// mercy of how stdlib reallocs.
+			t.Fatalf("Reset did not preserve entries backing store")
+		}
+		if v.anyInvalid != false {
+			t.Fatalf("Reset did not clear anyInvalid")
+		}
+	})
+	t.Run("NewWithCapacity", func(t *testing.T) {
+		v := NewBatchVerifierWithCapacity(10)
+
+		if l := len(v.entries); l != 0 {
+			t.Fatalf("unexpected v.entries length: %d", l)
+		}
+		if c := cap(v.entries); c != 10 {
+			t.Fatalf("unexpected v.entries capacity: %d", c)
+		}
+	})
 }
 
 func BenchmarkVerifyBatchOnly(b *testing.B) {
