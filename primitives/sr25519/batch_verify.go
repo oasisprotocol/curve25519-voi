@@ -274,7 +274,32 @@ func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
 	return allValid, valid
 }
 
+// Reset resets a batch for reuse.
+//
+// Note: This method will reuse the existing entires slice to reduce memory
+// reallocations.  If the next batch is known to be significantly smaller
+// it may be more memory efficient to simply create a new batch.
+func (v *BatchVerifier) Reset() *BatchVerifier {
+	// Allow re-using the existing entries slice.
+	v.entries = v.entries[:0]
+
+	v.anyInvalid = false
+
+	return v
+}
+
 // NewBatchVerifier creates an empty BatchVerifier.
 func NewBatchVerifier() *BatchVerifier {
 	return &BatchVerifier{}
+}
+
+// NewBatchVerifierWithCapacity creates an empty BatchVerifier, with
+// preallocations done for a pre-determined batch size.
+func NewBatchVerifierWithCapacity(n int) *BatchVerifier {
+	v := NewBatchVerifier()
+	if n > 0 {
+		v.entries = make([]entry, 0, n)
+	}
+
+	return v
 }
