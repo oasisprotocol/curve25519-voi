@@ -39,6 +39,8 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 )
 
+const batchPippengerThreshold = (190 - 1) / 2
+
 // BatchVerifier accumulates batch entries with Add, before performing
 // batch verifcation with Verify.
 type BatchVerifier struct {
@@ -46,31 +48,34 @@ type BatchVerifier struct {
 
 	anyInvalid      bool
 	anyCofactorless bool
+	anyNotExpanded  bool
 }
 
 type entry struct {
 	signature []byte
 
-	// Note: Unlike ed25519consensus, this stores R, and A, S, and hram
+	// Note: Unlike ed25519consensus, this stores R, -A, S, and hram
 	// in the entry, so that it is possible to implement a more
 	// useful verification API (information about which signature(s)
 	// are invalid is wanted a lot of the time), without having to
 	// redo a non-trivial amount of computation.
-	//
-	// Additionally A is stored as a expanded public key to allow
-	// for the code to be reused for the expanded case, and to
-	// accelerate the serial verification in the event of a batch
-	// verification failure.
 	R    curve.EdwardsPoint
-	A    *ExpandedPublicKey
+	negA curve.EdwardsPoint
 	S    scalar.Scalar
 	hram scalar.Scalar
+
+	// Additionally provisions are made for A to *also* be stored
+	// in expanded form, so that precomputation can be leveraged
+	// to accelerated the multiscalar multiply for moderate sized
+	// batches, and the serial verification in the event of a batch
+	// failure.
+	expandedA *ExpandedPublicKey
 
 	wantCofactorless bool
 	canBeValid       bool
 }
 
-func (e *entry) doInit(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) {
+func (e *entry) doInit(publicKey PublicKey, expandedPublicKey *ExpandedPublicKey, message, sig []byte, opts *Options) {
 	// Until everything has been deserialized correctly, assume the
 	// entry is totally invalid.
 	e.canBeValid = false
@@ -91,11 +96,21 @@ func (e *entry) doInit(publicKey *ExpandedPublicKey, message, sig []byte, opts *
 	}
 
 	// Validate A, Deserialize R and S.
-	if e.A = publicKey; e.A == nil {
-		return
-	}
-	if ok := vOpts.checkExpandedPublicKey(publicKey); !ok {
-		return
+	var compressedA []byte
+	if expandedPublicKey != nil {
+		if ok := vOpts.checkExpandedPublicKey(expandedPublicKey); !ok {
+			return
+		}
+		e.expandedA = expandedPublicKey
+		e.negA.SetExpanded(&expandedPublicKey.negA)
+		compressedA = expandedPublicKey.compressed[:]
+	} else {
+		if ok := vOpts.unpackPublicKey(publicKey, &e.negA); !ok {
+			return
+		}
+		e.expandedA = nil
+		e.negA.Neg(&e.negA)
+		compressedA = publicKey
 	}
 	if ok := vOpts.unpackSignature(sig, &e.R, &e.S); !ok {
 		return
@@ -117,7 +132,7 @@ func (e *entry) doInit(publicKey *ExpandedPublicKey, message, sig []byte, opts *
 		_, _ = h.Write(dom2)
 	}
 	_, _ = h.Write(sig[:32])
-	_, _ = h.Write(publicKey.compressed[:])
+	_, _ = h.Write(compressedA)
 	_, _ = h.Write(message)
 	h.Sum(hash[:0])
 	if _, err = e.hram.SetBytesModOrderWide(hash[:]); err != nil {
@@ -139,10 +154,24 @@ func (v *BatchVerifier) Add(publicKey PublicKey, message, sig []byte) {
 //
 // WARNING: This routine will panic if opts is nil.
 func (v *BatchVerifier) AddWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) {
-	// The error is explicitly discarded as doInit will do the
-	// right thing if the public key is nil.
-	precomputedPublicKey, _ := NewExpandedPublicKey(publicKey)
-	v.AddExpandedWithOptions(precomputedPublicKey, message, sig, opts)
+	// If everything added so far has an expanded public key, and the batch
+	// is not too large, then expand the public key for increased performance.
+	if v.precomputeOk() {
+		// The error is explicitly discarded as doInit will do the
+		// right thing if the public key is nil.
+		precomputedPublicKey, _ := NewExpandedPublicKey(publicKey)
+		v.AddExpandedWithOptions(precomputedPublicKey, message, sig, opts)
+		return
+	}
+
+	// Add an entry without the expanded public key.
+	var e entry
+
+	e.doInit(publicKey, nil, message, sig, opts)
+	v.anyInvalid = v.anyInvalid || !e.canBeValid
+	v.anyCofactorless = v.anyCofactorless || e.wantCofactorless
+	v.anyNotExpanded = true
+	v.entries = append(v.entries, e)
 }
 
 // AddExpanded adds a (expanded public key, message, sig) triple to the
@@ -158,9 +187,10 @@ func (v *BatchVerifier) AddExpanded(publicKey *ExpandedPublicKey, message, sig [
 func (v *BatchVerifier) AddExpandedWithOptions(publicKey *ExpandedPublicKey, message, sig []byte, opts *Options) {
 	var e entry
 
-	e.doInit(publicKey, message, sig, opts)
+	e.doInit(nil, publicKey, message, sig, opts)
 	v.anyInvalid = v.anyInvalid || !e.canBeValid
 	v.anyCofactorless = v.anyCofactorless || e.wantCofactorless
+	v.anyNotExpanded = v.anyNotExpanded || e.expandedA == nil // Can be omitted.
 	v.entries = append(v.entries, e)
 }
 
@@ -217,20 +247,42 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	Bcoeff := scalars[0]
 	Rcoeffs := scalars[1 : 1+vl]
 	Acoeffs := scalars[1+vl:]
-	dynamicScalars := scalars[0 : 1+vl] // Bcoeff | Rcoeffs
 
-	// No need to allocate a backing-store since B, Rs and As already
-	// have concrete instances.
-	dynamicPoints := make([]*curve.EdwardsPoint, numDynamic) // B | Rs
-	staticPoints := make([]*curve.ExpandedEdwardsPoint, vl)  // As
+	// Prepare the various slices based on if this is precomputed or not.
+	//
+	// Note: There is no need to allocate a backing-store since B, Rs and
+	// As already have concrete instances.
+	var (
+		randomBytes [scalar.ScalarSize]byte
 
-	dynamicPoints[0] = curve.ED25519_BASEPOINT_POINT // B
-	var randomBytes [scalar.ScalarSize]byte
+		points []*curve.EdwardsPoint
+		Rs     []*curve.EdwardsPoint
+
+		staticAs []*curve.ExpandedEdwardsPoint
+		As       []*curve.EdwardsPoint
+	)
+
+	isPrecomputed := v.precomputeOk()
+
+	if isPrecomputed {
+		points = make([]*curve.EdwardsPoint, numDynamic)   // B | Rs
+		staticAs = make([]*curve.ExpandedEdwardsPoint, vl) // As
+	} else {
+		points = make([]*curve.EdwardsPoint, numTerms) // B | Rs | As
+		As = points[1+vl:]
+	}
+	points[0] = curve.ED25519_BASEPOINT_POINT // B
+	Rs = points[1 : 1+vl]
+
 	for i := range v.entries {
 		// Avoid range copying each v.entries[i] literal.
 		entry := &v.entries[i]
-		dynamicPoints[1+i] = &entry.R
-		staticPoints[i] = &entry.A.negA
+		Rs[i] = &entry.R
+		if isPrecomputed {
+			staticAs[i] = &entry.expandedA.negA
+		} else {
+			As[i] = &entry.negA
+		}
 
 		// An inquisitive reader would ask why this doesn't just do
 		// `z.SetRandom(rand)`, and instead, opts to duplicate the code.
@@ -253,20 +305,27 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		var sz scalar.Scalar
 		Bcoeff.Add(Bcoeff, sz.Mul(Rcoeffs[i], &entry.S))
 
-		// The precomputation calculates multiples for -A_i, so
-		// this needs to calculate -[z_i * k_i] to fix the sign.
+		// The precomputation uses tables for -A, so to avoid having
+		// to derive and store a separate table, the entry also contains
+		// -A, for both the precomputed case and the non-precomputed
+		// case (for simplicity).
 		//
-		// While this does incur some extra overhead, it is
-		// negligible, and saves having to calculate and store
-		// a separate table.
-		Acoeffs[i].Mul(Rcoeffs[i], &entry.hram)
-		Acoeffs[i].Neg(Acoeffs[i])
+		// Calculate -[z_i * k_i] to fix the sign.
+		Acoeffs[i].Mul(Rcoeffs[i], &entry.hram) // Acoeffs[i] = z_i * k_i
+		Acoeffs[i].Neg(Acoeffs[i])              // Acoeffs[i] = -Acoeffs[i]
 	}
+
 	Bcoeff.Neg(Bcoeff) // this term is subtracted in the summation
 
 	// Check the cofactored batch verification equation.
 	var shouldBeId curve.EdwardsPoint
-	return shouldBeId.ExpandedMultiscalarMulVartime(Acoeffs, staticPoints, dynamicScalars, dynamicPoints).IsSmallOrder()
+	if isPrecomputed {
+		dynamicScalars := scalars[0 : 1+vl] // Bcoeff | Rcoeffs
+		shouldBeId.ExpandedMultiscalarMulVartime(Acoeffs, staticAs, dynamicScalars, points)
+	} else {
+		shouldBeId.MultiscalarMulVartime(scalars, points)
+	}
+	return shouldBeId.IsSmallOrder()
 }
 
 // Verify checks all entries in the current batch using entropy from rand,
@@ -314,37 +373,74 @@ func (v *BatchVerifier) Verify(rand io.Reader) (bool, []bool) {
 			continue
 		}
 
+		// If the entry has -A in expanded form, use the precomputed
+		// multiplies since it will be faster.
 		entry := &v.entries[i]
-		negA := &entry.A.negA
-
-		switch entry.wantCofactorless {
-		case true:
-			var R curve.EdwardsPoint
-			R.ExpandedDoubleScalarMulBasepointVartime(&entry.hram, negA, &entry.S)
-			valid[i] = cofactorlessVerify(&R, entry.signature)
-		case false:
-			var rDiff curve.EdwardsPoint
-			valid[i] = rDiff.ExpandedTripleScalarMulBasepointVartime(&entry.hram, negA, &entry.S, &entry.R).IsSmallOrder()
+		if entry.expandedA != nil {
+			negA := &entry.expandedA.negA
+			if entry.wantCofactorless {
+				var R curve.EdwardsPoint
+				R.ExpandedDoubleScalarMulBasepointVartime(&entry.hram, negA, &entry.S)
+				valid[i] = cofactorlessVerify(&R, entry.signature)
+			} else {
+				var rDiff curve.EdwardsPoint
+				valid[i] = rDiff.ExpandedTripleScalarMulBasepointVartime(&entry.hram, negA, &entry.S, &entry.R).IsSmallOrder()
+			}
+		} else {
+			negA := &entry.negA
+			if entry.wantCofactorless {
+				var R curve.EdwardsPoint
+				R.DoubleScalarMulBasepointVartime(&entry.hram, negA, &entry.S)
+				valid[i] = cofactorlessVerify(&R, entry.signature)
+			} else {
+				var rDiff curve.EdwardsPoint
+				valid[i] = rDiff.TripleScalarMulBasepointVartime(&entry.hram, negA, &entry.S, &entry.R).IsSmallOrder()
+			}
 		}
+
 		allValid = allValid && valid[i]
 	}
 
 	return allValid, valid
 }
 
+// ForceNoPublicKeyExpansion disables the key expansion for a given batch.
+// This setting will NOT persist across Reset, and must be called again
+// if a batch is reused.
+//
+// This setting can be used for large batches that are built via
+// Add/AddWithOptions to reduce memory consumption and allocations.
+func (v *BatchVerifier) ForceNoPublicKeyExpansion() *BatchVerifier {
+	v.anyNotExpanded = true
+	return v
+}
+
 // Reset resets a batch for reuse.
 //
-// Note: This method will reuse the existing entires slice to reduce memory
+// Note: This method will reuse the internal entires slice to reduce memory
 // reallocations.  If the next batch is known to be significantly smaller
 // it may be more memory efficient to simply create a new batch.
 func (v *BatchVerifier) Reset() *BatchVerifier {
+	// Remove the reference to each expanded -A so that they may be
+	// garbage collected.  The pointer will be overwritten on
+	// subsequent batch verify calls.
+	for _, ent := range v.entries {
+		ent.expandedA = nil
+	}
+
 	// Allow re-using the existing entries slice.
 	v.entries = v.entries[:0]
 
+	// Reset the rest of the verifier state.
 	v.anyInvalid = false
 	v.anyCofactorless = false
+	v.anyNotExpanded = false
 
 	return v
+}
+
+func (v *BatchVerifier) precomputeOk() bool {
+	return !v.anyNotExpanded && len(v.entries) < batchPippengerThreshold
 }
 
 // NewBatchVerfier creates an empty BatchVerifier.
@@ -353,7 +449,7 @@ func NewBatchVerifier() *BatchVerifier {
 }
 
 // NewBatchVerifierWithCapacity creates an empty BatchVerifier, with
-// preallocations done for a pre-determined batch size.
+// preallocations for a pre-determined batch size hint.
 func NewBatchVerifierWithCapacity(n int) *BatchVerifier {
 	v := NewBatchVerifier()
 	if n > 0 {
