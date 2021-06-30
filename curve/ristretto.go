@@ -190,6 +190,12 @@ func (p *RistrettoPoint) Set(t *RistrettoPoint) *RistrettoPoint {
 	return p
 }
 
+// SetExpanded sets the Ristretto point to the expanded point.
+func (p *RistrettoPoint) SetExpanded(expandedPoint *ExpandedRistrettoPoint) *RistrettoPoint {
+	p.inner.Set(&expandedPoint.inner.point)
+	return p
+}
+
 // SetCompressed attempts to decompress a CompressedRistretto into a
 // RistrettoPoint.
 func (p *RistrettoPoint) SetCompressed(compressed *CompressedRistretto) (*RistrettoPoint, error) {

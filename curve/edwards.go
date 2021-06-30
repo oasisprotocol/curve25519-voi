@@ -241,6 +241,11 @@ func (p *EdwardsPoint) Set(t *EdwardsPoint) *EdwardsPoint {
 	return p
 }
 
+// SetExpanded sets the Edwards point to the expanded point.
+func (p *EdwardsPoint) SetExpanded(expandedPoint *ExpandedEdwardsPoint) *EdwardsPoint {
+	return p.Set(&expandedPoint.point)
+}
+
 // SetCompressedY attempts to decompress a CompressedEdwardsY into an
 // EdwardsPoint.
 //
