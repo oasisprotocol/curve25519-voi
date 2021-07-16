@@ -237,7 +237,11 @@ func (tc *batchVerifierTestCase) makeVerifier(t *testing.T, opts *Options, expan
 
 func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options, expanded bool) {
 	v := tc.makeVerifier(t, opts, expanded)
-	expectedBatchOk := tc.culpritIdx < 0
+	checkBatchResult(t, v, opts, tc.details, tc.culpritIdx)
+}
+
+func checkBatchResult(t *testing.T, v *BatchVerifier, opts *Options, details string, badIndex int) {
+	expectedBatchOk := badIndex < 0
 	expectedVerifyOk := expectedBatchOk
 	if opts != nil && opts.Verify != nil && opts.Verify.CofactorlessVerify {
 		// Cofactor-less verification should always fail batch verify.
@@ -247,22 +251,22 @@ func (tc *batchVerifierTestCase) run(t *testing.T, opts *Options, expanded bool)
 	// First test that the batch verify returns the expected
 	// result for the entire batch.
 	if v.VerifyBatchOnly(nil) != expectedBatchOk {
-		t.Error(tc.details)
+		t.Fatal(details)
 	}
 
 	// Then test the actually useful API.
 	allValid, valid := v.Verify(nil)
 	if allValid != expectedVerifyOk {
-		t.Errorf("Verify returned incorrect summary (Got: %v)", allValid)
+		t.Fatalf("Verify returned incorrect summary (Got: %v)", allValid)
 	}
 
 	// The ensure that the bit-vector contains the expected
 	// signature validity status.  tc.culpritIdx is the index
 	// of the malformed/invalid signature.
 	for i, sigValid := range valid {
-		expectedSigOk := i != tc.culpritIdx
+		expectedSigOk := i != badIndex
 		if sigValid != expectedSigOk {
-			t.Errorf("bit-vector %d incorrect (Got: %v)", i, sigValid)
+			t.Fatalf("bit-vector %d incorrect (Got: %v)", i, sigValid)
 		}
 	}
 }
@@ -384,6 +388,47 @@ func TestBatchVerifier(t *testing.T) {
 		}
 		if c := cap(v.entries); c != 10 {
 			t.Fatalf("unexpected v.entries capacity: %d", c)
+		}
+	})
+	t.Run("HugeBatch", func(t *testing.T) {
+		// Initialize a batch verifier for a gigantic batch.
+		const hugeBatchSize = 10000
+		v := NewBatchVerifierWithCapacity(hugeBatchSize)
+
+		pub, priv, err := GenerateKey(nil)
+		if err != nil {
+			t.Fatalf("failed to GenerateKey: %v", err)
+		}
+		msg := []byte("HugeBatchTest")
+		sig := Sign(priv, msg)
+
+		// Ensure the batch verifier gives up expanding keys after
+		// the batch grows to be huge.
+		for i := 0; i < hugeBatchSize; i++ {
+			v.Add(pub, msg, sig)
+		}
+		for i, ent := range v.entries {
+			if (ent.expandedA != nil) != (i < batchPippengerThreshold) {
+				t.Fatalf("unexpected expanded A format: index %d, expandedA %v", i, ent.expandedA)
+			}
+		}
+		if !v.anyNotExpanded {
+			t.Fatalf("batch verifier did not set the anyNotExpanded flag")
+		}
+
+		// Ensure the batch verifier verifies a valid giant batch.
+		checkBatchResult(t, v, optionsDefault, "failed large batch verification", -1)
+
+		// Ensure the batch verifier fails to verify a invalid giant batch.
+		v.Add(pub, []byte("HugeBatchTest: bad message"), sig)
+		checkBatchResult(t, v, optionsDefault, "invalid message succeded", hugeBatchSize)
+
+		// Reset the batch.
+		v.Reset()
+
+		// Ensure that Reset clears the key expansion disable.
+		if v.anyNotExpanded {
+			t.Fatalf("reset did not clear the anyNotExpanded flag")
 		}
 	})
 }
