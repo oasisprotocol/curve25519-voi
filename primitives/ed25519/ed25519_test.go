@@ -37,11 +37,11 @@ import (
 	stded "crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha512"
-	"encoding/hex"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 )
 
@@ -73,8 +73,8 @@ func testSignVerify(t *testing.T) {
 }
 
 func testSignVerifyHashed(t *testing.T) {
-	key := mustUnhex("833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
-	expectedSig := mustUnhex("98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
+	key := testhelpers.MustUnhex(t, "833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf")
+	expectedSig := testhelpers.MustUnhex(t, "98a70222f0b8121aa9d30f813d683f809e462b469c7ff87639499bb94e6dae4131f85042463c2a355a2003d062adf5aaa10b8c61e636062aaad11c2a26083406")
 
 	private := PrivateKey(key)
 	hash := sha512.Sum512([]byte("abc"))
@@ -208,10 +208,10 @@ func testGolden(t *testing.T) {
 			t.Fatalf("bad number of parts on line %d", lineNo)
 		}
 
-		privBytes := mustUnhex(parts[0])
-		pubKey := mustUnhex(parts[1])
-		msg := mustUnhex(parts[2])
-		sig := mustUnhex(parts[3])
+		privBytes := testhelpers.MustUnhex(t, parts[0])
+		pubKey := testhelpers.MustUnhex(t, parts[1])
+		msg := testhelpers.MustUnhex(t, parts[2])
+		sig := testhelpers.MustUnhex(t, parts[3])
 		// The signatures in the test vectors also include the message
 		// at the end, but we just want R and S.
 		sig = sig[:SignatureSize]
@@ -421,12 +421,4 @@ func BenchmarkExpanded(b *testing.B) {
 			doBenchVerifyBatchOnly(b, n, true)
 		}
 	})
-}
-
-func mustUnhex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic("ed25519_test: failed to parse hex: " + err.Error())
-	}
-	return b
 }
