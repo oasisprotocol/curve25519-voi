@@ -29,7 +29,9 @@ jobs:
         with:
           go-version: "1.16.x"
       - name: Run 32 bit tests
-        run: go test ./... -tags=force32bit
+        run: |
+          go test ./... -tags=force32bit
+          GOARCH=arm go build ./...
       - name: Run 64 bit tests
         run: go test ./... -tags=force64bit
       - name: Run noasm tests
