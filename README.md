@@ -23,6 +23,7 @@ does not escape this author.
  * primitives/ed25519: A Ed25519 implementation like `crypto/ed25519`.
  * primitives/sr25519: A sr25519 implementation like `https://github.com/w3f/schnorrkel`.
  * primitives/merlin: A Merlin transcript implementation.
+ * primitives/h2c: A implementation of the "Hashing to Elliptic Curves" draft (v11).
 
 #### Ed25519 verification semantics
 
@@ -111,6 +112,9 @@ fault of the curve25519-voi developers alone.
 
  * The assembly optimized field element multiplications were taken
    (with minor modifications) from George Tankersley's ristretto255
+   package.
+
+ * The Elligator 2 mapping was taken from Loup Vaillant's Monocypher
    package.
 
 [1]: https://github.com/novifinancial/ed25519-speccheck
