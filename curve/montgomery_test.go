@@ -65,12 +65,9 @@ func testMontgomeryEdwardsPointFromMontgomery(t *testing.T) {
 }
 
 func testMontgomeryEdwardsPointFromMontgomeryRejectsTwist(t *testing.T) {
-	var two field.FieldElement
-	two.Add(&field.One, &field.One)
-
 	// u = 2 corresponds to a point on the twist.
 	var pM MontgomeryPoint
-	_ = two.ToBytes(pM[:])
+	_ = field.Two.ToBytes(pM[:])
 
 	var p EdwardsPoint
 	if _, err := p.SetMontgomery(&pM, 0); err == nil {

@@ -243,17 +243,12 @@ func testEdwardsAddAffineNiels(t *testing.T) {
 }
 
 func testEdwardsEqualsHandlesScaling(t *testing.T) {
-	var (
-		twoBytes = [field.FieldElementSize]byte{2}
-		id1      EdwardsPoint
-	)
-	var two field.FieldElement
-	if _, err := two.SetBytes(twoBytes[:]); err != nil {
-		t.Fatalf("SetBytes(): %v", err)
-	}
+	var id1 EdwardsPoint
 	id1.Identity()
+
 	var id2 EdwardsPoint
-	id2.inner.Y, id2.inner.Z = two, two
+	id2.inner.Y.Set(&field.Two)
+	id2.inner.Z.Set(&field.Two)
 	if id1.Equal(&id2) != 1 {
 		t.Fatalf("id1 != id2")
 	}
