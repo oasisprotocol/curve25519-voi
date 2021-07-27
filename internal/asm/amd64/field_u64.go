@@ -113,7 +113,7 @@ func FeMul() error {
 	TEXT(
 		"feMul",
 		NOSPLIT|NOFRAME,
-		"func(out, a, b *FieldElement)",
+		"func(out, a, b *Element)",
 	)
 
 	Comment(
@@ -322,7 +322,7 @@ func FePow2k() error {
 	TEXT(
 		"fePow2k",
 		NOSPLIT|NOFRAME,
-		"func(out, a *FieldElement, k uint64)",
+		"func(out, a *Element, k uint64)",
 	)
 
 	a := Mem{Base: Load(Param("a"), GP64())}

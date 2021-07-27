@@ -48,14 +48,14 @@ func m(x, y uint32) uint64 {
 	return uint64(x) * uint64(y)
 }
 
-// FieldElement represents an element of the field Z/(2^255 - 19).
-type FieldElement struct {
+// Element represents an element of the field Z/(2^255 - 19).
+type Element struct {
 	disalloweq.DisallowEqual //nolint:unused
 	inner                    [10]uint32
 }
 
 // Add sets `fe = a + b`, and returns fe.
-func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
+func (fe *Element) Add(a, b *Element) *Element {
 	fe.inner[0] = a.inner[0] + b.inner[0]
 	fe.inner[1] = a.inner[1] + b.inner[1]
 	fe.inner[2] = a.inner[2] + b.inner[2]
@@ -71,7 +71,7 @@ func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
 }
 
 // Sub sets `fe = a - b`, and returns fe.
-func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
+func (fe *Element) Sub(a, b *Element) *Element {
 	// Compute a - b as ((a + 2^4 * p) - b) to avoid underflow.
 	return fe.reduce(&[10]uint64{
 		uint64((a.inner[0] + (0x3ffffed << 4)) - b.inner[0]),
@@ -88,7 +88,7 @@ func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 }
 
 // Mul sets `fe = a * b`, and returns fe.
-func (fe *FieldElement) Mul(a, b *FieldElement) *FieldElement {
+func (fe *Element) Mul(a, b *Element) *Element {
 	x, y := a.inner, b.inner
 
 	// We assume that the input limbs x[i], y[i] are bounded by:
@@ -154,7 +154,7 @@ func (fe *FieldElement) Mul(a, b *FieldElement) *FieldElement {
 }
 
 // Neg sets `fe = -t`, and returns fe.
-func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
+func (fe *Element) Neg(t *Element) *Element {
 	// Compute -b as ((2^4 * p) - b) to avoid underflow.
 	return fe.reduce(&[10]uint64{
 		uint64((0x3ffffed << 4) - t.inner[0]),
@@ -172,7 +172,7 @@ func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
 
 // ConditionalSelect sets the field element to a iff choice == 0 and
 // b iff choice == 1.
-func (fe *FieldElement) ConditionalSelect(a, b *FieldElement, choice int) {
+func (fe *Element) ConditionalSelect(a, b *Element, choice int) {
 	fe.inner[0] = subtle.ConstantTimeSelectUint32(choice, b.inner[0], a.inner[0])
 	fe.inner[1] = subtle.ConstantTimeSelectUint32(choice, b.inner[1], a.inner[1])
 	fe.inner[2] = subtle.ConstantTimeSelectUint32(choice, b.inner[2], a.inner[2])
@@ -186,7 +186,7 @@ func (fe *FieldElement) ConditionalSelect(a, b *FieldElement, choice int) {
 }
 
 // ConditionalSwap conditionally swaps the field elements according to choice.
-func (fe *FieldElement) ConditionalSwap(other *FieldElement, choice int) {
+func (fe *Element) ConditionalSwap(other *Element, choice int) {
 	subtle.ConstantTimeSwapUint32(choice, &other.inner[0], &fe.inner[0])
 	subtle.ConstantTimeSwapUint32(choice, &other.inner[1], &fe.inner[1])
 	subtle.ConstantTimeSwapUint32(choice, &other.inner[2], &fe.inner[2])
@@ -200,7 +200,7 @@ func (fe *FieldElement) ConditionalSwap(other *FieldElement, choice int) {
 }
 
 // ConditionalAssign conditionally assigns the field element according to choice.
-func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
+func (fe *Element) ConditionalAssign(other *Element, choice int) {
 	fe.inner[0] = subtle.ConstantTimeSelectUint32(choice, other.inner[0], fe.inner[0])
 	fe.inner[1] = subtle.ConstantTimeSelectUint32(choice, other.inner[1], fe.inner[1])
 	fe.inner[2] = subtle.ConstantTimeSelectUint32(choice, other.inner[2], fe.inner[2])
@@ -214,21 +214,21 @@ func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
 }
 
 // One sets fe to one, and returns fe.
-func (fe *FieldElement) One() *FieldElement {
-	*fe = NewFieldElement2625(1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+func (fe *Element) One() *Element {
+	*fe = NewElement2625(1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	return fe
 }
 
 // MinusOne sets fe to -1, and returns fe.
-func (fe *FieldElement) MinusOne() *FieldElement {
-	*fe = NewFieldElement2625(
+func (fe *Element) MinusOne() *Element {
+	*fe = NewElement2625(
 		0x3ffffec, 0x1ffffff, 0x3ffffff, 0x1ffffff, 0x3ffffff,
 		0x1ffffff, 0x3ffffff, 0x1ffffff, 0x3ffffff, 0x1ffffff,
 	)
 	return fe
 }
 
-func (fe *FieldElement) reduce(z *[10]uint64) *FieldElement {
+func (fe *Element) reduce(z *[10]uint64) *Element {
 	const (
 		low_25_bit_mask uint64 = (1 << 25) - 1
 		low_26_bit_mask uint64 = (1 << 26) - 1
@@ -295,8 +295,8 @@ func (fe *FieldElement) reduce(z *[10]uint64) *FieldElement {
 // 2^255 - 18 to 1.  Applications that require a canonical encoding of
 // every field element should decode, re-encode to the canonical encoding,
 // and check that the input was canonical.
-func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
-	if len(in) != FieldElementSize {
+func (fe *Element) SetBytes(in []byte) (*Element, error) {
+	if len(in) != ElementSize {
 		return nil, fmt.Errorf("internal/field/u32: unexpected in size")
 	}
 
@@ -326,22 +326,22 @@ func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
 }
 
 // SetBytesWide loads a field element from a 512-bit little-endian input.
-func (fe *FieldElement) SetBytesWide(in []byte) (*FieldElement, error) {
-	if len(in) != FieldElementWideSize {
+func (fe *Element) SetBytesWide(in []byte) (*Element, error) {
+	if len(in) != ElementWideSize {
 		return nil, fmt.Errorf("internal/field/u32: unexpected input size")
 	}
 
-	var lo, hi FieldElement
-	if _, err := lo.SetBytes(in[:FieldElementSize]); err != nil {
+	var lo, hi Element
+	if _, err := lo.SetBytes(in[:ElementSize]); err != nil {
 		return nil, fmt.Errorf("internal/field/u32: failed to deserialize lo: %w", err)
 	}
-	if _, err := hi.SetBytes(in[FieldElementSize:]); err != nil {
+	if _, err := hi.SetBytes(in[ElementSize:]); err != nil {
 		return nil, fmt.Errorf("internal/field/u32: failed to deserialize hi: %w", err)
 	}
 
 	// Handle the 256th and 512th bits (MSB of lo and hi) explicitly
 	// as SetBytes ignores them.
-	lo.inner[0] += uint32(in[31]>>7) * 19 + uint32(in[63]>>7) * 2 * 19 * 19
+	lo.inner[0] += uint32(in[31]>>7)*19 + uint32(in[63]>>7)*2*19*19
 
 	// Back-of-the-envelope math says that this will fit without widening,
 	// but might as well do it this way.
@@ -360,13 +360,13 @@ func (fe *FieldElement) SetBytesWide(in []byte) (*FieldElement, error) {
 }
 
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
-func (fe *FieldElement) ToBytes(out []byte) error {
-	if len(out) != FieldElementSize {
+func (fe *Element) ToBytes(out []byte) error {
+	if len(out) != ElementSize {
 		return fmt.Errorf("internal/field/u32: unexpected output size")
 	}
 
 	// Reduce the value represented by `fe` to the range [0,2*p)
-	var reduced FieldElement
+	var reduced Element
 	reduced.reduce(&[10]uint64{
 		uint64(fe.inner[0]), uint64(fe.inner[1]), uint64(fe.inner[2]), uint64(fe.inner[3]), uint64(fe.inner[4]),
 		uint64(fe.inner[5]), uint64(fe.inner[6]), uint64(fe.inner[7]), uint64(fe.inner[8]), uint64(fe.inner[9]),
@@ -465,7 +465,7 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 }
 
 // Pow2k sets `fe = t^(2^k)`, given `k > 0`, and returns fe.
-func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
+func (fe *Element) Pow2k(t *Element, k uint) *Element {
 	if k == 0 {
 		panic("internal/field/u32: k out of bounds")
 	}
@@ -486,14 +486,14 @@ func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
 }
 
 // Square sets `fe = t^2`, and returns fe.
-func (fe *FieldElement) Square(t *FieldElement) *FieldElement {
+func (fe *Element) Square(t *Element) *Element {
 	var z [10]uint64
 	squareInner(&t.inner, &z)
 	return fe.reduce(&z)
 }
 
 // Square2 sets `fe = 2*t^2`, and returns fe.
-func (fe *FieldElement) Square2(t *FieldElement) *FieldElement {
+func (fe *Element) Square2(t *Element) *Element {
 	var z [10]uint64
 	squareInner(&t.inner, &z)
 	for i := 0; i < 10; i++ {
@@ -534,9 +534,9 @@ func squareInner(x *[10]uint32, z *[10]uint64) {
 	z[9] = m(x0_2, x[9]) + m(x1_2, x[8]) + m(x2_2, x[7]) + m(x3_2, x[6]) + m(x4_2, x[5])
 }
 
-// NewFieldElement2625 constructs a field element from its raw component limbs.
-func NewFieldElement2625(l0, l1, l2, l3, l4, l5, l6, l7, l8, l9 uint32) FieldElement {
-	return FieldElement{
+// NewElement2625 constructs a field element from its raw component limbs.
+func NewElement2625(l0, l1, l2, l3, l4, l5, l6, l7, l8, l9 uint32) Element {
+	return Element{
 		inner: [10]uint32{
 			l0, l1, l2, l3, l4, l5, l6, l7, l8, l9,
 		},

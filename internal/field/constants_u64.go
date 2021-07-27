@@ -35,7 +35,7 @@
 package field
 
 // Precomputed value of one of the square roots of -1 (mod p).
-var SQRT_M1 = NewFieldElement51(
+var SQRT_M1 = NewElement51(
 	1718705420411056,
 	234908883556509,
 	2233514472574048,

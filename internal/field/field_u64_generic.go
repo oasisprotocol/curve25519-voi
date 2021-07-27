@@ -33,10 +33,10 @@
 
 package field
 
-func feMul(fe, a, b *FieldElement) {
+func feMul(fe, a, b *Element) {
 	feMulGeneric(fe, a, b)
 }
 
-func fePow2k(fe, t *FieldElement, k uint) {
+func fePow2k(fe, t *Element, k uint) {
 	fePow2kGeneric(fe, t, k)
 }

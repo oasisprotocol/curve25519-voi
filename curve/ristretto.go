@@ -85,25 +85,25 @@ func (p *CompressedRistretto) SetRistrettoPoint(ristrettoPoint *RistrettoPoint) 
 	Z := ip.inner.Z
 	T := ip.inner.T
 
-	var u1, u2, tmp field.FieldElement
+	var u1, u2, tmp field.Element
 	u1.Add(&Z, &Y)
 	tmp.Sub(&Z, &Y)
 	u1.Mul(&u1, &tmp)
 	u2.Mul(&X, &Y)
 
 	// Ignore return value since this is always square.
-	var invsqrt field.FieldElement
+	var invsqrt field.Element
 	invsqrt.Square(&u2)
 	invsqrt.Mul(&u1, &invsqrt)
 	_, _ = invsqrt.InvSqrt()
-	var i1, i2, zInv, denInv field.FieldElement
+	var i1, i2, zInv, denInv field.Element
 	i1.Mul(&invsqrt, &u1)
 	i2.Mul(&invsqrt, &u2)
 	zInv.Mul(&i2, &T)
 	zInv.Mul(&i1, &zInv)
 	denInv.Set(&i2)
 
-	var iX, iY, enchantedDenominator field.FieldElement
+	var iX, iY, enchantedDenominator field.Element
 	iX.Mul(&X, &field.SQRT_M1)
 	iY.Mul(&Y, &field.SQRT_M1)
 	enchantedDenominator.Mul(&i1, &constINVSQRT_A_MINUS_D)
@@ -118,7 +118,7 @@ func (p *CompressedRistretto) SetRistrettoPoint(ristrettoPoint *RistrettoPoint) 
 	tmp.Mul(&X, &zInv)
 	Y.ConditionalNegate(tmp.IsNegative())
 
-	var s field.FieldElement
+	var s field.Element
 	s.Sub(&Z, &Y)
 	s.Mul(&denInv, &s)
 
@@ -211,8 +211,8 @@ func (p *RistrettoPoint) SetCompressed(compressed *CompressedRistretto) (*Ristre
 	// original input, since our encoding routine is canonical.
 
 	var (
-		s           field.FieldElement
-		sBytesCheck [field.FieldElementSize]byte
+		s           field.Element
+		sBytesCheck [field.ElementSize]byte
 	)
 	if _, err := s.SetBytes(compressed[:]); err != nil {
 		return nil, fmt.Errorf("curve/ristretto: failed to deserialize s: %w", err)
@@ -226,7 +226,7 @@ func (p *RistrettoPoint) SetCompressed(compressed *CompressedRistretto) (*Ristre
 	}
 
 	// Step 2. Compute (X:Y:Z:T).
-	var u1, u2, ss, u1Sqr, u2Sqr field.FieldElement
+	var u1, u2, ss, u1Sqr, u2Sqr field.Element
 	ss.Square(&s)
 	u1.Sub(&field.One, &ss) // 1 + as^2
 	u2.Add(&field.One, &ss) // 1 - as^2 where a = -1
@@ -234,32 +234,32 @@ func (p *RistrettoPoint) SetCompressed(compressed *CompressedRistretto) (*Ristre
 	u2Sqr.Square(&u2)
 
 	// v == ad(1+as^2)^2 - (1-as^2)^2 where d=-121665/121666
-	var v field.FieldElement
+	var v field.Element
 	v.Neg(&constEDWARDS_D)
 	v.Mul(&v, &u1Sqr)
 	v.Sub(&v, &u2Sqr)
 
-	var I field.FieldElement
+	var I field.Element
 	I.Mul(&v, &u2Sqr)
 	_, ok := I.InvSqrt() // 1/sqrt(v*u_2^2)
 
-	var Dx, Dy field.FieldElement
+	var Dx, Dy field.Element
 	Dx.Mul(&I, &u2) // 1/sqrt(v)
 	Dy.Mul(&Dx, &v)
 	Dy.Mul(&I, &Dy) // 1/u2
 
 	// x == | 2s/sqrt(v) | == + sqrt(4s^2/(ad(1+as^2)^2 - (1-as^2)^2))
-	var x field.FieldElement
+	var x field.Element
 	x.Add(&s, &s)
 	x.Mul(&x, &Dx)
 	x.ConditionalNegate(x.IsNegative())
 
 	// y == (1-as^2)/(1+as^2)
-	var y field.FieldElement
+	var y field.Element
 	y.Mul(&u1, &Dy)
 
 	// t == ((1+as^2) sqrt(4s^2/(ad(1+as^2)^2 - (1-as^2)^@)))/(1-as^2)
-	var t field.FieldElement
+	var t field.Element
 	t.Mul(&x, &y)
 
 	if ok != 1 || t.IsNegative() == 1 || y.IsZero() == 1 {
@@ -296,7 +296,7 @@ func (p *RistrettoPoint) SetUniformBytes(in []byte) (*RistrettoPoint, error) {
 		return nil, fmt.Errorf("curve/ristretto: unexpected input size")
 	}
 	var (
-		r_1, r_2 field.FieldElement
+		r_1, r_2 field.Element
 		R_1, R_2 RistrettoPoint
 	)
 	if _, err := r_1.SetBytes(in[:32]); err != nil {
@@ -325,7 +325,7 @@ func (p *RistrettoPoint) ConditionalSelect(a, b *RistrettoPoint, choice int) {
 // will execute in constant-time.
 func (p *RistrettoPoint) Equal(other *RistrettoPoint) int {
 	pI, oI := &p.inner, &other.inner // Make this look less ugly.
-	var X1Y2, Y1X2, X1X2, Y1Y2 field.FieldElement
+	var X1Y2, Y1X2, X1X2, Y1Y2 field.Element
 	X1Y2.Mul(&pI.inner.X, &oI.inner.Y)
 	Y1X2.Mul(&pI.inner.Y, &oI.inner.X)
 	X1X2.Mul(&pI.inner.X, &oI.inner.X)
@@ -424,22 +424,22 @@ func (p *RistrettoPoint) IsIdentity() bool {
 	return p.Equal(id.Identity()) == 1
 }
 
-func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
+func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.Element) {
 	c := constMINUS_ONE
 
-	var r field.FieldElement
+	var r field.Element
 	r.Square(r_0)
 	r.Mul(&field.SQRT_M1, &r)
-	var N_s field.FieldElement
+	var N_s field.Element
 	N_s.Add(&r, &field.One)
 	N_s.Mul(&N_s, &constONE_MINUS_EDWARDS_D_SQUARED)
-	var D, tmp field.FieldElement
+	var D, tmp field.Element
 	tmp.Add(&r, &constEDWARDS_D)
 	D.Mul(&constEDWARDS_D, &r)
 	D.Sub(&c, &D)
 	D.Mul(&D, &tmp)
 
-	var s, s_prime field.FieldElement
+	var s, s_prime field.Element
 	_, Ns_D_is_sq := s.SqrtRatioI(&N_s, &D)
 	s_prime.Mul(&s, r_0)
 	s_prime_is_pos := s_prime.IsNegative() ^ 1
@@ -450,13 +450,13 @@ func (p *RistrettoPoint) elligatorRistrettoFlavor(r_0 *field.FieldElement) {
 	s.ConditionalAssign(&s_prime, Ns_D_is_not_sq)
 	c.ConditionalAssign(&r, Ns_D_is_not_sq)
 
-	var N_t field.FieldElement
+	var N_t field.Element
 	N_t.Sub(&r, &field.One)
 	N_t.Mul(&c, &N_t)
 	N_t.Mul(&N_t, &constEDWARDS_D_MINUS_ONE_SQUARED)
 	N_t.Sub(&N_t, &D)
 
-	var s_sq field.FieldElement
+	var s_sq field.Element
 	s_sq.Square(&s)
 
 	var cp completedPoint

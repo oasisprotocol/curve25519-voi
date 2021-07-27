@@ -87,7 +87,7 @@ var (
 	}
 )
 
-func newEdwardsPoint(X, Y, Z, T field.FieldElement) *EdwardsPoint {
+func newEdwardsPoint(X, Y, Z, T field.Element) *EdwardsPoint {
 	return &EdwardsPoint{
 		edwardsPointInner{
 			X: X,

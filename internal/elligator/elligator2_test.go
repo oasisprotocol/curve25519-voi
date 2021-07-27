@@ -45,7 +45,7 @@ func montgomeryFromUniformBytes(in []byte) (*curve.MontgomeryPoint, error) {
 		return nil, fmt.Errorf("curve/montgomery: unexpected representative size")
 	}
 
-	var r field.FieldElement
+	var r field.Element
 	if _, err := r.SetBytes(in[:]); err != nil {
 		return nil, fmt.Errorf("curve/montgomery: failed to deserailize r: %w", err)
 	}

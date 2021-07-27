@@ -33,7 +33,7 @@
 package field
 
 //go:noescape
-func feMul(out, a, b *FieldElement)
+func feMul(out, a, b *Element)
 
 //go:noescape
-func fePow2k(out, a *FieldElement, k uint)
+func fePow2k(out, a *Element, k uint)

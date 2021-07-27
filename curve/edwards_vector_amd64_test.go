@@ -114,10 +114,10 @@ func testVecNeg(t *testing.T) {
 
 	vec.Neg()
 
-	var y0, y1, y2, y3 field.FieldElement
+	var y0, y1, y2, y3 field.Element
 	vec.Split(&y0, &y1, &y2, &y3)
 
-	var neg_x0, neg_x1, neg_x2, neg_x3 field.FieldElement
+	var neg_x0, neg_x1, neg_x2, neg_x3 field.Element
 	neg_x0.Neg(x0)
 	neg_x1.Neg(x1)
 	neg_x2.Neg(x2)
@@ -143,10 +143,10 @@ func testVecSquareAndNegateD(t *testing.T) {
 
 	vec.SquareAndNegateD()
 
-	var y0, y1, y2, y3 field.FieldElement
+	var y0, y1, y2, y3 field.Element
 	vec.Split(&y0, &y1, &y2, &y3)
 
-	var x0sq, x1sq, x2sq, neg_x3sq field.FieldElement
+	var x0sq, x1sq, x2sq, neg_x3sq field.Element
 	x0sq.Mul(x0, x0)
 	x1sq.Mul(x1, x1)
 	x2sq.Mul(x2, x2)
@@ -173,10 +173,10 @@ func testVecMul(t *testing.T) {
 
 	vec.Mul(&vec, &vec)
 
-	var y0, y1, y2, y3 field.FieldElement
+	var y0, y1, y2, y3 field.Element
 	vec.Split(&y0, &y1, &y2, &y3)
 
-	var x0sq, x1sq, x2sq, x3sq field.FieldElement
+	var x0sq, x1sq, x2sq, x3sq field.Element
 	x0sq.Mul(x0, x0)
 	x1sq.Mul(x1, x1)
 	x2sq.Mul(x2, x2)
@@ -200,7 +200,7 @@ func testVecNewSplit(t *testing.T) {
 	x0, x1, x2, x3 := testFieldElementComponents()
 	vec := newFieldElement2625x4(x0, x1, x2, x3)
 
-	var y0, y1, y2, y3 field.FieldElement
+	var y0, y1, y2, y3 field.Element
 	vec.Split(&y0, &y1, &y2, &y3)
 
 	if x0.Equal(&y0) != 1 {
@@ -217,7 +217,7 @@ func testVecNewSplit(t *testing.T) {
 	}
 }
 
-func testFieldElementComponents() (x0, x1, x2, x3 *field.FieldElement) {
+func testFieldElementComponents() (x0, x1, x2, x3 *field.Element) {
 	// Just make a fieldElement2625x4 out of 2*B.
 	compressedY := edwardsPointTestPoints["BASE2"]
 	_ = compressedY

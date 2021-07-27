@@ -107,7 +107,7 @@ func (p *CompressedEdwardsY) SetBytes(in []byte) (*CompressedEdwardsY, error) {
 
 // SetEdwardsPoint compresses an Edwards point.
 func (p *CompressedEdwardsY) SetEdwardsPoint(point *EdwardsPoint) *CompressedEdwardsY {
-	var x, y, recip field.FieldElement
+	var x, y, recip field.Element
 	recip.Invert(&point.inner.Z)
 	x.Mul(&point.inner.X, &recip)
 	y.Mul(&point.inner.Y, &recip)
@@ -192,10 +192,10 @@ type EdwardsPoint struct {
 }
 
 type edwardsPointInner struct {
-	X field.FieldElement
-	Y field.FieldElement
-	Z field.FieldElement
-	T field.FieldElement
+	X field.Element
+	Y field.Element
+	Z field.Element
+	T field.Element
 }
 
 // MarshalBinary encodes the Edwards point into a binary form and
@@ -251,7 +251,7 @@ func (p *EdwardsPoint) SetExpanded(expandedPoint *ExpandedEdwardsPoint) *Edwards
 //
 // This function accepts non-canonical encodings of points.
 func (p *EdwardsPoint) SetCompressedY(compressedY *CompressedEdwardsY) (*EdwardsPoint, error) {
-	var Y, Z, YY, u, v, X field.FieldElement
+	var Y, Z, YY, u, v, X field.Element
 	if _, err := Y.SetBytes(compressedY[:]); err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (p *EdwardsPoint) SetCompressedY(compressedY *CompressedEdwardsY) (*Edwards
 		return nil, errNotValidYCoordinate
 	}
 
-	// field.FieldElement.SqrtRatioI always returns the nonnegative square root,
+	// field.Element.SqrtRatioI always returns the nonnegative square root,
 	// so we negate according to the supplied sign bit.
 	compressedSignBit := int(compressedY[31] >> 7)
 	X.ConditionalNegate(compressedSignBit)
@@ -300,7 +300,7 @@ func (p *EdwardsPoint) Equal(other *EdwardsPoint) int {
 	// coordinates (x, y) and (x', y'), which requires two inversions.
 	// We have that X = xZ and X' = x'Z'. Thus, x = x' is equivalent to
 	// (xZ)Z' = (x'Z')Z, and similarly for the y-coordinate.
-	var sXoZ, oXsZ, sYoZ, oYsZ field.FieldElement
+	var sXoZ, oXsZ, sYoZ, oYsZ field.Element
 	sXoZ.Mul(&p.inner.X, &other.inner.Z)
 	oXsZ.Mul(&other.inner.X, &p.inner.Z)
 	sYoZ.Mul(&p.inner.Y, &other.inner.Z)

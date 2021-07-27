@@ -104,14 +104,14 @@ func testConstantsTwoTorsion(t *testing.T) {
 }
 
 func testConstantsSqrtAdMinusOne(t *testing.T) {
-	var a field.FieldElement
+	var a field.Element
 	a.MinusOne()
 
-	var adMinusOne field.FieldElement
+	var adMinusOne field.Element
 	adMinusOne.Mul(&a, &constEDWARDS_D)
 	adMinusOne.Add(&adMinusOne, &a)
 
-	var shouldBeAdMinusOne field.FieldElement
+	var shouldBeAdMinusOne field.Element
 	shouldBeAdMinusOne.Square(&constSQRT_AD_MINUS_ONE)
 
 	if shouldBeAdMinusOne.Equal(&adMinusOne) != 1 {

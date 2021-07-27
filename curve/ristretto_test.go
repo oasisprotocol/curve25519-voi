@@ -204,7 +204,7 @@ func testRistrettoElligator(t *testing.T) {
 	// a field element.  When the high bit is set, the ristretto.sage
 	// elligator implementation gives different results, since it
 	// takes a different field element as input.
-	r0Bytes := [][field.FieldElementSize]byte{
+	r0Bytes := [][field.ElementSize]byte{
 		{184, 249, 135, 49, 253, 123, 89, 113, 67, 160, 6, 239, 7, 105, 211, 41, 192, 249, 185, 57, 9, 102, 70, 198, 15, 127, 7, 26, 160, 102, 134, 71},
 		{229, 14, 241, 227, 75, 9, 118, 60, 128, 153, 226, 21, 183, 217, 91, 136, 98, 0, 231, 156, 124, 77, 82, 139, 142, 134, 164, 169, 169, 62, 250, 52},
 		{115, 109, 36, 220, 180, 223, 99, 6, 204, 169, 19, 29, 169, 68, 84, 23, 21, 109, 189, 149, 127, 205, 91, 102, 172, 35, 112, 35, 134, 69, 186, 34},
@@ -242,7 +242,7 @@ func testRistrettoElligator(t *testing.T) {
 	}
 
 	for i, b := range r0Bytes {
-		var r_0 field.FieldElement
+		var r_0 field.Element
 		_, _ = r_0.SetBytes(b[:])
 
 		var q RistrettoPoint

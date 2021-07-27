@@ -32,13 +32,10 @@ package main
 
 import (
 	"fmt"
-	"reflect"
-	"unsafe"
 
 	. "github.com/mmcloughlin/avo/build"
 	"github.com/mmcloughlin/avo/buildtags"
 	. "github.com/mmcloughlin/avo/operand"
-	. "github.com/mmcloughlin/avo/reg"
 )
 
 // Stub types to make the avo function signature parser behave without
@@ -47,7 +44,7 @@ type (
 	affineNielsPointLookupTable struct{}
 	affineNielsPoint            struct{}
 
-	FieldElement struct{}
+	Element struct{}
 
 	cachedPointLookupTable struct{}
 	cachedPoint            struct{}
@@ -67,41 +64,6 @@ func SetCommon() error {
 		return fmt.Errorf("asm/amd64: failed to parse build constraint: %w", err)
 	}
 	Constraints(c)
-
-	// Currently avo doesn't handle rbp correctly.  Go decided to
-	// start using it as the frame pointer mid-way through, in a
-	// backward-incompatible manner, and it is callee-saved.
-	//
-	// Since all the assembly we use can get away with one less
-	// general purpose register, reach into avo and just ensure
-	// rbp never gets allocated by marking the register as
-	// restricted, so that on the off-chance we decide to use
-	// it's register allocation everywhere, we don't need to
-	// worry about it.
-	oldRegisters := GeneralPurpose.Registers()
-	registers := make([]Physical, 0, len(oldRegisters)-1)
-	for _, reg := range oldRegisters {
-		if reg.Asm() == "BP" {
-			outer := reflect.ValueOf(reg)
-			inner := outer.Field(0).Elem()
-
-			newInner := reflect.New(inner.Type()).Elem()
-			newInner.Set(inner)
-			vFlags := newInner.FieldByName("info")
-			pFlags := (*Info)(unsafe.Pointer(vFlags.UnsafeAddr()))
-			*pFlags = *pFlags | Restricted
-
-			reflect.ValueOf(&reg).Elem().Set(newInner)
-		}
-
-		registers = append(registers, reg)
-	}
-
-	vGP := reflect.ValueOf(GeneralPurpose)
-	vRegs := vGP.Elem().FieldByName("registers")
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(vRegs.UnsafeAddr()))
-	hdr.Data = uintptr(unsafe.Pointer(&registers[0]))
-	hdr.Len = len(registers)
 
 	return nil
 }

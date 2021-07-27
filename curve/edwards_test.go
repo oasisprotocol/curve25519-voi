@@ -154,7 +154,7 @@ func testEdwardsDecompressionCompression(t *testing.T) {
 		0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0, 0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21,
 	}
 
-	var baseX field.FieldElement
+	var baseX field.Element
 	if _, err := baseX.SetBytes(BASE_X_COORD_BYTES); err != nil {
 		t.Fatalf("baseX.FromBytes(): %v", err)
 	}
@@ -190,7 +190,7 @@ func testEdwardsDecompressionSignHandling(t *testing.T) {
 
 	// Test projective coordinates exactly since we know they should
 	// only differ by a flipped sign.
-	var negX, negT field.FieldElement
+	var negX, negT field.Element
 	negX.Neg(&ED25519_BASEPOINT_POINT.inner.X)
 	negT.Neg(&ED25519_BASEPOINT_POINT.inner.T)
 	if minusBasepoint.inner.X.Equal(&negX) != 1 {
@@ -618,7 +618,7 @@ func (p *EdwardsPoint) debugIsValid() bool {
 	pProjective.SetEdwards(p)
 	pointOnCurve := pProjective.debugIsValid()
 
-	var XY, ZT field.FieldElement
+	var XY, ZT field.Element
 	XY.Mul(&p.inner.X, &p.inner.Y)
 	ZT.Mul(&p.inner.Z, &p.inner.T)
 	onSegreImage := XY.Equal(&ZT) == 1
@@ -629,13 +629,13 @@ func (p *EdwardsPoint) debugIsValid() bool {
 func (p *projectivePoint) debugIsValid() bool {
 	// Curve equation is    -x^2 + y^2 = 1 + d*x^2*y^2,
 	// homogenized as (-X^2 + Y^2)*Z^2 = Z^4 + d*X^2*Y^2
-	var XX, YY, ZZ, ZZZZ field.FieldElement
+	var XX, YY, ZZ, ZZZZ field.Element
 	XX.Square(&p.X)
 	YY.Square(&p.Y)
 	ZZ.Square(&p.Z)
 	ZZZZ.Square(&ZZ)
 
-	var lhs, rhs field.FieldElement
+	var lhs, rhs field.Element
 	lhs.Sub(&YY, &XX)
 	lhs.Mul(&lhs, &ZZ)
 	rhs.Mul(&XX, &YY)

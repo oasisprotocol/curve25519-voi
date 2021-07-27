@@ -52,14 +52,14 @@ const (
 	p_times_sixteen_1234 = 36028797018963952
 )
 
-// FieldElement represents an element of the field Z/(2^255 - 19).
-type FieldElement struct {
+// Element represents an element of the field Z/(2^255 - 19).
+type Element struct {
 	disalloweq.DisallowEqual //nolint:unused
 	inner                    [5]uint64
 }
 
 // Add sets `fe = a + b`, and returns fe.
-func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
+func (fe *Element) Add(a, b *Element) *Element {
 	fe.inner[0] = a.inner[0] + b.inner[0]
 	fe.inner[1] = a.inner[1] + b.inner[1]
 	fe.inner[2] = a.inner[2] + b.inner[2]
@@ -69,12 +69,12 @@ func (fe *FieldElement) Add(a, b *FieldElement) *FieldElement {
 }
 
 // Sub sets `fe = a - b`, and returns fe.
-func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
+func (fe *Element) Sub(a, b *Element) *Element {
 	// To avoid underflow, first add a multiple of p.
 	// Choose 16*p = p << 4 to be larger than 54-bit b.
 	//
 	// If we could statically track the bitlengths of the limbs
-	// of every FieldElement, we could choose a multiple of p
+	// of every Element, we could choose a multiple of p
 	// just bigger than b and avoid having to do a reduction.
 
 	return fe.reduce(&[5]uint64{
@@ -87,12 +87,12 @@ func (fe *FieldElement) Sub(a, b *FieldElement) *FieldElement {
 }
 
 // Mul sets `fe =a * b`, and returns fe.
-func (fe *FieldElement) Mul(a, b *FieldElement) *FieldElement {
+func (fe *Element) Mul(a, b *Element) *Element {
 	feMul(fe, a, b)
 	return fe
 }
 
-func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
+func feMulGeneric(fe, a, b *Element) { //nolint:unused,deadcode
 	a0, a1, a2, a3, a4 := a.inner[0], a.inner[1], a.inner[2], a.inner[3], a.inner[4]
 	b0, b1, b2, b3, b4 := b.inner[0], b.inner[1], b.inner[2], b.inner[3], b.inner[4]
 
@@ -248,7 +248,7 @@ func feMulGeneric(fe, a, b *FieldElement) { //nolint:unused,deadcode
 }
 
 // Neg sets `fe = -t`, and returns fe.
-func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
+func (fe *Element) Neg(t *Element) *Element {
 	// See commentary in the Sub impl.
 	return fe.reduce(&[5]uint64{
 		p_times_sixteen_0 - t.inner[0],
@@ -261,7 +261,7 @@ func (fe *FieldElement) Neg(t *FieldElement) *FieldElement {
 
 // ConditionalSelect sets the field element to a iff choice == 0 and
 // b iff choice == 1.
-func (fe *FieldElement) ConditionalSelect(a, b *FieldElement, choice int) {
+func (fe *Element) ConditionalSelect(a, b *Element, choice int) {
 	fe.inner[0] = subtle.ConstantTimeSelectUint64(choice, b.inner[0], a.inner[0])
 	fe.inner[1] = subtle.ConstantTimeSelectUint64(choice, b.inner[1], a.inner[1])
 	fe.inner[2] = subtle.ConstantTimeSelectUint64(choice, b.inner[2], a.inner[2])
@@ -270,7 +270,7 @@ func (fe *FieldElement) ConditionalSelect(a, b *FieldElement, choice int) {
 }
 
 // ConditionalSwap conditionally swaps the field elements according to choice.
-func (fe *FieldElement) ConditionalSwap(other *FieldElement, choice int) {
+func (fe *Element) ConditionalSwap(other *Element, choice int) {
 	subtle.ConstantTimeSwapUint64(choice, &other.inner[0], &fe.inner[0])
 	subtle.ConstantTimeSwapUint64(choice, &other.inner[1], &fe.inner[1])
 	subtle.ConstantTimeSwapUint64(choice, &other.inner[2], &fe.inner[2])
@@ -279,7 +279,7 @@ func (fe *FieldElement) ConditionalSwap(other *FieldElement, choice int) {
 }
 
 // ConditionalAssign conditionally assigns the field element according to choice.
-func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
+func (fe *Element) ConditionalAssign(other *Element, choice int) {
 	fe.inner[0] = subtle.ConstantTimeSelectUint64(choice, other.inner[0], fe.inner[0])
 	fe.inner[1] = subtle.ConstantTimeSelectUint64(choice, other.inner[1], fe.inner[1])
 	fe.inner[2] = subtle.ConstantTimeSelectUint64(choice, other.inner[2], fe.inner[2])
@@ -288,20 +288,20 @@ func (fe *FieldElement) ConditionalAssign(other *FieldElement, choice int) {
 }
 
 // One sets the fe to one, and returns fe.
-func (fe *FieldElement) One() *FieldElement {
-	*fe = NewFieldElement51(1, 0, 0, 0, 0)
+func (fe *Element) One() *Element {
+	*fe = NewElement51(1, 0, 0, 0, 0)
 	return fe
 }
 
 // MinusOne sets fe to -1, and returns fe.
-func (fe *FieldElement) MinusOne() *FieldElement {
-	*fe = NewFieldElement51(
+func (fe *Element) MinusOne() *Element {
+	*fe = NewElement51(
 		2251799813685228, 2251799813685247, 2251799813685247, 2251799813685247, 2251799813685247,
 	)
 	return fe
 }
 
-func (fe *FieldElement) reduce(limbs *[5]uint64) *FieldElement {
+func (fe *Element) reduce(limbs *[5]uint64) *Element {
 	// Since the input limbs are bounded by 2^64, the biggest
 	// carry-out is bounded by 2^13.
 	//
@@ -343,13 +343,13 @@ func (fe *FieldElement) reduce(limbs *[5]uint64) *FieldElement {
 // 2^255 - 18 to 1.  Applications that require a canonical encoding of
 // every field element should decode, re-encode to the canonical encoding,
 // and check that the input was canonical.
-func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
-	if len(in) != FieldElementSize {
+func (fe *Element) SetBytes(in []byte) (*Element, error) {
+	if len(in) != ElementSize {
 		return nil, fmt.Errorf("internal/field/u64: unexpected input size")
 	}
 
 	_ = in[31]
-	*fe = FieldElement{
+	*fe = Element{
 		inner: [5]uint64{
 			// load bits [  0, 64), no shift
 			binary.LittleEndian.Uint64(in[0:8]) & low_51_bit_mask,
@@ -368,22 +368,22 @@ func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
 }
 
 // SetBytesWide loads a field element from a 512-bit little-endian input.
-func (fe *FieldElement) SetBytesWide(in []byte) (*FieldElement, error) {
-	if len(in) != FieldElementWideSize {
+func (fe *Element) SetBytesWide(in []byte) (*Element, error) {
+	if len(in) != ElementWideSize {
 		return nil, fmt.Errorf("internal/field/u64: unexpected input size")
 	}
 
-	var lo, hi FieldElement
-	if _, err := lo.SetBytes(in[:FieldElementSize]); err != nil {
+	var lo, hi Element
+	if _, err := lo.SetBytes(in[:ElementSize]); err != nil {
 		return nil, fmt.Errorf("internal/field/u64: failed to deserialize lo: %w", err)
 	}
-	if _, err := hi.SetBytes(in[FieldElementSize:]); err != nil {
+	if _, err := hi.SetBytes(in[ElementSize:]); err != nil {
 		return nil, fmt.Errorf("internal/field/u64: failed to deserialize hi: %w", err)
 	}
 
 	// Handle the 256th and 512th bits (MSB of lo and hi) explicitly
 	// as SetBytes ignores them.
-	lo.inner[0] += uint64(in[31]>>7) * 19 + uint64(in[63]>>7) * 2 * 19 * 19
+	lo.inner[0] += uint64(in[31]>>7)*19 + uint64(in[63]>>7)*2*19*19
 
 	lo.inner[0] += 2 * 19 * hi.inner[0]
 	lo.inner[1] += 2 * 19 * hi.inner[1]
@@ -397,8 +397,8 @@ func (fe *FieldElement) SetBytesWide(in []byte) (*FieldElement, error) {
 }
 
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
-func (fe *FieldElement) ToBytes(out []byte) error {
-	if len(out) != FieldElementSize {
+func (fe *Element) ToBytes(out []byte) error {
+	if len(out) != ElementSize {
 		return fmt.Errorf("internal/field/u64: unexpected output size")
 	}
 
@@ -418,7 +418,7 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 	// Therefore q can be computed as the carry bit of h + 19.
 
 	// First, reduce the limbs to ensure h < 2*p.
-	var reduced FieldElement
+	var reduced Element
 	reduced.reduce(&fe.inner)
 	l0, l1, l2, l3, l4 := reduced.inner[0], reduced.inner[1], reduced.inner[2], reduced.inner[3], reduced.inner[4]
 
@@ -482,7 +482,7 @@ func (fe *FieldElement) ToBytes(out []byte) error {
 }
 
 // Pow2k sets `fe = t^(2^k)`, given `k > 0`, and returns fe
-func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
+func (fe *Element) Pow2k(t *Element, k uint) *Element {
 	if k == 0 {
 		panic("internal/field/u64: k out of bounds")
 	}
@@ -491,7 +491,7 @@ func (fe *FieldElement) Pow2k(t *FieldElement, k uint) *FieldElement {
 	return fe
 }
 
-func fePow2kGeneric(fe, t *FieldElement, k uint) { //nolint:unused,deadcode
+func fePow2kGeneric(fe, t *Element, k uint) { //nolint:unused,deadcode
 	a0, a1, a2, a3, a4 := t.inner[0], t.inner[1], t.inner[2], t.inner[3], t.inner[4]
 
 	for {
@@ -634,13 +634,13 @@ func fePow2kGeneric(fe, t *FieldElement, k uint) { //nolint:unused,deadcode
 }
 
 // Square sets `fe = t^2`, and returns fe.
-func (fe *FieldElement) Square(t *FieldElement) *FieldElement {
+func (fe *Element) Square(t *Element) *Element {
 	fePow2k(fe, t, 1)
 	return fe
 }
 
 // Square2 sets `fe = 2*t^2`, and returns fe.
-func (fe *FieldElement) Square2(t *FieldElement) *FieldElement {
+func (fe *Element) Square2(t *Element) *Element {
 	fePow2k(fe, t, 1)
 	for i := 0; i < 5; i++ {
 		fe.inner[i] *= 2
@@ -649,13 +649,13 @@ func (fe *FieldElement) Square2(t *FieldElement) *FieldElement {
 }
 
 // UnsafeInner exposes the inner limbs to allow for the vector implementation.
-func (fe *FieldElement) UnsafeInner() *[5]uint64 {
+func (fe *Element) UnsafeInner() *[5]uint64 {
 	return &fe.inner
 }
 
-// NewFieldElement51 constructs a field element from its raw component limbs.
-func NewFieldElement51(l0, l1, l2, l3, l4 uint64) FieldElement {
-	return FieldElement{
+// NewElement51 constructs a field element from its raw component limbs.
+func NewElement51(l0, l1, l2, l3, l4 uint64) Element {
+	return Element{
 		inner: [5]uint64{
 			l0, l1, l2, l3, l4,
 		},
