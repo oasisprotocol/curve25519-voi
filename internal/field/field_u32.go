@@ -325,6 +325,40 @@ func (fe *FieldElement) SetBytes(in []byte) (*FieldElement, error) {
 	return fe, nil
 }
 
+// SetBytesWide loads a field element from a 512-bit little-endian input.
+func (fe *FieldElement) SetBytesWide(in []byte) (*FieldElement, error) {
+	if len(in) != FieldElementWideSize {
+		return nil, fmt.Errorf("internal/field/u32: unexpected input size")
+	}
+
+	var lo, hi FieldElement
+	if _, err := lo.SetBytes(in[:FieldElementSize]); err != nil {
+		return nil, fmt.Errorf("internal/field/u32: failed to deserialize lo: %w", err)
+	}
+	if _, err := hi.SetBytes(in[FieldElementSize:]); err != nil {
+		return nil, fmt.Errorf("internal/field/u32: failed to deserialize hi: %w", err)
+	}
+
+	// Handle the 256th and 512th bits (MSB of lo and hi) explicitly
+	// as SetBytes ignores them.
+	lo.inner[0] += uint32(in[31]>>7) * 19 + uint32(in[63]>>7) * 2 * 19 * 19
+
+	// Back-of-the-envelope math says that this will fit without widening,
+	// but might as well do it this way.
+	return fe.reduce(&[10]uint64{
+		uint64(lo.inner[0]) + 2*19*uint64(hi.inner[0]),
+		uint64(lo.inner[1]) + 2*19*uint64(hi.inner[1]),
+		uint64(lo.inner[2]) + 2*19*uint64(hi.inner[2]),
+		uint64(lo.inner[3]) + 2*19*uint64(hi.inner[3]),
+		uint64(lo.inner[4]) + 2*19*uint64(hi.inner[4]),
+		uint64(lo.inner[5]) + 2*19*uint64(hi.inner[5]),
+		uint64(lo.inner[6]) + 2*19*uint64(hi.inner[6]),
+		uint64(lo.inner[7]) + 2*19*uint64(hi.inner[7]),
+		uint64(lo.inner[8]) + 2*19*uint64(hi.inner[8]),
+		uint64(lo.inner[9]) + 2*19*uint64(hi.inner[9]),
+	}), nil
+}
+
 // ToBytes packs the field element into 32 bytes.  The encoding is canonical.
 func (fe *FieldElement) ToBytes(out []byte) error {
 	if len(out) != FieldElementSize {

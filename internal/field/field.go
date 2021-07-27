@@ -34,8 +34,13 @@ package field
 
 import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
 
-// FieldElementSize is the size of a field element in bytes.
-const FieldElementSize = 32
+const (
+	// FieldElementSize is the size of a field element in bytes.
+	FieldElementSize = 32
+
+	// FieldElementWideSize is the size of a wide field element in bytes.
+	FieldElementWideSize = 64
+)
 
 var (
 	// One is the field element one.
@@ -50,6 +55,13 @@ var (
 		var minusOne FieldElement
 		minusOne.MinusOne()
 		return minusOne
+	}()
+
+	// Two is the field element two.
+	Two = func() FieldElement {
+		var two FieldElement
+		two.Add(&One, &One)
+		return two
 	}()
 )
 

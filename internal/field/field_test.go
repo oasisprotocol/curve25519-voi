@@ -187,10 +187,9 @@ func testBatchInvertEmpty(t *testing.T) {
 }
 
 func testSqrtRatioI(t *testing.T) {
-	var zero, two, two_i, four, sqrt FieldElement
-	two.Add(&One, &One)
-	two_i.Mul(&two, &SQRT_M1)
-	four.Add(&two, &two)
+	var zero, two_i, four, sqrt FieldElement
+	two_i.Mul(&Two, &SQRT_M1)
+	four.Add(&Two, &Two)
 
 	// 0/0 should return (0, 1) since u is 0
 	_, choice := sqrt.SqrtRatioI(&zero, &zero)
@@ -217,7 +216,7 @@ func testSqrtRatioI(t *testing.T) {
 	}
 
 	// 2/1 is nonsquare, so we expect (sqrt(i*2), 0)
-	_, choice = sqrt.SqrtRatioI(&two, &One)
+	_, choice = sqrt.SqrtRatioI(&Two, &One)
 	if choice != 0 {
 		t.Fatalf("sqrt.RatioI(2, 1) choice != 0")
 	}

@@ -35,8 +35,6 @@ import (
 	"hash"
 	"io"
 
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	"github.com/oasisprotocol/curve25519-voi/primitives/merlin"
@@ -96,15 +94,10 @@ func (sc *SigningContext) NewTranscriptHash(h hash.Hash) *SigningTranscript {
 }
 
 // NewTranscriptXOF initializes a new signing transcript on a message
-// provided as a hash function that is an XOF instance.
-//
-// Note: Despite the blake2b.XOF input, this interface is also implemented
-// by the applicable hash functiopns provided by x/crypto/sha3 and
-// x/crypto/blake2s.
-func (sc *SigningContext) NewTranscriptXOF(xof blake2b.XOF) *SigningTranscript {
-	h := xof.Clone()
+// provided as a io.Reader that is an XOF instance.
+func (sc *SigningContext) NewTranscriptXOF(xof io.Reader) *SigningTranscript {
 	prehash := make([]byte, 32)
-	if _, err := io.ReadFull(h, prehash); err != nil {
+	if _, err := io.ReadFull(xof, prehash); err != nil {
 		panic("sr25519: failed to read XOF output: " + err.Error())
 	}
 

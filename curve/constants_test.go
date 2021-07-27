@@ -38,14 +38,14 @@ import (
 )
 
 func TestConstants(t *testing.T) {
-	t.Run("Constants/BShl128", testConstantsBShl128)
-	t.Run("Constants/EightTorsion", testConstantsEightTorsion)
-	t.Run("Constants/FourTorsion", testConstantsFourTorsion)
-	t.Run("Constants/TwoTorsion", testConstantsTwoTorsion)
-	t.Run("Constants/SqrtAdMinusOne", testConstantsSqrtAdMinusOne)
-	t.Run("Constants/D/VsRatio", testConstantsDVsRatio)
-	t.Run("Constants/AffineBasepointOddLookupTable", testConstantsAffineBasepointOddLookupTable)
-	t.Run("Constants/AffineBasepointOddShl128LookupTable", testConstantsAffineBasepointOddShl128LookupTable)
+	t.Run("BShl128", testConstantsBShl128)
+	t.Run("EightTorsion", testConstantsEightTorsion)
+	t.Run("FourTorsion", testConstantsFourTorsion)
+	t.Run("TwoTorsion", testConstantsTwoTorsion)
+	t.Run("SqrtAdMinusOne", testConstantsSqrtAdMinusOne)
+	t.Run("D/VsRatio", testConstantsDVsRatio)
+	t.Run("AffineBasepointOddLookupTable", testConstantsAffineBasepointOddLookupTable)
+	t.Run("AffineBasepointOddShl128LookupTable", testConstantsAffineBasepointOddShl128LookupTable)
 	// ED25519_BASEPOINT_TABLE is checked by `testEdwardsBasepointTableNew`.
 }
 

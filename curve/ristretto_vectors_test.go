@@ -30,9 +30,9 @@
 package curve
 
 import (
-	"encoding/hex"
-	"strings"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 // Test vectors taken from the IETF draft at:
@@ -135,39 +135,39 @@ func testRistrettoVectorsUniformBytestrings(t *testing.T) {
 
 	vectors := []testVector{
 		{
-			a: mustUnhex(t, "5d1be09e3d0c82fc538112490e35701979d99e06ca3e2b5b54bffe8b4dc772c1"),
-			b: mustUnhex(t, "4d98b696a1bbfb5ca32c436cc61c16563790306c79eaca7705668b47dffe5bb6"),
+			a: testhelpers.MustUnhex(t, "5d1be09e3d0c82fc538112490e35701979d99e06ca3e2b5b54bffe8b4dc772c1"),
+			b: testhelpers.MustUnhex(t, "4d98b696a1bbfb5ca32c436cc61c16563790306c79eaca7705668b47dffe5bb6"),
 			p: mustUnhexRistretto(t, "3066f82a 1a747d45 120d1740 f1435853 1a8f04bb ffe6a819 f86dfe50 f44a0a46"),
 		},
 		{
-			a: mustUnhex(t, "f116b34b8f17ceb56e8732a60d913dd10cce47a6d53bee9204be8b44f6678b27"),
-			b: mustUnhex(t, "0102a56902e2488c46120e9276cfe54638286b9e4b3cdb470b542d46c2068d38"),
+			a: testhelpers.MustUnhex(t, "f116b34b8f17ceb56e8732a60d913dd10cce47a6d53bee9204be8b44f6678b27"),
+			b: testhelpers.MustUnhex(t, "0102a56902e2488c46120e9276cfe54638286b9e4b3cdb470b542d46c2068d38"),
 			p: mustUnhexRistretto(t, "f26e5b6f 7d362d2d 2a94c5d0 e7602cb4 773c95a2 e5c31a64 f133189f a76ed61b"),
 		},
 
 		{
-			a: mustUnhex(t, "8422e1bbdaab52938b81fd602effb6f89110e1e57208ad12d9ad767e2e25510c"),
-			b: mustUnhex(t, "27140775f9337088b982d83d7fcf0b2fa1edffe51952cbe7365e95c86eaf325c"),
+			a: testhelpers.MustUnhex(t, "8422e1bbdaab52938b81fd602effb6f89110e1e57208ad12d9ad767e2e25510c"),
+			b: testhelpers.MustUnhex(t, "27140775f9337088b982d83d7fcf0b2fa1edffe51952cbe7365e95c86eaf325c"),
 			p: mustUnhexRistretto(t, "006ccd2a 9e6867e6 a2c5cea8 3d3302cc 9de128dd 2a9a57dd 8ee7b9d7 ffe02826"),
 		},
 		{
-			a: mustUnhex(t, "ac22415129b61427bf464e17baee8db65940c233b98afce8d17c57beeb7876c2"),
-			b: mustUnhex(t, "150d15af1cb1fb824bbd14955f2b57d08d388aab431a391cfc33d5bafb5dbbaf"),
+			a: testhelpers.MustUnhex(t, "ac22415129b61427bf464e17baee8db65940c233b98afce8d17c57beeb7876c2"),
+			b: testhelpers.MustUnhex(t, "150d15af1cb1fb824bbd14955f2b57d08d388aab431a391cfc33d5bafb5dbbaf"),
 			p: mustUnhexRistretto(t, "f8f0c87c f237953c 5890aec3 99816900 5dae3eca 1fbb0454 8c635953 c817f92a"),
 		},
 		{
-			a: mustUnhex(t, "165d697a1ef3d5cf3c38565beefcf88c0f282b8e7dbd28544c483432f1cec767"),
-			b: mustUnhex(t, "5debea8ebb4e5fe7d6f6e5db15f15587ac4d4d4a1de7191e0c1ca6664abcc413"),
+			a: testhelpers.MustUnhex(t, "165d697a1ef3d5cf3c38565beefcf88c0f282b8e7dbd28544c483432f1cec767"),
+			b: testhelpers.MustUnhex(t, "5debea8ebb4e5fe7d6f6e5db15f15587ac4d4d4a1de7191e0c1ca6664abcc413"),
 			p: mustUnhexRistretto(t, "ae81e7de df20a497 e10c304a 765c1767 a42d6e06 029758d2 d7e8ef7c c4c41179"),
 		},
 		{
-			a: mustUnhex(t, "a836e6c9a9ca9f1e8d486273ad56a78c70cf18f0ce10abb1c7172ddd605d7fd2"),
-			b: mustUnhex(t, "979854f47ae1ccf204a33102095b4200e5befc0465accc263175485f0e17ea5c"),
+			a: testhelpers.MustUnhex(t, "a836e6c9a9ca9f1e8d486273ad56a78c70cf18f0ce10abb1c7172ddd605d7fd2"),
+			b: testhelpers.MustUnhex(t, "979854f47ae1ccf204a33102095b4200e5befc0465accc263175485f0e17ea5c"),
 			p: mustUnhexRistretto(t, "e2705652 ff9f5e44 d3e841bf 1c251cf7 dddb77d1 40870d1a b2ed64f1 a9ce8628"),
 		},
 		{
-			a: mustUnhex(t, "2cdc11eaeb95daf01189417cdddbf95952993aa9cb9c640eb5058d09702c7462"),
-			b: mustUnhex(t, "2c9965a697a3b345ec24ee56335b556e677b30e6f90ac77d781064f866a3c982"),
+			a: testhelpers.MustUnhex(t, "2cdc11eaeb95daf01189417cdddbf95952993aa9cb9c640eb5058d09702c7462"),
+			b: testhelpers.MustUnhex(t, "2c9965a697a3b345ec24ee56335b556e677b30e6f90ac77d781064f866a3c982"),
 			p: mustUnhexRistretto(t, "80bd0726 2511cdde 4863f8a7 434cef69 6750681c b9510eea 557088f7 6d9e5065"),
 		},
 	}
@@ -177,20 +177,20 @@ func testRistrettoVectorsUniformBytestrings(t *testing.T) {
 		a, b []byte
 	}{
 		{
-			a: mustUnhex(t, "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-			b: mustUnhex(t, "1200000000000000000000000000000000000000000000000000000000000000"),
+			a: testhelpers.MustUnhex(t, "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+			b: testhelpers.MustUnhex(t, "1200000000000000000000000000000000000000000000000000000000000000"),
 		},
 		{
-			a: mustUnhex(t, "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
-			b: mustUnhex(t, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+			a: testhelpers.MustUnhex(t, "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+			b: testhelpers.MustUnhex(t, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
 		},
 		{
-			a: mustUnhex(t, "0000000000000000000000000000000000000000000000000000000000000080"),
-			b: mustUnhex(t, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+			a: testhelpers.MustUnhex(t, "0000000000000000000000000000000000000000000000000000000000000080"),
+			b: testhelpers.MustUnhex(t, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
 		},
 		{
-			a: mustUnhex(t, "0000000000000000000000000000000000000000000000000000000000000000"),
-			b: mustUnhex(t, "1200000000000000000000000000000000000000000000000000000000000080"),
+			a: testhelpers.MustUnhex(t, "0000000000000000000000000000000000000000000000000000000000000000"),
+			b: testhelpers.MustUnhex(t, "1200000000000000000000000000000000000000000000000000000000000080"),
 		},
 	} {
 		vectors = append(vectors, testVector{
@@ -218,17 +218,8 @@ func testRistrettoVectorsUniformBytestrings(t *testing.T) {
 	}
 }
 
-func mustUnhex(t *testing.T, x string) []byte {
-	b, err := hex.DecodeString(strings.ReplaceAll(x, " ", ""))
-	if err != nil {
-		t.Fatalf("ristretto: failed to parse hex: %v", err)
-	}
-
-	return b
-}
-
 func mustUnhexRistretto(t *testing.T, x string) *CompressedRistretto {
-	b := mustUnhex(t, x)
+	b := testhelpers.MustUnhex(t, x)
 
 	var p CompressedRistretto
 	if _, err := p.SetBytes(b); err != nil {

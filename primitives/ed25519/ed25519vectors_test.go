@@ -37,6 +37,7 @@ import (
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 var ed25519Vectors = func() []ed25519Vector {
@@ -70,20 +71,20 @@ type ed25519Vector struct {
 	Flags []string
 }
 
-func (v *ed25519Vector) PublicKey() []byte {
-	return mustUnhex(v.A)
+func (v *ed25519Vector) PublicKey(t *testing.T) []byte {
+	return testhelpers.MustUnhex(t, v.A)
 }
 
-func (v *ed25519Vector) R() []byte {
-	return mustUnhex(v.Rhex)
+func (v *ed25519Vector) R(t *testing.T) []byte {
+	return testhelpers.MustUnhex(t, v.Rhex)
 }
 
-func (v *ed25519Vector) S() []byte {
-	return mustUnhex(v.Shex)
+func (v *ed25519Vector) S(t *testing.T) []byte {
+	return testhelpers.MustUnhex(t, v.Shex)
 }
 
-func (v *ed25519Vector) Signature() []byte {
-	return append(v.R(), v.S()...)
+func (v *ed25519Vector) Signature(t *testing.T) []byte {
+	return append(v.R(t), v.S(t)...)
 }
 
 func (v *ed25519Vector) Message() []byte {
@@ -121,9 +122,9 @@ func TestEd25519Vectors(t *testing.T) {
 
 			t.Run(fmt.Sprintf("TestCase/%d", i), func(t *testing.T) {
 				ok := VerifyWithOptions(
-					PublicKey(vec.PublicKey()),
+					PublicKey(vec.PublicKey(t)),
 					vec.Message(),
-					vec.Signature(),
+					vec.Signature(t),
 					&Options{
 						Verify: vOpts,
 					},
@@ -136,9 +137,9 @@ func TestEd25519Vectors(t *testing.T) {
 			t.Run(fmt.Sprintf("TestCase/%d/Batch", i), func(t *testing.T) {
 				v := NewBatchVerifier()
 				v.AddWithOptions(
-					PublicKey(vec.PublicKey()),
+					PublicKey(vec.PublicKey(t)),
 					vec.Message(),
-					vec.Signature(),
+					vec.Signature(t),
 					&Options{
 						Verify: vOpts,
 					},
@@ -184,13 +185,13 @@ func TestIsCanonical(t *testing.T) {
 			}
 
 			var p curve.CompressedEdwardsY
-			if _, err := p.SetBytes(vec.PublicKey()); err != nil {
+			if _, err := p.SetBytes(vec.PublicKey(t)); err != nil {
 				t.Fatalf("failed to deserialize A: %v", err)
 			}
 			if isCanonical := p.IsCanonical(); isCanonical != canonicalA {
 				t.Fatalf("A.IsCanonical() mismatch: %v (%v)", isCanonical, canonicalA)
 			}
-			if _, err := p.SetBytes(vec.R()); err != nil {
+			if _, err := p.SetBytes(vec.R(t)); err != nil {
 				t.Fatalf("failed to deserialize R: %v", err)
 			}
 			if isCanonical := p.IsCanonical(); isCanonical != canonicalR {
