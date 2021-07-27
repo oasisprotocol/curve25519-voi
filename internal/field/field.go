@@ -35,44 +35,44 @@ package field
 import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
 
 const (
-	// FieldElementSize is the size of a field element in bytes.
-	FieldElementSize = 32
+	// ElementSize is the size of a field element in bytes.
+	ElementSize = 32
 
-	// FieldElementWideSize is the size of a wide field element in bytes.
-	FieldElementWideSize = 64
+	// ElementWideSize is the size of a wide field element in bytes.
+	ElementWideSize = 64
 )
 
 var (
 	// One is the field element one.
-	One = func() FieldElement {
-		var one FieldElement
+	One = func() Element {
+		var one Element
 		one.One()
 		return one
 	}()
 
 	// MinusOne is the field element -1.
-	MinusOne = func() FieldElement {
-		var minusOne FieldElement
+	MinusOne = func() Element {
+		var minusOne Element
 		minusOne.MinusOne()
 		return minusOne
 	}()
 
 	// Two is the field element two.
-	Two = func() FieldElement {
-		var two FieldElement
+	Two = func() Element {
+		var two Element
 		two.Add(&One, &One)
 		return two
 	}()
 )
 
 // Set sets fe to t, and returns fe.
-func (fe *FieldElement) Set(t *FieldElement) *FieldElement {
+func (fe *Element) Set(t *Element) *Element {
 	*fe = *t
 	return fe
 }
 
 // Zero sets fe to zero, and returns fe.
-func (fe *FieldElement) Zero() *FieldElement {
+func (fe *Element) Zero() *Element {
 	for i := range fe.inner {
 		fe.inner[i] = 0
 	}
@@ -81,8 +81,8 @@ func (fe *FieldElement) Zero() *FieldElement {
 
 // Equal returns 1 iff the field elements are equal, 0
 // otherwise.  This function will execute in constant-time.
-func (fe *FieldElement) Equal(other *FieldElement) int {
-	var selfBytes, otherBytes [FieldElementSize]byte
+func (fe *Element) Equal(other *Element) int {
+	var selfBytes, otherBytes [ElementSize]byte
 	_ = fe.ToBytes(selfBytes[:])
 	_ = other.ToBytes(otherBytes[:])
 
@@ -90,8 +90,8 @@ func (fe *FieldElement) Equal(other *FieldElement) int {
 }
 
 // IsNegative returns 1 iff the field element is negative, 0 otherwise.
-func (fe *FieldElement) IsNegative() int {
-	var selfBytes [FieldElementSize]byte
+func (fe *Element) IsNegative() int {
+	var selfBytes [ElementSize]byte
 	_ = fe.ToBytes(selfBytes[:])
 
 	return int(selfBytes[0] & 1)
@@ -99,14 +99,14 @@ func (fe *FieldElement) IsNegative() int {
 
 // ConditionalNegate negates the field element iff choice == 1, leaves
 // it unchanged otherwise.
-func (fe *FieldElement) ConditionalNegate(choice int) {
-	var feNeg FieldElement
+func (fe *Element) ConditionalNegate(choice int) {
+	var feNeg Element
 	fe.ConditionalAssign(feNeg.Neg(fe), choice)
 }
 
 // IsZero returns 1 iff the field element is zero, 0 otherwise.
-func (fe *FieldElement) IsZero() int {
-	var selfBytes, zeroBytes [FieldElementSize]byte
+func (fe *Element) IsZero() int {
+	var selfBytes, zeroBytes [ElementSize]byte
 	_ = fe.ToBytes(selfBytes[:])
 
 	return subtle.ConstantTimeCompareBytes(selfBytes[:], zeroBytes[:])
@@ -117,7 +117,7 @@ func (fe *FieldElement) IsZero() int {
 // The inverse is computed as self^(p-2), since x^(p-2)x = x^(p-1) = 1 (mod p).
 //
 // On input zero, the field element is set to zero.
-func (fe *FieldElement) Invert(t *FieldElement) *FieldElement {
+func (fe *Element) Invert(t *Element) *Element {
 	// The bits of p-2 = 2^255 -19 -2 are 11010111111...11.
 	//
 	//                       nonzero bits of exponent
@@ -129,26 +129,26 @@ func (fe *FieldElement) Invert(t *FieldElement) *FieldElement {
 // SqrtRatioI sets the fe to either `sqrt(u/v)` or `sqrt(i*u/v)` in constant
 // time, and returns fe.  This function always selects the nonnegative square
 // root.
-func (fe *FieldElement) SqrtRatioI(u, v *FieldElement) (*FieldElement, int) {
-	var v3 FieldElement
+func (fe *Element) SqrtRatioI(u, v *Element) (*Element, int) {
+	var v3 Element
 	v3.Square(v)
 	v3.Mul(&v3, v)
 
-	var v7 FieldElement
+	var v7 Element
 	v7.Square(&v3)
 	v7.Mul(&v7, v)
 
-	var r FieldElement
+	var r Element
 	r.Mul(u, &v7)
 	r.pow_p58()
 	r.Mul(&r, &v3)
 	r.Mul(&r, u)
 
-	var check FieldElement
+	var check Element
 	check.Square(&r)
 	check.Mul(&check, v)
 
-	var neg_u, neg_u_i FieldElement
+	var neg_u, neg_u_i Element
 	neg_u.Neg(u)
 	neg_u_i.Mul(&neg_u, &SQRT_M1)
 
@@ -156,7 +156,7 @@ func (fe *FieldElement) SqrtRatioI(u, v *FieldElement) (*FieldElement, int) {
 	flipped_sign_sqrt := check.Equal(&neg_u)
 	flipped_sign_sqrt_i := check.Equal(&neg_u_i)
 
-	var r_prime FieldElement
+	var r_prime Element
 	r_prime.Mul(&r, &SQRT_M1)
 	r.ConditionalAssign(&r_prime, flipped_sign_sqrt|flipped_sign_sqrt_i)
 
@@ -171,17 +171,17 @@ func (fe *FieldElement) SqrtRatioI(u, v *FieldElement) (*FieldElement, int) {
 
 // InvSqrt attempts to set `fe = sqrt(1/self)` in constant time, and return fe.
 // This function always selects the nonnegative square root.
-func (fe *FieldElement) InvSqrt() (*FieldElement, int) {
+func (fe *Element) InvSqrt() (*Element, int) {
 	return fe.SqrtRatioI(&One, fe)
 }
 
 // pow22501 returns (self^(2^250-1), self^11), used as a helper function
 // within Invert() and pow_p58().
-func (fe *FieldElement) pow22501() (FieldElement, FieldElement) {
+func (fe *Element) pow22501() (Element, Element) {
 	// TODO/perf: Reducing the number of temporary variables used
 	// is likely a performance gain (See the Montgomery multiplication
 	// helper for an example of this), though it's relatively minor.
-	var t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19 FieldElement
+	var t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19 Element
 
 	t0.Square(fe)
 
@@ -229,7 +229,7 @@ func (fe *FieldElement) pow22501() (FieldElement, FieldElement) {
 
 // pow_p58 raises the field element to the power (p-5)/8 = 2^252 - 3,
 // and returns fe.
-func (fe *FieldElement) pow_p58() {
+func (fe *Element) pow_p58() {
 	// The bits of (p-5)/8 are 101111.....11.
 	//
 	//                      nonzero bits of exponent
@@ -238,17 +238,17 @@ func (fe *FieldElement) pow_p58() {
 	fe.Mul(fe, &tmp)        // 251..2,0
 }
 
-// BatchInvert computes the inverses of slice of `FieldElements`s
+// BatchInvert computes the inverses of slice of `Elements`s
 // in a batch, and replaces each element by its inverse.
 //
 // WARNING: The input field elements MUST be nonzero.  If you cannot prove
 // that this is the case you MUST not use this function.
-func BatchInvert(inputs []*FieldElement) {
+func BatchInvert(inputs []*Element) {
 	// Montgomery’s Trick and Fast Implementation of Masked AES
 	// Genelle, Prouff and Quisquater
 	// Section 3.2
 	n := len(inputs)
-	scratch := make([]FieldElement, n)
+	scratch := make([]Element, n)
 	for i := range scratch {
 		scratch[i].One()
 	}
@@ -270,7 +270,7 @@ func BatchInvert(inputs []*FieldElement) {
 	// in place.
 	for i := n - 1; i >= 0; i-- {
 		input, scratch := inputs[i], scratch[i]
-		var tmp FieldElement
+		var tmp Element
 		tmp.Mul(&acc, input)
 		inputs[i].Mul(&acc, &scratch)
 		acc = tmp

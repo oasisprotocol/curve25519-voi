@@ -44,7 +44,7 @@ type hashToCurveTestVector struct {
 	x, y string
 }
 
-func (vec *hashToCurveTestVector) ToCoordinates() (*field.FieldElement, *field.FieldElement, error) {
+func (vec *hashToCurveTestVector) ToCoordinates() (*field.Element, *field.Element, error) {
 	x, err := hex.DecodeString(vec.x)
 	if err != nil {
 		return nil, nil, fmt.Errorf("h2c: failed to deserialize P.x: %w", err)
@@ -59,7 +59,7 @@ func (vec *hashToCurveTestVector) ToCoordinates() (*field.FieldElement, *field.F
 	y = reversedByteSlice(y)
 
 	// Generate a point from the test vector x and y-coordinates.
-	var feX, feY field.FieldElement
+	var feX, feY field.Element
 	if _, err = feX.SetBytes(x); err != nil {
 		return nil, nil, fmt.Errorf("h2c: failed to deserialize x: %w", err)
 	}

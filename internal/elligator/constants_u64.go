@@ -37,10 +37,10 @@ import "github.com/oasisprotocol/curve25519-voi/internal/field"
 
 var (
 	// A = 486662
-	constMONTGOMERY_A = field.NewFieldElement51(486662, 0, 0, 0, 0)
+	constMONTGOMERY_A = field.NewElement51(486662, 0, 0, 0, 0)
 
 	// NEG_A = -A
-	constMONTGOMERY_NEG_A = field.NewFieldElement51(
+	constMONTGOMERY_NEG_A = field.NewElement51(
 		2251799813198567,
 		2251799813685247,
 		2251799813685247,
@@ -49,10 +49,10 @@ var (
 	)
 
 	// A_SQUARED = A^2
-	constMONTGOMERY_A_SQUARED = field.NewFieldElement51(236839902244, 0, 0, 0, 0)
+	constMONTGOMERY_A_SQUARED = field.NewElement51(236839902244, 0, 0, 0, 0)
 
 	// SQRT_NEG_A_PLUS_TWO = sqrt(-(A+2))
-	constMONTGOMERY_SQRT_NEG_A_PLUS_TWO = field.NewFieldElement51(
+	constMONTGOMERY_SQRT_NEG_A_PLUS_TWO = field.NewElement51(
 		1693982333959686,
 		608509411481997,
 		2235573344831311,
@@ -61,7 +61,7 @@ var (
 	)
 
 	// U_FACTOR = -2 * sqrt(-1)
-	constMONTGOMERY_U_FACTOR = field.NewFieldElement51(
+	constMONTGOMERY_U_FACTOR = field.NewElement51(
 		1066188786548365,
 		1781982046572228,
 		36570682222399,
@@ -70,7 +70,7 @@ var (
 	)
 
 	// V_FACTOR = sqrt(U_FACTOR)
-	constMONTGOMERY_V_FACTOR = field.NewFieldElement51(
+	constMONTGOMERY_V_FACTOR = field.NewElement51(
 		533094393274174,
 		2016890930128738,
 		18285341111199,

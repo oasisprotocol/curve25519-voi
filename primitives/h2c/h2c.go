@@ -150,7 +150,7 @@ func encodeToCurve(uniformBytes *[encodeToCurveSize]byte) *curve.EdwardsPoint {
 	return &p
 }
 
-func uniformToField25519(b []byte) *field.FieldElement {
+func uniformToField25519(b []byte) *field.Element {
 	if len(b) != ell {
 		panic("h2c: invalid uniform bytes length")
 	}
@@ -158,10 +158,10 @@ func uniformToField25519(b []byte) *field.FieldElement {
 	// Our field decoding routine wants little-endian 512-bit inputs, so
 	// reverse the byte-order, and zero-extend.
 	bLE := reversedByteSlice(b)
-	var bLEExtended [field.FieldElementWideSize]byte
+	var bLEExtended [field.ElementWideSize]byte
 	copy(bLEExtended[:], bLE) // Zero-extend
 
-	var fe field.FieldElement
+	var fe field.Element
 	if _, err := fe.SetBytesWide(bLEExtended[:]); err != nil {
 		panic("h2c: failed to decode wide field element: " + err.Error())
 	}

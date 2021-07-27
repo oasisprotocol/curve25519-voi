@@ -44,11 +44,11 @@ import (
 // times. The default value of -quickchecks is 100.
 var quickCheckConfig = &quick.Config{MaxCountScale: 1 << 10}
 
-func generateFieldElement(rand *rand.Rand) FieldElement {
+func generateElement(rand *rand.Rand) Element {
 	// Generation strategy: generate random limb values of [52, 51, 51, 51, 51]
 	// bits, like the ones returned by lightReduce.
 	const low_52_bit_mask = (1 << 52) - 1
-	return NewFieldElement51(
+	return NewElement51(
 		rand.Uint64()&low_52_bit_mask,
 		rand.Uint64()&low_51_bit_mask,
 		rand.Uint64()&low_51_bit_mask,
@@ -91,8 +91,8 @@ var (
 	}
 )
 
-func generateWeirdFieldElement(rand *rand.Rand) FieldElement {
-	return NewFieldElement51(
+func generateWeirdElement(rand *rand.Rand) Element {
+	return NewElement51(
 		weirdLimbs52[rand.Intn(len(weirdLimbs52))],
 		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
 		weirdLimbs51[rand.Intn(len(weirdLimbs51))],
@@ -101,17 +101,17 @@ func generateWeirdFieldElement(rand *rand.Rand) FieldElement {
 	)
 }
 
-func (x FieldElement) Generate(rand *rand.Rand, size int) reflect.Value {
+func (x Element) Generate(rand *rand.Rand, size int) reflect.Value {
 	if rand.Intn(2) == 0 {
-		return reflect.ValueOf(generateWeirdFieldElement(rand))
+		return reflect.ValueOf(generateWeirdElement(rand))
 	}
-	return reflect.ValueOf(generateFieldElement(rand))
+	return reflect.ValueOf(generateElement(rand))
 }
 
 // isInAsmBounds returns whether the element is within the expected bit
 // size bounds after a light reduction, based on the behavior of
 // the amd64 specific assembly multiply/pow2k routines.
-func isInAsmBounds(x *FieldElement) bool {
+func isInAsmBounds(x *Element) bool {
 	const (
 		l0Max  = 1<<51 + 155629
 		l14Max = 1<<51 + 8191
@@ -134,8 +134,8 @@ func TestFeMulAsm(t *testing.T) {
 }
 
 func testFeMul(t *testing.T) {
-	mulDistributesOverAdd := func(x, y, z FieldElement) bool {
-		var t1, t2, t3, t1Asm, t2Asm, t3Asm FieldElement
+	mulDistributesOverAdd := func(x, y, z Element) bool {
+		var t1, t2, t3, t1Asm, t2Asm, t3Asm Element
 
 		// Note: The coefficients are allowed to grow up to 2^54
 		// between reductions, which is what the generic mul
@@ -182,7 +182,7 @@ func testFeMul(t *testing.T) {
 func testFePow2k(t *testing.T) {
 	a, ap16 := testConstants["A"], testConstants["AP16"]
 
-	var shouldBeAp16 FieldElement
+	var shouldBeAp16 Element
 	fePow2k(&shouldBeAp16, a, 4)
 
 	if shouldBeAp16.Equal(ap16) != 1 {

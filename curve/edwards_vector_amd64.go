@@ -237,7 +237,7 @@ func (vec *fieldElement2625x4) ConditionalAssign(other *fieldElement2625x4, choi
 }
 
 // Split splits the vector into four (serial) field elements.
-func (vec *fieldElement2625x4) Split(fe0, fe1, fe2, fe3 *field.FieldElement) {
+func (vec *fieldElement2625x4) Split(fe0, fe1, fe2, fe3 *field.Element) {
 	fe0i, fe1i, fe2i, fe3i := fe0.UnsafeInner(), fe1.UnsafeInner(), fe2.UnsafeInner(), fe3.UnsafeInner()
 	for i := 0; i < 5; i++ {
 		fe0i[i] = uint64(vec.inner[i][0]) + (uint64(vec.inner[i][2]) << 26) // a_2i + (a_2i_1 << 26)
@@ -268,7 +268,7 @@ func (vec *fieldElement2625x4) SquareAndNegateD() {
 }
 
 // newFieldElement2625 constructs a field element vector from its raw components.
-func newFieldElement2625x4(fe0, fe1, fe2, fe3 *field.FieldElement) fieldElement2625x4 {
+func newFieldElement2625x4(fe0, fe1, fe2, fe3 *field.Element) fieldElement2625x4 {
 	const low_26_bit_mask uint64 = (1 << 26) - 1
 
 	fe0i, fe1i, fe2i, fe3i := fe0.UnsafeInner(), fe1.UnsafeInner(), fe2.UnsafeInner(), fe3.UnsafeInner()

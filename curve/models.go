@@ -34,29 +34,29 @@ package curve
 import "github.com/oasisprotocol/curve25519-voi/internal/field"
 
 type projectivePoint struct {
-	X field.FieldElement
-	Y field.FieldElement
-	Z field.FieldElement
+	X field.Element
+	Y field.Element
+	Z field.Element
 }
 
 type completedPoint struct {
-	X field.FieldElement
-	Y field.FieldElement
-	Z field.FieldElement
-	T field.FieldElement
+	X field.Element
+	Y field.Element
+	Z field.Element
+	T field.Element
 }
 
 type affineNielsPoint struct {
-	y_plus_x  field.FieldElement
-	y_minus_x field.FieldElement
-	xy2d      field.FieldElement
+	y_plus_x  field.Element
+	y_minus_x field.Element
+	xy2d      field.Element
 }
 
 type projectiveNielsPoint struct {
-	Y_plus_X  field.FieldElement
-	Y_minus_X field.FieldElement
-	Z         field.FieldElement
-	T2d       field.FieldElement
+	Y_plus_X  field.Element
+	Y_minus_X field.Element
+	Z         field.Element
+	T2d       field.Element
 }
 
 func (p *affineNielsPoint) SetRaw(raw *[96]uint8) *affineNielsPoint {
@@ -163,7 +163,7 @@ func (p *projectiveNielsPoint) SetEdwards(ep *EdwardsPoint) *projectiveNielsPoin
 }
 
 func (p *affineNielsPoint) SetEdwards(ep *EdwardsPoint) *affineNielsPoint {
-	var recip, x, y, xy field.FieldElement
+	var recip, x, y, xy field.Element
 	recip.Invert(&ep.inner.Z)
 	x.Mul(&ep.inner.X, &recip)
 	y.Mul(&ep.inner.Y, &recip)
@@ -175,7 +175,7 @@ func (p *affineNielsPoint) SetEdwards(ep *EdwardsPoint) *affineNielsPoint {
 }
 
 func (p *completedPoint) Double(pp *projectivePoint) *completedPoint {
-	var XX, YY, ZZ2, X_plus_Y, X_plus_Y_sq field.FieldElement
+	var XX, YY, ZZ2, X_plus_Y, X_plus_Y_sq field.Element
 	XX.Square(&pp.X)
 	YY.Square(&pp.Y)
 	ZZ2.Square2(&pp.Z)
@@ -191,7 +191,7 @@ func (p *completedPoint) Double(pp *projectivePoint) *completedPoint {
 }
 
 func (p *completedPoint) AddEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiveNielsPoint) *completedPoint {
-	var Y_plus_X, Y_minus_X, PP, MM, TT2d, ZZ, ZZ2 field.FieldElement
+	var Y_plus_X, Y_minus_X, PP, MM, TT2d, ZZ, ZZ2 field.Element
 	Y_plus_X.Add(&a.inner.Y, &a.inner.X)
 	Y_minus_X.Sub(&a.inner.Y, &a.inner.X)
 	PP.Mul(&Y_plus_X, &b.Y_plus_X)
@@ -214,7 +214,7 @@ func (p *completedPoint) AddCompletedProjectiveNiels(a *completedPoint, b *proje
 }
 
 func (p *completedPoint) SubEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiveNielsPoint) *completedPoint {
-	var Y_plus_X, Y_minus_X, PM, MP, TT2d, ZZ, ZZ2 field.FieldElement
+	var Y_plus_X, Y_minus_X, PM, MP, TT2d, ZZ, ZZ2 field.Element
 	Y_plus_X.Add(&a.inner.Y, &a.inner.X)
 	Y_minus_X.Sub(&a.inner.Y, &a.inner.X)
 	PM.Mul(&Y_plus_X, &b.Y_minus_X)
@@ -236,7 +236,7 @@ func (p *completedPoint) SubCompletedProjectiveNiels(a *completedPoint, b *proje
 }
 
 func (p *completedPoint) AddEdwardsAffineNiels(a *EdwardsPoint, b *affineNielsPoint) *completedPoint {
-	var Y_plus_X, Y_minus_X, PP, MM, Txy2d, Z2 field.FieldElement
+	var Y_plus_X, Y_minus_X, PP, MM, Txy2d, Z2 field.Element
 	Y_plus_X.Add(&a.inner.Y, &a.inner.X)
 	Y_minus_X.Sub(&a.inner.Y, &a.inner.X)
 	PP.Mul(&Y_plus_X, &b.y_plus_x)
@@ -258,7 +258,7 @@ func (p *completedPoint) AddCompletedAffineNiels(a *completedPoint, b *affineNie
 }
 
 func (p *completedPoint) SubEdwardsAffineNiels(a *EdwardsPoint, b *affineNielsPoint) *completedPoint {
-	var Y_plus_X, Y_minus_X, PM, MP, Txy2d, Z2 field.FieldElement
+	var Y_plus_X, Y_minus_X, PM, MP, Txy2d, Z2 field.Element
 	Y_plus_X.Add(&a.inner.Y, &a.inner.X)
 	Y_minus_X.Sub(&a.inner.Y, &a.inner.X)
 	PM.Mul(&Y_plus_X, &b.y_minus_x)

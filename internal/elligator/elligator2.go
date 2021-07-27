@@ -34,11 +34,11 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
 )
 
-var constFieldZero field.FieldElement
+var constFieldZero field.Element
 
 // SetEdwardsFromXY sets the EdwardsPoint to that corresponding to the x
 // and y coordinates.
-func SetEdwardsFromXY(p *curve.EdwardsPoint, x, y *field.FieldElement) *curve.EdwardsPoint {
+func SetEdwardsFromXY(p *curve.EdwardsPoint, x, y *field.Element) *curve.EdwardsPoint {
 	// While being able to create a curve.EdwardsPoint from the x and y
 	// coordinate (`(x, y, 1, x*y)`) than doing decompression, not having
 	// to have something ugly like EdwardsPoint.InternalSetXY that exposes
@@ -57,17 +57,17 @@ func SetEdwardsFromXY(p *curve.EdwardsPoint, x, y *field.FieldElement) *curve.Ed
 
 // EdwardsFlavor computes EdwardsPoint corresponding to the provided Elligator 2
 // representative.
-func EdwardsFlavor(r *field.FieldElement) *curve.EdwardsPoint {
+func EdwardsFlavor(r *field.Element) *curve.EdwardsPoint {
 	u, v := montgomeryFlavor(r)
 
 	// Per RFC 7748: (x, y) = (sqrt(-486664)*u/v, (u-1)/(u+1))
 
-	var x field.FieldElement
+	var x field.Element
 	x.Invert(&v)
 	x.Mul(&x, &u)
 	x.Mul(&x, &constMONTGOMERY_SQRT_NEG_A_PLUS_TWO)
 
-	var uMinusOne, uPlusOne, y field.FieldElement
+	var uMinusOne, uPlusOne, y field.Element
 	uMinusOne.Sub(&u, &field.One)
 	uPlusOne.Add(&u, &field.One)
 	uPlusOneIsZero := uPlusOne.IsZero()
@@ -93,7 +93,7 @@ func EdwardsFlavor(r *field.FieldElement) *curve.EdwardsPoint {
 
 // montgomeryFlavor computes Montgomery u and v coordinates corresponding
 // to the provided Elligator 2 representative.
-func montgomeryFlavor(r *field.FieldElement) (field.FieldElement, field.FieldElement) {
+func montgomeryFlavor(r *field.Element) (field.Element, field.Element) {
 	// This is based off the public domain python implementation by
 	// Loup Vaillant, taken from the Monocypher package
 	// (tests/gen/elligator.py).
@@ -105,7 +105,7 @@ func montgomeryFlavor(r *field.FieldElement) (field.FieldElement, field.FieldEle
 	// wrap my brain around.
 
 	var (
-		t1, t2, t3, u, v field.FieldElement
+		t1, t2, t3, u, v field.Element
 		isSquare         int
 	)
 

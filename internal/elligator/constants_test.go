@@ -54,7 +54,7 @@ func testConstantsA(t *testing.T) {
 }
 
 func testConstantsNegA(t *testing.T) {
-	expected := new(field.FieldElement).Neg(&constMONTGOMERY_A)
+	expected := new(field.Element).Neg(&constMONTGOMERY_A)
 
 	if constMONTGOMERY_NEG_A.Equal(expected) != 1 {
 		t.Fatalf("NEG_A != -A (Got: %v)", constMONTGOMERY_NEG_A)
@@ -62,7 +62,7 @@ func testConstantsNegA(t *testing.T) {
 }
 
 func testConstantsASquared(t *testing.T) {
-	var expected field.FieldElement
+	var expected field.Element
 	expected.Square(&constMONTGOMERY_A)
 
 	if constMONTGOMERY_A_SQUARED.Equal(&expected) != 1 {
@@ -71,7 +71,7 @@ func testConstantsASquared(t *testing.T) {
 }
 
 func testConstantsSqrtNegAPlusTwo(t *testing.T) {
-	var expected field.FieldElement
+	var expected field.Element
 	expected.Sub(&constMONTGOMERY_NEG_A, &field.Two)
 	expected.Invert(&expected)
 	expected.InvSqrt()
@@ -82,7 +82,7 @@ func testConstantsSqrtNegAPlusTwo(t *testing.T) {
 }
 
 func testConstantsUFactor(t *testing.T) {
-	var expected field.FieldElement
+	var expected field.Element
 	expected.Neg(&field.Two)
 	expected.Mul(&expected, &field.SQRT_M1)
 
@@ -92,7 +92,7 @@ func testConstantsUFactor(t *testing.T) {
 }
 
 func testConstantsVFactor(t *testing.T) {
-	var expected field.FieldElement
+	var expected field.Element
 	expected.Invert(&constMONTGOMERY_U_FACTOR)
 	expected.InvSqrt()
 
@@ -101,11 +101,11 @@ func testConstantsVFactor(t *testing.T) {
 	}
 }
 
-func feFromUint64(x uint64) *field.FieldElement {
-	var feBytes [field.FieldElementSize]byte
+func feFromUint64(x uint64) *field.Element {
+	var feBytes [field.ElementSize]byte
 	binary.LittleEndian.PutUint64(feBytes[0:8], x)
 
-	var fe field.FieldElement
+	var fe field.Element
 	_, _ = fe.SetBytes(feBytes[:])
 	return &fe
 }

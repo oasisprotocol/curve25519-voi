@@ -33,15 +33,15 @@ package field
 
 import "testing"
 
-func mustFeFromBytes(b []byte) *FieldElement {
-	var fe FieldElement
+func mustFeFromBytes(b []byte) *Element {
+	var fe Element
 	if _, err := fe.SetBytes(b); err != nil {
 		panic("mustFeFromBytes: " + err.Error())
 	}
 	return &fe
 }
 
-var testConstants = map[string]*FieldElement{
+var testConstants = map[string]*Element{
 	// Random element a of GF(2^255-19), from Sage
 	// a = 1070314506888354081329385823235218444233221\
 	//     2228051251926706380353716438957572
@@ -81,7 +81,7 @@ var testConstants = map[string]*FieldElement{
 	}),
 }
 
-func TestFieldElement(t *testing.T) {
+func TestElement(t *testing.T) {
 	t.Run("Mul", testMul)
 	t.Run("Square", testSquare)
 	t.Run("Square2", testSquare2)
@@ -101,7 +101,7 @@ func TestFieldElement(t *testing.T) {
 func testMul(t *testing.T) {
 	a, asq := testConstants["A"], testConstants["ASQ"]
 
-	var shouldBeAsq FieldElement
+	var shouldBeAsq Element
 	shouldBeAsq.Mul(a, a)
 
 	if shouldBeAsq.Equal(asq) != 1 {
@@ -112,7 +112,7 @@ func testMul(t *testing.T) {
 func testSquare(t *testing.T) {
 	a, asq := testConstants["A"], testConstants["ASQ"]
 
-	var shouldBeAsq FieldElement
+	var shouldBeAsq Element
 	shouldBeAsq.Square(a)
 
 	if shouldBeAsq.Equal(asq) != 1 {
@@ -123,10 +123,10 @@ func testSquare(t *testing.T) {
 func testSquare2(t *testing.T) {
 	a, asq := testConstants["A"], testConstants["ASQ"]
 
-	var asq2 FieldElement
+	var asq2 Element
 	asq2.Add(asq, asq)
 
-	var shouldBeAsq2 FieldElement
+	var shouldBeAsq2 Element
 	shouldBeAsq2.Square2(a)
 
 	if shouldBeAsq2.Equal(&asq2) != 1 {
@@ -137,14 +137,14 @@ func testSquare2(t *testing.T) {
 func testInvert(t *testing.T) {
 	a, ainv := testConstants["A"], testConstants["AINV"]
 
-	var shouldBeInverse FieldElement
+	var shouldBeInverse Element
 	shouldBeInverse.Invert(a)
 
 	if shouldBeInverse.Equal(ainv) != 1 {
 		t.Fatalf("a.Invert() != ainv (Got: %v)", shouldBeInverse)
 	}
 
-	var shouldBeOne FieldElement
+	var shouldBeOne Element
 	shouldBeOne.Mul(a, &shouldBeInverse)
 
 	if shouldBeOne.Equal(&One) != 1 {
@@ -155,17 +155,17 @@ func testInvert(t *testing.T) {
 func testBatchInvertConsistency(t *testing.T) {
 	a := testConstants["A"]
 
-	var a2 FieldElement
+	var a2 Element
 	a2.Add(a, a)
 
-	aList := []*FieldElement{
+	aList := []*Element{
 		a,
 		testConstants["AP58"],
 		testConstants["ASQ"],
 		testConstants["AINV"],
 		&a2,
 	}
-	var ainvList []*FieldElement
+	var ainvList []*Element
 	for _, v := range aList {
 		tmp := *v
 		ainvList = append(ainvList, &tmp)
@@ -173,7 +173,7 @@ func testBatchInvertConsistency(t *testing.T) {
 
 	BatchInvert(ainvList)
 	for i, v := range aList {
-		var expected FieldElement
+		var expected Element
 		expected.Invert(v)
 		if ainvList[i].Equal(&expected) != 1 {
 			t.Fatalf("aList[%d].Invert() != ainvList[%d] (Got: %v, %v)", i, i, expected, ainvList[i])
@@ -182,12 +182,12 @@ func testBatchInvertConsistency(t *testing.T) {
 }
 
 func testBatchInvertEmpty(t *testing.T) {
-	BatchInvert([]*FieldElement{})
+	BatchInvert([]*Element{})
 	BatchInvert(nil)
 }
 
 func testSqrtRatioI(t *testing.T) {
-	var zero, two_i, four, sqrt FieldElement
+	var zero, two_i, four, sqrt Element
 	two_i.Mul(&Two, &SQRT_M1)
 	four.Add(&Two, &Two)
 
@@ -220,7 +220,7 @@ func testSqrtRatioI(t *testing.T) {
 	if choice != 0 {
 		t.Fatalf("sqrt.RatioI(2, 1) choice != 0")
 	}
-	var sqrtSquared FieldElement
+	var sqrtSquared Element
 	sqrtSquared.Square(&sqrt)
 	if sqrtSquared.Equal(&two_i) != 1 {
 		t.Fatalf("sqrtRatioI(2, 1) sqrt^2 != 2 * i (Got: %v)", sqrtSquared)
@@ -247,7 +247,7 @@ func testSqrtRatioI(t *testing.T) {
 	if choice != 1 {
 		t.Fatalf("sqrt.RatioI(4, 1) choice != 1")
 	}
-	var tmp FieldElement
+	var tmp Element
 	tmp.Square(&sqrt)
 	tmp.Mul(&tmp, &four)
 	if tmp.Equal(&One) != 1 {
@@ -283,14 +283,14 @@ func testEqual(t *testing.T) {
 func testSetBytesHighBitIsIgnored(t *testing.T) {
 	// Notice that the last element has the high bit set, which
 	// should be ignored.
-	bBytes := [FieldElementSize]byte{
+	bBytes := [ElementSize]byte{
 		113, 191, 169, 143, 91, 234, 121, 15,
 		241, 131, 217, 36, 230, 101, 92, 234,
 		8, 208, 170, 251, 97, 127, 70, 210,
 		58, 23, 166, 87, 240, 169, 184, 178,
 	}
 
-	var withHighBitSet, withoutHighBitSet FieldElement
+	var withHighBitSet, withoutHighBitSet Element
 	if _, err := withHighBitSet.SetBytes(bBytes[:]); err != nil {
 		t.Fatalf("withHighBitSet SetBytes(): %v", err)
 	}
@@ -325,19 +325,19 @@ func testConditionalNegate(t *testing.T) {
 
 func testToBytesEncodingIsCanonical(t *testing.T) {
 	// Encode 1 wrongly as 1 + (2^255 - 19) = 2^255 - 18
-	oneEncodedWronglyBytes := [FieldElementSize]byte{
+	oneEncodedWronglyBytes := [ElementSize]byte{
 		0xee, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f,
 	}
 
-	var one FieldElement
+	var one Element
 	if _, err := one.SetBytes(oneEncodedWronglyBytes[:]); err != nil {
 		t.Fatalf("one SetBytes(): %v", err)
 	}
 
-	var oneBytes, expectedOneBytes [FieldElementSize]byte
+	var oneBytes, expectedOneBytes [ElementSize]byte
 	if err := one.ToBytes(oneBytes[:]); err != nil {
 		t.Fatalf("one.ToBytes(): %v", err)
 	}
@@ -349,7 +349,7 @@ func testToBytesEncodingIsCanonical(t *testing.T) {
 }
 
 func testConstantsSqrtMinusOne(t *testing.T) {
-	var sqrtM1Sq FieldElement
+	var sqrtM1Sq Element
 	sqrtM1Sq.Mul(&SQRT_M1, &SQRT_M1)
 	if MinusOne.Equal(&sqrtM1Sq) != 1 {
 		t.Fatalf("SQRT_M1 * SQRT_M1 != -1")
@@ -360,7 +360,7 @@ func testConstantsSqrtMinusOne(t *testing.T) {
 }
 
 func testConstantsSqrtConstantsSign(t *testing.T) {
-	var signTestSqrt FieldElement
+	var signTestSqrt Element
 	invSqrtM1 := MinusOne
 	_, wasNonZeroSquare := invSqrtM1.InvSqrt()
 	if wasNonZeroSquare != 1 {
@@ -372,13 +372,13 @@ func testConstantsSqrtConstantsSign(t *testing.T) {
 	}
 }
 
-func BenchmarkFieldElement(b *testing.B) {
+func BenchmarkElement(b *testing.B) {
 	b.Run("Mul", benchMul)
 	b.Run("Square", benchSquare)
 }
 
 func benchMul(b *testing.B) {
-	var x, y FieldElement
+	var x, y Element
 	x.One()
 	y.Add(&x, &x)
 
@@ -389,7 +389,7 @@ func benchMul(b *testing.B) {
 }
 
 func benchSquare(b *testing.B) {
-	var x FieldElement
+	var x Element
 	x.One()
 	x.Add(&x, &x)
 
