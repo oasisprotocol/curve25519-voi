@@ -298,7 +298,7 @@ func testSetBytesHighBitIsIgnored(t *testing.T) {
 	clearedBytes := bBytes
 	clearedBytes[31] &= 127
 
-	if _, err := withoutHighBitSet.SetBytes(bBytes[:]); err != nil {
+	if _, err := withoutHighBitSet.SetBytes(clearedBytes[:]); err != nil {
 		t.Fatalf("withoutHighBitSet SetBytes(): %v", err)
 	}
 
