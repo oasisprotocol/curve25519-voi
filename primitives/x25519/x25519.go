@@ -37,8 +37,6 @@ import (
 	"crypto/subtle"
 	"fmt"
 
-	xcurve "golang.org/x/crypto/curve25519"
-
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
@@ -55,11 +53,7 @@ const (
 // Basepoint is the canonical Curve25519 generator.
 var Basepoint []byte
 
-var (
-	basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-
-	debugNoXcurve bool
-)
+var basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
 // ScalarMult sets dst to the product in*base where dst and base are the x
 // coordinates of group points and all values are in little-endian form.
@@ -68,14 +62,6 @@ var (
 // zeroes, irrespective of the scalar. Instead, use the X25519 function, which
 // will return an error.
 func ScalarMult(dst, in, base *[32]byte) {
-	// If the `x/crypto/curve25519` package would be faster, and we
-	// are not exercising the implementation provided by this package
-	// (eg: testing or benchmarking), use that instead.
-	if xcurveFaster && !debugNoXcurve {
-		xcurve.ScalarMult(dst, in, base)
-		return
-	}
-
 	var ec [ScalarSize]byte
 	copy(ec[:], in[:])
 	clampScalar(ec[:])

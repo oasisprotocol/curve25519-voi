@@ -66,15 +66,6 @@ func TestScalarBaseMult(t *testing.T) {
 
 func TestX25519(t *testing.T) {
 	t.Run("voi", testX25519)
-	if xcurveFaster {
-		t.Run("voi/debugNoXcurve", func(t *testing.T) {
-			debugNoXcurve = true
-			defer func() {
-				debugNoXcurve = false
-			}()
-			testX25519(t)
-		})
-	}
 }
 
 func testX25519(t *testing.T) {
@@ -166,15 +157,6 @@ func testTestVectors(t *testing.T, scalarMult func(dst, scalar, point *[32]byte)
 
 func TestScalarMult(t *testing.T) {
 	t.Run("voi", testScalarMult)
-	if xcurveFaster {
-		t.Run("voi/debugNoXcurve", func(t *testing.T) {
-			debugNoXcurve = true
-			defer func() {
-				debugNoXcurve = false
-			}()
-			testScalarMult(t)
-		})
-	}
 }
 
 func testScalarMult(t *testing.T) {
@@ -245,15 +227,6 @@ func benchScalarBaseMult(b *testing.B, scalarBaseMult func(dst, scalar *[32]byte
 
 func BenchmarkScalarMult(b *testing.B) {
 	b.Run("voi", func(b *testing.B) { benchScalarMult(b, ScalarMult) })
-	if xcurveFaster {
-		b.Run("voi/debugNoXcurve", func(b *testing.B) {
-			debugNoXcurve = true
-			defer func() {
-				debugNoXcurve = false
-			}()
-			benchScalarMult(b, ScalarMult)
-		})
-	}
 	b.Run("xcrypto", func(b *testing.B) {
 		benchScalarMult(b, xcurve.ScalarMult) //nolint:staticcheck
 	})
