@@ -179,8 +179,7 @@ func (p *completedPoint) Double(pp *projectivePoint) *completedPoint {
 	XX.Square(&pp.X)
 	YY.Square(&pp.Y)
 	ZZ2.Square2(&pp.Z)
-	X_plus_Y_sq.Add(&pp.X, &pp.Y)    // X+Y
-	X_plus_Y_sq.Square(&X_plus_Y_sq) // (X+Y)^2
+	X_plus_Y_sq.SquareAdd(&pp.X, &pp.Y)
 
 	p.Y.Add(&YY, &XX)
 	p.X.Sub(&X_plus_Y_sq, &p.Y)
@@ -192,10 +191,8 @@ func (p *completedPoint) Double(pp *projectivePoint) *completedPoint {
 
 func (p *completedPoint) AddEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiveNielsPoint) *completedPoint {
 	var PP, MM, TT2d, ZZ, ZZ2 field.Element
-	PP.Add(&a.inner.Y, &a.inner.X) // a.Y + a.X
-	PP.Mul(&PP, &b.Y_plus_X)       // (a.Y + a.X) * b.Y_plus_X
-	MM.Sub(&a.inner.Y, &a.inner.X) // a.Y - a.X
-	MM.Mul(&MM, &b.Y_minus_X)      // (a.Y - a.X) * b.Y_minus_X
+	PP.MulAdd(&b.Y_plus_X, &a.inner.Y, &a.inner.X)
+	MM.MulSub(&b.Y_minus_X, &a.inner.Y, &a.inner.X)
 	TT2d.Mul(&a.inner.T, &b.T2d)
 	ZZ.Mul(&a.inner.Z, &b.Z)
 	ZZ2.Add(&ZZ, &ZZ)
@@ -215,10 +212,8 @@ func (p *completedPoint) AddCompletedProjectiveNiels(a *completedPoint, b *proje
 
 func (p *completedPoint) SubEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiveNielsPoint) *completedPoint {
 	var PM, MP, TT2d, ZZ, ZZ2 field.Element
-	PM.Add(&a.inner.Y, &a.inner.X) // a.Y + a.X
-	PM.Mul(&PM, &b.Y_minus_X)      // (a.Y + a.X) * b.Y_minus_X
-	MP.Sub(&a.inner.Y, &a.inner.X) // a.Y - a.X
-	MP.Mul(&MP, &b.Y_plus_X)       // (a.Y - a.X) * b.Y_plus_X
+	PM.MulAdd(&b.Y_minus_X, &a.inner.Y, &a.inner.X)
+	MP.MulSub(&b.Y_plus_X, &a.inner.Y, &a.inner.X)
 	TT2d.Mul(&a.inner.T, &b.T2d)
 	ZZ.Mul(&a.inner.Z, &b.Z)
 	ZZ2.Add(&ZZ, &ZZ)
@@ -237,10 +232,8 @@ func (p *completedPoint) SubCompletedProjectiveNiels(a *completedPoint, b *proje
 
 func (p *completedPoint) AddEdwardsAffineNiels(a *EdwardsPoint, b *affineNielsPoint) *completedPoint {
 	var PP, MM, Txy2d, Z2 field.Element
-	PP.Add(&a.inner.Y, &a.inner.X) // a.Y + a.X
-	PP.Mul(&PP, &b.y_plus_x)       // (a.Y + a.X) * b.y_plus_x
-	MM.Sub(&a.inner.Y, &a.inner.X) // a.Y - a.X
-	MM.Mul(&MM, &b.y_minus_x)      // (a.Y - a.X) * b.y_minus_x
+	PP.MulAdd(&b.y_plus_x, &a.inner.Y, &a.inner.X)
+	MM.MulSub(&b.y_minus_x, &a.inner.Y, &a.inner.X)
 	Txy2d.Mul(&a.inner.T, &b.xy2d)
 	Z2.Add(&a.inner.Z, &a.inner.Z)
 
@@ -258,11 +251,9 @@ func (p *completedPoint) AddCompletedAffineNiels(a *completedPoint, b *affineNie
 }
 
 func (p *completedPoint) SubEdwardsAffineNiels(a *EdwardsPoint, b *affineNielsPoint) *completedPoint {
-	var Y_plus_X, Y_minus_X, PM, MP, Txy2d, Z2 field.Element
-	Y_plus_X.Add(&a.inner.Y, &a.inner.X)
-	Y_minus_X.Sub(&a.inner.Y, &a.inner.X)
-	PM.Mul(&Y_plus_X, &b.y_minus_x)
-	MP.Mul(&Y_minus_X, &b.y_plus_x)
+	var PM, MP, Txy2d, Z2 field.Element
+	PM.MulAdd(&b.y_minus_x, &a.inner.Y, &a.inner.X)
+	MP.MulSub(&b.y_plus_x, &a.inner.Y, &a.inner.X)
 	Txy2d.Mul(&a.inner.T, &b.xy2d)
 	Z2.Add(&a.inner.Z, &a.inner.Z)
 

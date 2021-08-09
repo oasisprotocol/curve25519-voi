@@ -32,7 +32,13 @@
 // Package field implements field arithmetic modulo p = 2^255 - 19.
 package field
 
-import "github.com/oasisprotocol/curve25519-voi/internal/subtle"
+import (
+	"fmt"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/disalloweq"
+	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
+	"github.com/oasisprotocol/curve25519-voi/internal/tony"
+)
 
 const (
 	// ElementSize is the size of a field element in bytes.
@@ -63,7 +69,15 @@ var (
 		two.Add(&One, &One)
 		return two
 	}()
+
+	constTwoTimesNineteen = &tony.LooseFieldElement{2 * 19}
 )
+
+// Element represents an element of the field Z/(2^255 - 19).
+type Element struct {
+	disalloweq.DisallowEqual //nolint:unused
+	inner                    tony.TightFieldElement
+}
 
 // Set sets fe to t, and returns fe.
 func (fe *Element) Set(t *Element) *Element {
@@ -110,6 +124,144 @@ func (fe *Element) IsZero() int {
 	_ = fe.ToBytes(selfBytes[:])
 
 	return subtle.ConstantTimeCompareBytes(selfBytes[:], zeroBytes[:])
+}
+
+// Add sets `fe = a + b`, and returns fe.
+func (fe *Element) Add(a, b *Element) *Element {
+	fe.inner.CarryAdd(&a.inner, &b.inner)
+	return fe
+}
+
+// Sub sets `fe = a - b`, and returns fe.
+func (fe *Element) Sub(a, b *Element) *Element {
+	fe.inner.CarrySub(&a.inner, &b.inner)
+	return fe
+}
+
+// Mul sets `fe = a * b`, and returns fe.
+func (fe *Element) Mul(a, b *Element) *Element {
+	fe.inner.CarryMul(a.inner.RelaxCast(), b.inner.RelaxCast())
+	return fe
+}
+
+// Neg sets `fe = -t`, and returns fe.
+func (fe *Element) Neg(t *Element) *Element {
+	fe.inner.CarryOpp(&t.inner)
+	return fe
+}
+
+// MulAdd sets `fe = a * (b + c)`, and returns fe.
+func (fe *Element) MulAdd(a, b, c *Element) *Element {
+	fe.inner.CarryMulAdd(a.inner.RelaxCast(), &b.inner, &c.inner)
+	return fe
+}
+
+// MulSub sets `fe = a * (b - c)`, and returns fe.
+func (fe *Element) MulSub(a, b, c *Element) *Element {
+	fe.inner.CarryMulSub(a.inner.RelaxCast(), &b.inner, &c.inner)
+	return fe
+}
+
+// SquareAdd sets `fe = (a + b)^2`, and returns fe.
+func (fe *Element) SquareAdd(a, b *Element) *Element {
+	fe.inner.CarrySquareAdd(&a.inner, &b.inner)
+	return fe
+}
+
+// StrictReduce fully-reduces the field element, and returns fe.
+func (fe *Element) StrictReduce() *Element {
+	fe.inner.Carry(fe.inner.RelaxCast())
+	return fe
+}
+
+// SetBytes loads a field element from the low 255 bits of a 256 bit input.
+//
+// WARNING: This function does not check that the input used the canonical
+// representative.  It masks the high bit, but it will happily decode
+// 2^255 - 18 to 1.  Applications that require a canonical encoding of
+// every field element should decode, re-encode to the canonical encoding,
+// and check that the input was canonical.
+func (fe *Element) SetBytes(in []byte) (*Element, error) {
+	if len(in) != ElementSize {
+		return nil, fmt.Errorf("internal/field/fiat: unexpected input size")
+	}
+
+	var t0 [32]byte
+	copy(t0[:], in)
+	t0[31] &= 127
+
+	fe.inner.FromBytes(&t0)
+
+	return fe, nil
+}
+
+// SetBytesWide loads a field element from a 512-bit little-endian input.
+func (fe *Element) SetBytesWide(in []byte) (*Element, error) {
+	if len(in) != ElementWideSize {
+		return nil, fmt.Errorf("internal/field/fiat: unexpected input size")
+	}
+
+	loMSB := uint8(in[31] >> 7)
+	hiMSB := uint8(in[63] >> 7)
+
+	var t0, t1 [32]byte
+	copy(t0[:], in[:ElementSize])
+	copy(t1[:], in[ElementSize:])
+	t0[31] &= 127
+	t1[31] &= 127
+
+	var lo, hi tony.TightFieldElement
+	lo.FromBytes(&t0)
+	hi.FromBytes(&t1)
+
+	// Do this the hard way (aka "slow") way, so that we respect the
+	// bounds of LooseFieldElement.
+	var carry, loPlusCarry tony.TightFieldElement
+	carry[0] = tony.Uint8ToLimb(loMSB)*19 + tony.Uint8ToLimb(hiMSB)*2*19*19 // Trivially fits.
+	loPlusCarry.CarryAdd(&lo, &carry)
+
+	hi.CarryMul(hi.RelaxCast(), constTwoTimesNineteen)
+
+	fe.inner.CarryAdd(&loPlusCarry, &hi)
+
+	return fe, nil
+}
+
+// ToBytes packs the field element into 32 bytes.  The encoding is canonical.
+func (fe *Element) ToBytes(out []byte) error {
+	if len(out) != ElementSize {
+		return fmt.Errorf("internal/field/fiat: unexpected output size")
+	}
+
+	var t0 [32]byte
+	fe.inner.ToBytes(&t0)
+	copy(out, t0[:])
+
+	return nil
+}
+
+// Pow2k sets `fe = t^(2^k)`, given `k > 0`, and returns fe
+func (fe *Element) Pow2k(t *Element, k uint) *Element {
+	if k == 0 {
+		panic("internal/field/fiat: k out of bounds")
+	}
+
+	fe.inner.CarryPow2k(t.inner.RelaxCast(), k)
+
+	return fe
+}
+
+// Square sets `fe = t^2`, and returns fe.
+func (fe *Element) Square(t *Element) *Element {
+	fe.inner.CarrySquare(t.inner.RelaxCast())
+	return fe
+}
+
+// Square2 sets `fe = 2*t^2`, and returns fe.
+func (fe *Element) Square2(t *Element) *Element {
+	fe.Square(t)
+	fe.Add(fe, fe)
+	return fe
 }
 
 // Invert sets fe to the multiplicative inverse of t, and returns fe.
@@ -275,4 +427,10 @@ func BatchInvert(inputs []*Element) {
 		inputs[i].Mul(&acc, &scratch)
 		acc = tmp
 	}
+}
+
+// UnsafeInner exposes the inner actual field element to allow for things
+// like vector implementations.
+func (fe *Element) UnsafeInner() *tony.TightFieldElement {
+	return &fe.inner
 }

@@ -101,6 +101,8 @@ fault of the curve25519-voi developers alone.
 
  * The majority of curve25519-voi is derived from curve25519-dalek.
 
+ * fiat-crypto is used for the field arithmetic.
+
  * The Ed25519 batch verification started off as a port of the
    implementation present in ed25519-dalek, but was later switched
    to be based off ed25519consensus.
@@ -109,10 +111,6 @@ fault of the curve25519-voi developers alone.
    a curve25519-dalek pull request by Jack Grigg (@str4d), with
    additional inspiration taken from Thomas Pornin's paper and
    curve9767 implementation.
-
- * The assembly optimized field element multiplications were taken
-   (with minor modifications) from George Tankersley's ristretto255
-   package.
 
  * The Elligator 2 mapping was taken from Loup Vaillant's Monocypher
    package.
