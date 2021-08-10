@@ -98,7 +98,7 @@ func edwardsMultiscalarMulPippengerVartimeGeneric(out *EdwardsPoint, staticScala
 	// Prepare 2^w/2 buckets.
 	// buckets[i] corresponds to a multiplication factor (i+1).
 	//
-	// No need to initialize the buckets since calculateColumn intializes
+	// No need to initialize the buckets since calculateColumn initializes
 	// them as needed as the first thing in the routine.
 	buckets := make([]EdwardsPoint, bucketsCount)
 
