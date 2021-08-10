@@ -40,6 +40,7 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/internal/elligator"
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
+	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
 )
 
 const (

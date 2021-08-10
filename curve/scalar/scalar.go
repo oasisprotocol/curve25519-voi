@@ -42,6 +42,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/internal/disalloweq"
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
+	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
 )
 
 const (

@@ -68,6 +68,11 @@ Anyone that mentions memguard will be asked to re-read the previous
 sentence again, and then be mercilessly mocked.  It is worth noting
 that the standard library does not do this appropriately either.
 
+The minimum required Go version for this package follows the Go
+support policy, of latest version and the previous one.  Attempting
+to subvert the toolchain checks will result in reduced performance
+or insecurity on certain platforms.
+
 This package uses hand-crafted build tags of doom to determine if
 the 32-bit or 64-bit codepath should be used, when both exist.
 
