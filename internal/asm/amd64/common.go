@@ -58,8 +58,8 @@ func SetCommon() error {
 	// Use our stub types so we can declare nice function prototypes.
 	Package(".")
 
-	// We want `+build amd64,!purego,!forcenoasm,!force32bit`
-	c, err := buildtags.ParseConstraint("amd64,!purego,!forcenoasm,!force32bit")
+	// We want `+build amd64,!purego,!force32bit`
+	c, err := buildtags.ParseConstraint("amd64,!purego,!force32bit")
 	if err != nil {
 		return fmt.Errorf("asm/amd64: failed to parse build constraint: %w", err)
 	}

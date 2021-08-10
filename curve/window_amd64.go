@@ -27,8 +27,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build amd64 && !purego && !forcenoasm && !force32bit
-// +build amd64,!purego,!forcenoasm,!force32bit
+//go:build amd64 && !purego && !force32bit
+// +build amd64,!purego,!force32bit
 
 package curve
 

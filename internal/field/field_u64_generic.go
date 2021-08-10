@@ -27,8 +27,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build (purego || forcenoasm || (!amd64 && force64bit) || (go1.13 && arm64) || (go1.13 && ppc64le) || (go1.13 && ppc64) || (go1.14 && s390x)) && !force32bit
-// +build purego forcenoasm !amd64,force64bit go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x
+//go:build (purego || (!amd64 && force64bit) || (go1.13 && arm64) || (go1.13 && ppc64le) || (go1.13 && ppc64) || (go1.14 && s390x)) && !force32bit
+// +build purego !amd64,force64bit go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x
 // +build !force32bit
 
 package field
