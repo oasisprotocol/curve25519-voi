@@ -167,6 +167,7 @@ func main() {
 		VecAddSubExtendedCached_Step1,
 		VecAddSubExtendedCached_Step2,
 		VecNegateLazyCached,
+		VecConditionalNegateLazyCached,
 		VecCachedFromExtended_Step1,
 		VecDoubleExtended_Step1,
 		VecDoubleExtended_Step2,
@@ -335,6 +336,22 @@ func (vec *vecPoint) NegateLazy() vecPoint {
 	}
 
 	return out
+}
+
+// NegateLazyCached negates a cached point without performing a reduction.
+func (vec *vecPoint) NegateLazyCached() vecPoint {
+	Comment("swapped = vec.shuffle(Shuffle::BACD)")
+	swapped := vec.Shuffle(SHUFFLE_BACD)
+
+	Comment("tmp = swapped.negate_lazy()")
+	tmp := swapped.NegateLazy()
+
+	Comment("out = swapped.blend(swapped.NegateLazy(), Lanes::D")
+	for i := range tmp {
+		VPBLENDD(LANES_D, tmp[i], swapped[i], swapped[i])
+	}
+
+	return swapped
 }
 
 func LoadVecPoint(base Mem) vecPoint {
@@ -684,19 +701,54 @@ func VecNegateLazyCached() error {
 	out := Mem{Base: Load(Param("out"), GP64())}
 	vec := LoadVecPoint(Mem{Base: Load(Param("vec"), GP64())})
 
-	Comment("swapped = vec.shuffle(Shuffle::BACD)")
-	swapped := vec.Shuffle(SHUFFLE_BACD)
-
-	Comment("tmp = swapped.negate_lazy()")
-	tmp := swapped.NegateLazy()
-
-	Comment("out = swapped.blend(swapped.NegateLazy(), Lanes::D")
-	for i := range tmp {
-		VPBLENDD(LANES_D, tmp[i], swapped[i], swapped[i])
-	}
+	swapped := vec.NegateLazyCached()
 
 	Comment("Write out the result")
 	swapped.Store(out)
+
+	VZEROUPPER()
+	RET()
+
+	return nil
+}
+
+func VecConditionalNegateLazyCached() error {
+	TEXT(
+		"vecConditionalNegateLazyCached_AVX2",
+		NOSPLIT|NOFRAME,
+		"func(out *fieldElement2625x4, vec *cachedPoint, mask uint32)",
+	)
+
+	out := Mem{Base: Load(Param("out"), GP64())}
+	vec := LoadVecPoint(Mem{Base: Load(Param("vec"), GP64())})
+
+	swapped := vec.NegateLazyCached()
+
+	Comment("ConditionalSelect(a = vec, b = -vec, mask)")
+	tmp, b := vec, swapped
+
+	Comment("maskVec = [mask, .., mask]")
+	mask := NewParamAddr("mask", 16)
+	maskVec := YMM()
+	VPBROADCASTD(mask, maskVec)
+
+	Comment("b = b & maskVec")
+	for i := range b {
+		VPAND(b[i], maskVec, b[i])
+	}
+
+	Comment("tmp = (!a) & maskVec")
+	for i := range tmp {
+		VPANDN(tmp[i], maskVec, tmp[i])
+	}
+
+	Comment("b |= tmp")
+	for i := range b {
+		VPOR(b[i], tmp[i], b[i])
+	}
+
+	Comment("Store output")
+	b.Store(out)
 
 	VZEROUPPER()
 	RET()

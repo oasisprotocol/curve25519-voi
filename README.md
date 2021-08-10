@@ -68,30 +68,30 @@ Anyone that mentions memguard will be asked to re-read the previous
 sentence again, and then be mercilessly mocked.  It is worth noting
 that the standard library does not do this appropriately either.
 
-This package uses hand-crafted build tags of doom to determine if
-the 32-bit or 64-bit codepath should be used, when both exist.
+The minimum required Go version for this package follows the Go
+support policy, of latest version and the previous one.  Attempting
+to subvert the toolchain checks will result in reduced performance
+or insecurity on certain platforms.
 
- * `amd64` will always use the 64-bit code.
- * `arm64`, `ppc64le`, `ppc64` will use the 64-bit code iff Go >= 1.13,
-   32-bit otherwise.
- * `s390x` will use the 64-bit code iff Go >= 1.14, 32-bit otherwise.
- * `386`, `arm`, `mips`, `mipsle`, `mips64` will always use the 32-bit code.
- * All other `GOARCH`s are not supported.
+This package uses build tags to enable the 32-bit or 64-bit backend
+respectively.  Note that for 64-bit targets, this primarily depends
+on if the SSA code (`src/cmd/compile/internal/ssagen/ssa.go`) has
+the appropriate special cases to make `math/bits.Mul64`/`math/bits.Add64`
+perform well.
 
-This decision is more complicated than it should due to:
+ * 64-bit: `amd64`, `arm64`, `ppc64le`, `ppc64`, `s390x`
+ * 32-bit: `386`, `arm`, `mips`, `mipsle`, `mips64`
+ * Unsupported: Everything else.
 
- * Go prior to 1.13 providing no guarantee regarding the timing
-   characteristics of the `math/bits` intrinsics used by this package.
- * `math/bits.Mul64` and `math/bits.Add64` requiring special cases in
-   the SSA code (`cmd/compile/internal/gc/ssa.go`) to be performant.
- * The Go developers rejecting [adding build tags for bit-width][3].
+The lack of a generic "just use 32-bit" fallback can be blamed on
+the Go developers rejecting [adding build tags for bit-width][3].
 
 The lattice reduction implementation currently only has a 64-bit
-version, and thus it will be used on all platforms.  This effectively
-pegs the minimum required Go version at 1.12 due to the use of
-`math/bits` intrinsics (as the lattice reduction is only done during
-verification, the lack of a timing guarantee in that version has no
-security impact).
+version, and thus it will be used on all platforms.  Note that while
+Go 1.12 had a vartime implementation of `math/bits` routines, that
+version of the compiler is long unsupported, and the lattice reduction
+is verification only so the lack of a timing guarantee has no security
+impact.
 
 #### Special credits
 

@@ -27,54 +27,25 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build (amd64 || arm64 || ppc64le || ppc64 || s390x || force64bit) && !force32bit
-// +build amd64 arm64 ppc64le ppc64 s390x force64bit
-// +build !force32bit
-
-package elligator
-
-import "github.com/oasisprotocol/curve25519-voi/internal/field"
+// Package toolchain enforces the minimum supported toolchain.
+package toolchain
 
 var (
-	// A = 486662
-	constMONTGOMERY_A = field.NewElement51(486662, 0, 0, 0, 0)
+	// This is enforced so that I can consolidate build constraints
+	// instead of keeping track of exactly when each 64-bit target got
+	// support for SSA doing the right thing for bits.Add64/bits.Mul64.
+	//
+	// If you absolutely must get this working on older Go versions,
+	// the 64-bit codepath is safe (and performant) as follows:
+	//
+	//  * 1.12 - amd64 (all other targets INSECURE due to vartime fallback)
+	//  * 1.13 - arm64, ppcle, ppc64
+	//  * 1.14 - s390x
+	//
+	// Last updated: Go 1.17beta1 (src/cmd/compile/internal/ssagen/ssa.go)
+	_ = __SOFTWARE_REQUIRES_GO_VERSION_1_15__
 
-	// NEG_A = -A
-	constMONTGOMERY_NEG_A = field.NewElement51(
-		2251799813198567,
-		2251799813685247,
-		2251799813685247,
-		2251799813685247,
-		2251799813685247,
-	)
-
-	// A_SQUARED = A^2
-	constMONTGOMERY_A_SQUARED = field.NewElement51(236839902244, 0, 0, 0, 0)
-
-	// SQRT_NEG_A_PLUS_TWO = sqrt(-(A+2))
-	constMONTGOMERY_SQRT_NEG_A_PLUS_TWO = field.NewElement51(
-		1693982333959686,
-		608509411481997,
-		2235573344831311,
-		947681270984193,
-		266558006233600,
-	)
-
-	// U_FACTOR = -2 * sqrt(-1)
-	constMONTGOMERY_U_FACTOR = field.NewElement51(
-		1066188786548365,
-		1781982046572228,
-		36570682222399,
-		269194373326530,
-		720847714518980,
-	)
-
-	// V_FACTOR = sqrt(U_FACTOR)
-	constMONTGOMERY_V_FACTOR = field.NewElement51(
-		533094393274174,
-		2016890930128738,
-		18285341111199,
-		134597186663265,
-		1486323764102114,
-	)
+	// gccgo doesn't support Go's assembly dialect, and I don't want to
+	// have to special case that with more build constraints either.
+	_ = __SOFTWARE_REQUIRES_GC_COMPILER__
 )

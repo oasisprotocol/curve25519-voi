@@ -41,6 +41,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
 	"github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 

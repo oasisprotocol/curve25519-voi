@@ -27,54 +27,9 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build (amd64 || arm64 || ppc64le || ppc64 || s390x || force64bit) && !force32bit
-// +build amd64 arm64 ppc64le ppc64 s390x force64bit
-// +build !force32bit
+//go:build gc
+// +build gc
 
-package elligator
+package toolchain
 
-import "github.com/oasisprotocol/curve25519-voi/internal/field"
-
-var (
-	// A = 486662
-	constMONTGOMERY_A = field.NewElement51(486662, 0, 0, 0, 0)
-
-	// NEG_A = -A
-	constMONTGOMERY_NEG_A = field.NewElement51(
-		2251799813198567,
-		2251799813685247,
-		2251799813685247,
-		2251799813685247,
-		2251799813685247,
-	)
-
-	// A_SQUARED = A^2
-	constMONTGOMERY_A_SQUARED = field.NewElement51(236839902244, 0, 0, 0, 0)
-
-	// SQRT_NEG_A_PLUS_TWO = sqrt(-(A+2))
-	constMONTGOMERY_SQRT_NEG_A_PLUS_TWO = field.NewElement51(
-		1693982333959686,
-		608509411481997,
-		2235573344831311,
-		947681270984193,
-		266558006233600,
-	)
-
-	// U_FACTOR = -2 * sqrt(-1)
-	constMONTGOMERY_U_FACTOR = field.NewElement51(
-		1066188786548365,
-		1781982046572228,
-		36570682222399,
-		269194373326530,
-		720847714518980,
-	)
-
-	// V_FACTOR = sqrt(U_FACTOR)
-	constMONTGOMERY_V_FACTOR = field.NewElement51(
-		533094393274174,
-		2016890930128738,
-		18285341111199,
-		134597186663265,
-		1486323764102114,
-	)
-)
+const __SOFTWARE_REQUIRES_GC_COMPILER__ = uint8(0)

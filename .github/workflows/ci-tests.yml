@@ -34,8 +34,6 @@ jobs:
           GOARCH=arm go build ./...
       - name: Run 64 bit tests
         run: go test ./... -tags=force64bit
-      - name: Run noasm tests
-        run: go test ./... -tags=forcenoasm
       - name: Run purego tests
         run: go test ./... -tags=purego
       - name: Purge the mod cache

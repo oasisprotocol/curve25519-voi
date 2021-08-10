@@ -54,6 +54,7 @@ import (
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	"github.com/oasisprotocol/curve25519-voi/internal/subtle"
+	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
 )
 
 const (

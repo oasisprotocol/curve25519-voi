@@ -37,7 +37,7 @@ import "unsafe"
 
 //go:noescape
 
-func keccakF1600(a *[25]uint64)
+func keccakF1600(state *[25]uint64)
 
 func keccakF1600Bytes(s *[25 * 8]byte) {
 	a := (*[25]uint64)(unsafe.Pointer(&s[0]))

@@ -40,6 +40,7 @@ import (
 	"math"
 
 	"github.com/oasisprotocol/curve25519-voi/internal/strobe"
+	_ "github.com/oasisprotocol/curve25519-voi/internal/toolchain"
 )
 
 const (

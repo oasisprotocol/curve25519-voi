@@ -29,8 +29,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build amd64 && !purego && !forcenoasm && !force32bit
-// +build amd64,!purego,!forcenoasm,!force32bit
+//go:build amd64 && !purego && !force32bit
+// +build amd64,!purego,!force32bit
 
 package curve
 
@@ -102,6 +102,9 @@ func vecAddSubExtendedCached_Step2_AVX2(tmp0, tmp1 *fieldElement2625x4)
 
 //go:noescape
 func vecNegateLazyCached_AVX2(out *fieldElement2625x4, vec *cachedPoint)
+
+//go:noescape
+func vecConditionalNegateLazyCached_AVX2(out *fieldElement2625x4, vec *cachedPoint, mask uint32)
 
 //go:noescape
 func vecCachedFromExtended_Step1_AVX2(out *cachedPoint, vec *extendedPoint)
@@ -214,9 +217,8 @@ func (p *cachedPoint) ConditionalAssign(other *cachedPoint, choice int) {
 }
 
 func (p *cachedPoint) ConditionalNegate(choice int) {
-	var pNeg cachedPoint
-	vecNegateLazyCached_AVX2(&pNeg.inner, p)
-	p.ConditionalAssign(&pNeg, choice)
+	mask := uint32(-choice)
+	vecConditionalNegateLazyCached_AVX2(&p.inner, p, mask)
 }
 
 type fieldElement2625x4 struct {
