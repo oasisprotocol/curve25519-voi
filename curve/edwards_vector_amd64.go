@@ -116,6 +116,17 @@ type extendedPoint struct {
 
 func (p *EdwardsPoint) setExtended(ep *extendedPoint) *EdwardsPoint {
 	ep.inner.Split(&p.inner.X, &p.inner.Y, &p.inner.Z, &p.inner.T)
+
+	// Ensure that X, Y, Z, T are fully reduced.
+	//
+	// In practice this is probably not required, but there is a
+	// difference between extendedPoint (b < 0.007) and TightFieldElement
+	// ([0x0 ~> 0x8000000000000])'s bounds.
+	p.inner.X.StrictReduce()
+	p.inner.Y.StrictReduce()
+	p.inner.Z.StrictReduce()
+	p.inner.T.StrictReduce()
+
 	return p
 }
 

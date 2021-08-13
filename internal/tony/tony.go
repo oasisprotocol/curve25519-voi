@@ -27,12 +27,12 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build amd64 && !purego
-// +build amd64,!purego
+// Package tony wraps fiat-crypto and provides some useful helpers and
+// fixes.
+package tony
 
-package x25519
-
-// If this is amd64, and assembly is not disabled via build tags, just
-// use `x/crypto/curve25519`'s scalar multiply, because it will be
-// faster by virtue of being entirely in assembly.
-const xcurveFaster = true
+// RelaxCast converts from a TightFieldElement to a LooseFieldElement
+// by casting.
+func (tfe *TightFieldElement) RelaxCast() *LooseFieldElement {
+	return (*LooseFieldElement)(tfe)
+}

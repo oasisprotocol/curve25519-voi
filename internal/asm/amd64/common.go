@@ -44,8 +44,6 @@ type (
 	affineNielsPointLookupTable struct{}
 	affineNielsPoint            struct{}
 
-	Element struct{}
-
 	cachedPointLookupTable struct{}
 	cachedPoint            struct{}
 	extendedPoint          struct{}

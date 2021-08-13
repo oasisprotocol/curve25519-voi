@@ -36,6 +36,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
+	"github.com/oasisprotocol/curve25519-voi/internal/tony"
 )
 
 var errUCoordinateOnTwist = fmt.Errorf("curve/montgomery: Montgomery u-coordinate is on twist")
@@ -127,40 +128,45 @@ func NewMontgomeryPoint() *MontgomeryPoint {
 }
 
 func montgomeryDifferentialAddAndDouble(P, Q *montgomeryProjectivePoint, affine_PmQ *field.Element) {
-	var t0, t1, t2, t3 field.Element
-	t0.Add(&P.U, &P.W)
-	t1.Sub(&P.U, &P.W)
-	t2.Add(&Q.U, &Q.W)
-	t3.Sub(&Q.U, &Q.W)
+	// Using the fiat-crypto routines directly can shave off reductions,
+	// so we do that.
 
-	var t4, t5 field.Element
-	t4.Square(&t0) // (U_P + W_P)^2 = U_P^2 + 2 U_P W_P + W_P^2
-	t5.Square(&t1) // (U_P - W_P)^2 = U_P^2 - 2 U_P W_P + W_P^2
+	p_U, p_W := P.U.UnsafeInner(), P.W.UnsafeInner()
+	q_U, q_W := Q.U.UnsafeInner(), Q.W.UnsafeInner()
 
-	var t6 field.Element
+	var t0, t1, t2, t3 tony.LooseFieldElement
+	t0.Add(p_U, p_W)
+	t1.Sub(p_U, p_W)
+	t2.Add(q_U, q_W)
+	t3.Sub(q_U, q_W)
+
+	var t4, t5 tony.TightFieldElement
+	t4.CarrySquare(&t0) // (U_P + W_P)^2 = U_P^2 + 2 U_P W_P + W_P^2
+	t5.CarrySquare(&t1) // (U_P - W_P)^2 = U_P^2 - 2 U_P W_P + W_P^2
+
+	var t6 tony.LooseFieldElement
 	t6.Sub(&t4, &t5) // 4 U_P W_P
 
-	var t7, t8 field.Element
-	t7.Mul(&t0, &t3) // (U_P + W_P) (U_Q - W_Q) = U_P U_Q + W_P U_Q - U_P W_Q - W_P W_Q
-	t8.Mul(&t1, &t2) // (U_P - W_P) (U_Q + W_Q) = U_P U_Q - W_P U_Q + U_P W_Q - W_P W_Q
+	var t7, t8 tony.TightFieldElement
+	t7.CarryMul(&t0, &t3) // (U_P + W_P) (U_Q - W_Q) = U_P U_Q + W_P U_Q - U_P W_Q - W_P W_Q
+	t8.CarryMul(&t1, &t2) // (U_P - W_P) (U_Q + W_Q) = U_P U_Q - W_P U_Q + U_P W_Q - W_P W_Q
 
-	// Note: dalek uses even more temporary variables, but eliminating them
-	// is slightly faster since the Go compiler won't do that for us.
+	// 2 (U_P U_Q - W_P W_Q): t9
+	// 2 (W_P U_Q - U_P W_Q): t10
+	// 4 (U_P U_Q - W_P W_Q)^2: t11
+	// 4 (W_P U_Q - U_P W_Q)^2: t12
+	q_U.CarrySquareAdd(&t7, &t8)
+	q_W.CarrySquareSub(&t7, &t8)
 
-	Q.U.Add(&t7, &t8) // 2 (U_P U_Q - W_P W_Q): t9
-	Q.W.Sub(&t7, &t8) // 2 (W_P U_Q - U_P W_Q): t10
+	p_W.CarryScmul121666(&t6) // (A + 2) U_P U_Q: t13
 
-	Q.U.Square(&Q.U) // 4 (U_P U_Q - W_P W_Q)^2: t11
-	Q.W.Square(&Q.W) // 4 (W_P U_Q - U_P W_Q)^2: t12
+	p_U.CarryMul(t4.RelaxCast(), t5.RelaxCast()) // ((U_P + W_P)(U_P - W_P))^2 = (U_P^2 - W_P^2)^2: t14
 
-	P.W.Mul(&constAPLUS2_OVER_FOUR, &t6) // (A + 2) U_P U_Q: t13
+	// (U_P - W_P)^2 + (A + 2) U_P W_P: t15
+	// 4 (U_P W_P) ((U_P - W_P)^2 + (A + 2) U_P W_P): t16
+	p_W.CarryMulAdd(&t6, p_W, &t5)
 
-	P.U.Mul(&t4, &t5)  // ((U_P + W_P)(U_P - W_P))^2 = (U_P^2 - W_P^2)^2: t14
-	P.W.Add(&P.W, &t5) // (U_P - W_P)^2 + (A + 2) U_P W_P: t15
-
-	P.W.Mul(&t6, &P.W) // 4 (U_P W_P) ((U_P - W_P)^2 + (A + 2) U_P W_P): t16
-
-	Q.W.Mul(affine_PmQ, &Q.W) // U_D * 4 (W_P U_Q - U_P W_Q)^2: t17
+	q_W.CarryMul(affine_PmQ.UnsafeInner().RelaxCast(), q_W.RelaxCast()) // U_D * 4 (W_P U_Q - U_P W_Q)^2: t17
 	// t18 := t11             // W_D * 4 (U_P U_Q - W_P W_Q)^2: t18
 
 	// P.U = t14 // U_{P'} = (U_P + W_P)^2 (U_P - W_P)^2

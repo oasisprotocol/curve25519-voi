@@ -190,9 +190,6 @@ var constINVSQRT_A_MINUS_D = field.NewElement2625(
 	6111466, 4156064, 39310137, 12243467, 41204824, 120896, 20826367, 26493656, 6093567, 31568420,
 )
 
-// `APLUS2_OVER_FOUR` is (A+2)/4. (This is used internally within the Montgomery ladder.)
-var constAPLUS2_OVER_FOUR = field.NewElement2625(121666, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
 // `[2^128]B`
 var constB_SHL_128 = newEdwardsPoint(
 	field.NewElement2625(
