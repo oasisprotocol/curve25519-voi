@@ -64,8 +64,8 @@ func edwardsDoubleScalarMulBasepointVartimeGenericInner(out *EdwardsPoint, a *sc
 	// Find the starting index.
 	var i int
 	for j := 255; j >= 0; j-- {
-		i = j
-		if aNaf[i] != 0 || bNaf[i] != 0 {
+		if aNaf[j] != 0 || bNaf[j] != 0 {
+			i = j
 			break
 		}
 	}
@@ -114,8 +114,8 @@ func edwardsDoubleScalarMulBasepointVartimeVectorInner(out *EdwardsPoint, a *sca
 
 	var i int
 	for j := 255; j >= 0; j-- {
-		i = j
-		if aNaf[i] != 0 || bNaf[i] != 0 {
+		if aNaf[j] != 0 || bNaf[j] != 0 {
+			i = j
 			break
 		}
 	}
