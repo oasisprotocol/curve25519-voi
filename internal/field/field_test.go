@@ -375,6 +375,7 @@ func testConstantsSqrtConstantsSign(t *testing.T) {
 func BenchmarkElement(b *testing.B) {
 	b.Run("Mul", benchMul)
 	b.Run("Square", benchSquare)
+	b.Run("Invert", benchInvert)
 }
 
 func benchMul(b *testing.B) {
@@ -396,5 +397,16 @@ func benchSquare(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		x.Square(&x)
+	}
+}
+
+func benchInvert(b *testing.B) {
+	var x Element
+	x.One()
+	x.Add(&x, &x)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		x.Invert(&x)
 	}
 }
