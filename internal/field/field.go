@@ -178,51 +178,28 @@ func (fe *Element) InvSqrt() (*Element, int) {
 // pow22501 returns (self^(2^250-1), self^11), used as a helper function
 // within Invert() and pow_p58().
 func (fe *Element) pow22501() (Element, Element) {
-	// TODO/perf: Reducing the number of temporary variables used
-	// is likely a performance gain (See the Montgomery multiplication
-	// helper for an example of this), though it's relatively minor.
-	var t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19 Element
+	var t3, t19, tmp0, tmp1, tmp2 Element
 
-	t0.Square(fe)
-
-	t1.Square(&t0)
-	t1.Square(&t1)
-
-	t2.Mul(fe, &t1)
-
-	t3.Mul(&t0, &t2)
-
-	t4.Square(&t3)
-
-	t5.Mul(&t2, &t4)
-
-	t6.Pow2k(&t5, 5)
-
-	t7.Mul(&t6, &t5)
-
-	t8.Pow2k(&t7, 10)
-
-	t9.Mul(&t8, &t7)
-
-	t10.Pow2k(&t9, 20)
-
-	t11.Mul(&t10, &t9)
-
-	t12.Pow2k(&t11, 10)
-
-	t13.Mul(&t12, &t7)
-
-	t14.Pow2k(&t13, 50)
-
-	t15.Mul(&t14, &t13)
-
-	t16.Pow2k(&t15, 100)
-
-	t17.Mul(&t16, &t15)
-
-	t18.Pow2k(&t17, 50)
-
-	t19.Mul(&t18, &t13)
+	tmp0.Square(fe)        // t0 = fe^2
+	tmp1.Pow2k(&tmp0, 2)   // t1 = t0^(2^2)
+	tmp1.Mul(fe, &tmp1)    // t2 = fe * t1
+	t3.Mul(&tmp0, &tmp1)   // t3 = t0 * t2
+	tmp0.Square(&t3)       // t4 = t3^2
+	tmp1.Mul(&tmp1, &tmp0) // t5 = t2 * t4
+	tmp0.Pow2k(&tmp1, 5)   // t6 = t5^(2^5)
+	tmp2.Mul(&tmp0, &tmp1) // t7 = t6 * t5
+	tmp0.Pow2k(&tmp2, 10)  // t8 = t7^(2^10)
+	tmp1.Mul(&tmp0, &tmp2) // t9 = t8 * t7
+	tmp0.Pow2k(&tmp1, 20)  // t10 = t9^(2^20)
+	tmp1.Mul(&tmp0, &tmp1) // t11 = t10 * t9
+	tmp0.Pow2k(&tmp1, 10)  // t12 = t11^(2^10)
+	tmp2.Mul(&tmp0, &tmp2) // t13 = t12 * t7
+	tmp0.Pow2k(&tmp2, 50)  // t14 = t13^(2^50)
+	tmp0.Mul(&tmp0, &tmp2) // t15 = t14 * t13
+	tmp1.Pow2k(&tmp0, 100) // t16 = t15^(2^100)
+	tmp0.Mul(&tmp1, &tmp0) // t17 = t16 * t15
+	tmp0.Pow2k(&tmp0, 50)  // t18 = t17^(2*50)
+	t19.Mul(&tmp0, &tmp2)  // t19 = t18 * t13
 
 	return t19, t3
 }
