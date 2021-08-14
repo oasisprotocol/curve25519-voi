@@ -208,11 +208,6 @@ func (p *completedPoint) AddEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiv
 	return p
 }
 
-func (p *completedPoint) AddCompletedProjectiveNiels(a *completedPoint, b *projectiveNielsPoint) *completedPoint {
-	var aTmp EdwardsPoint
-	return p.AddEdwardsProjectiveNiels(aTmp.setCompleted(a), b)
-}
-
 func (p *completedPoint) SubEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiveNielsPoint) *completedPoint {
 	var PM, MP, TT2d, ZZ, ZZ2 field.Element
 	PM.Add(&a.inner.Y, &a.inner.X) // a.Y + a.X
@@ -228,11 +223,6 @@ func (p *completedPoint) SubEdwardsProjectiveNiels(a *EdwardsPoint, b *projectiv
 	p.Z.Sub(&ZZ2, &TT2d)
 	p.T.Add(&ZZ2, &TT2d)
 	return p
-}
-
-func (p *completedPoint) SubCompletedProjectiveNiels(a *completedPoint, b *projectiveNielsPoint) *completedPoint {
-	var aTmp EdwardsPoint
-	return p.SubEdwardsProjectiveNiels(aTmp.setCompleted(a), b)
 }
 
 func (p *completedPoint) AddEdwardsAffineNiels(a *EdwardsPoint, b *affineNielsPoint) *completedPoint {
