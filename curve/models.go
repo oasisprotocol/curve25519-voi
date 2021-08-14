@@ -279,25 +279,12 @@ func (p *completedPoint) SubCompletedAffineNiels(a *completedPoint, b *affineNie
 	return p.SubEdwardsAffineNiels(aTmp.setCompleted(a), b)
 }
 
-func (p *projectiveNielsPoint) Neg(t *projectiveNielsPoint) *projectiveNielsPoint {
-	p.Y_plus_X, p.Y_minus_X = t.Y_minus_X, t.Y_plus_X
-	p.Z.Set(&t.Z)
-	p.T2d.Neg(&t.T2d)
-	return p
-}
-
-func (p *affineNielsPoint) Neg(t *affineNielsPoint) *affineNielsPoint {
-	p.y_plus_x, p.y_minus_x = t.y_minus_x, t.y_plus_x
-	p.xy2d.Neg(&t.xy2d)
-	return p
-}
-
 func (p *projectiveNielsPoint) ConditionalNegate(choice int) {
-	var pNeg projectiveNielsPoint
-	p.ConditionalAssign(pNeg.Neg(p), choice)
+	p.Y_plus_X.ConditionalSwap(&p.Y_minus_X, choice)
+	p.T2d.ConditionalNegate(choice)
 }
 
 func (p *affineNielsPoint) ConditionalNegate(choice int) {
-	var pNeg affineNielsPoint
-	p.ConditionalAssign(pNeg.Neg(p), choice)
+	p.y_plus_x.ConditionalSwap(&p.y_minus_x, choice)
+	p.xy2d.ConditionalNegate(choice)
 }
