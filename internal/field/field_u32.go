@@ -153,6 +153,11 @@ func (fe *Element) Mul(a, b *Element) *Element {
 	return fe.reduce(&[10]uint64{z0, z1, z2, z3, z4, z5, z6, z7, z8, z9})
 }
 
+// Mul121666 sets `fe = t * 121666`, and returns fe.
+func (fe *Element) Mul121666(t *Element) *Element {
+	return fe.Mul(t, &constAPLUS2_OVER_FOUR)
+}
+
 // Neg sets `fe = -t`, and returns fe.
 func (fe *Element) Neg(t *Element) *Element {
 	// Compute -b as ((2^4 * p) - b) to avoid underflow.

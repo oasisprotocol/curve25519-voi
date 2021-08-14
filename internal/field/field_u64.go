@@ -247,6 +247,55 @@ func feMulGeneric(fe, a, b *Element) { //nolint:unused,deadcode
 	// Now fe[i] < 2^(51 + epsilon) for all i.
 }
 
+// Mul121666 sets `fe = t * 121666`, and returns fe.
+func (fe *Element) Mul121666(t *Element) *Element {
+	a0, a1, a2, a3, a4 := t.inner[0], t.inner[1], t.inner[2], t.inner[3], t.inner[4]
+	b0 := uint64(121666)
+
+	// Multiply to get 128-bit coefficients of output
+
+	c0_hi, c0_lo := bits.Mul64(a0, b0)
+	c1_hi, c1_lo := bits.Mul64(a1, b0)
+	c2_hi, c2_lo := bits.Mul64(a2, b0)
+	c3_hi, c3_lo := bits.Mul64(a3, b0)
+	c4_hi, c4_lo := bits.Mul64(a4, b0)
+
+	// Just do a weak reduction like in the multiply, the range
+	// analysis trivially holds due `b0` being tiny.
+
+	var carry uint64
+
+	tmp := (c0_hi << (64 - 51)) | (c0_lo >> 51)
+	c1_lo, carry = bits.Add64(c1_lo, tmp, 0)
+	c1_hi, _ = bits.Add64(c1_hi, 0, carry)
+	fe0 := c0_lo & low_51_bit_mask
+
+	tmp = (c1_hi << (64 - 51)) | (c1_lo >> 51)
+	c2_lo, carry = bits.Add64(c2_lo, tmp, 0)
+	c2_hi, _ = bits.Add64(c2_hi, 0, carry)
+	fe1 := c1_lo & low_51_bit_mask
+
+	tmp = (c2_hi << (64 - 51)) | (c2_lo >> 51)
+	c3_lo, carry = bits.Add64(c3_lo, tmp, 0)
+	c3_hi, _ = bits.Add64(c3_hi, 0, carry)
+	fe.inner[2] = c2_lo & low_51_bit_mask
+
+	tmp = (c3_hi << (64 - 51)) | (c3_lo >> 51)
+	c4_lo, carry = bits.Add64(c4_lo, tmp, 0)
+	c4_hi, _ = bits.Add64(c4_hi, 0, carry)
+	fe.inner[3] = c3_lo & low_51_bit_mask
+
+	carry = (c4_hi << (64 - 51)) | (c4_lo >> 51)
+	fe.inner[4] = c4_lo & low_51_bit_mask
+
+	fe0 = fe0 + carry*19
+
+	fe.inner[1] = fe1 + (fe0 >> 51)
+	fe.inner[0] = fe0 & low_51_bit_mask
+
+	return fe
+}
+
 // Neg sets `fe = -t`, and returns fe.
 func (fe *Element) Neg(t *Element) *Element {
 	// See commentary in the Sub impl.
