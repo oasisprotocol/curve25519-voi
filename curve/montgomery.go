@@ -153,7 +153,7 @@ func montgomeryDifferentialAddAndDouble(P, Q *montgomeryProjectivePoint, affine_
 	Q.U.Square(&Q.U) // 4 (U_P U_Q - W_P W_Q)^2: t11
 	Q.W.Square(&Q.W) // 4 (W_P U_Q - U_P W_Q)^2: t12
 
-	P.W.Mul(&constAPLUS2_OVER_FOUR, &t6) // (A + 2) U_P U_Q: t13
+	P.W.Mul121666(&t6) // (A + 2) U_P U_Q: t13
 
 	P.U.Mul(&t4, &t5)  // ((U_P + W_P)(U_P - W_P))^2 = (U_P^2 - W_P^2)^2: t14
 	P.W.Add(&P.W, &t5) // (U_P - W_P)^2 + (A + 2) U_P W_P: t15

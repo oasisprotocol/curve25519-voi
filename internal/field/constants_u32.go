@@ -39,3 +39,6 @@ var SQRT_M1 = NewElement2625(
 	34513072, 25610706, 9377949, 3500415, 12389472,
 	33281959, 41962654, 31548777, 326685, 11406482,
 )
+
+// `APLUS2_OVER_FOUR` is (A+2)/4. (This is used internally within the Montgomery ladder.)
+var constAPLUS2_OVER_FOUR = NewElement2625(121666, 0, 0, 0, 0, 0, 0, 0, 0, 0)
