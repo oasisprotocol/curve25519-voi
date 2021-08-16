@@ -102,16 +102,19 @@ func edwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, scalars []*sca
 	var r projectivePoint
 	r.Identity()
 
-	var t completedPoint
+	var (
+		tEp EdwardsPoint
+		t   completedPoint
+	)
 	for i := 255; i >= 0; i-- {
 		t.Double(&r)
 
 		for j := 0; j < len(nafs); j++ {
 			naf_i := nafs[j][i]
 			if naf_i > 0 {
-				t.AddCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(naf_i)))
+				t.AddEdwardsProjectiveNiels(tEp.setCompleted(&t), lookupTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
-				t.SubCompletedProjectiveNiels(&t, lookupTables[j].Lookup(uint8(-naf_i)))
+				t.SubEdwardsProjectiveNiels(tEp.setCompleted(&t), lookupTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 
@@ -154,25 +157,28 @@ func expandedEdwardsMultiscalarMulStrausVartimeGeneric(out *EdwardsPoint, static
 	var r projectivePoint
 	r.Identity()
 
-	var t completedPoint
+	var (
+		tEp EdwardsPoint
+		t   completedPoint
+	)
 	for i := 255; i >= 0; i-- {
 		t.Double(&r)
 
 		for j := 0; j < staticLen; j++ {
 			naf_i := staticNafs[j][i]
 			if naf_i > 0 {
-				t.AddCompletedProjectiveNiels(&t, staticTables[j].Lookup(uint8(naf_i)))
+				t.AddEdwardsProjectiveNiels(tEp.setCompleted(&t), staticTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
-				t.SubCompletedProjectiveNiels(&t, staticTables[j].Lookup(uint8(-naf_i)))
+				t.SubEdwardsProjectiveNiels(tEp.setCompleted(&t), staticTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 
 		for j := 0; j < dynamicLen; j++ {
 			naf_i := dynamicNafs[j][i]
 			if naf_i > 0 {
-				t.AddCompletedProjectiveNiels(&t, dynamicTables[j].Lookup(uint8(naf_i)))
+				t.AddEdwardsProjectiveNiels(tEp.setCompleted(&t), dynamicTables[j].Lookup(uint8(naf_i)))
 			} else if naf_i < 0 {
-				t.SubCompletedProjectiveNiels(&t, dynamicTables[j].Lookup(uint8(-naf_i)))
+				t.SubEdwardsProjectiveNiels(tEp.setCompleted(&t), dynamicTables[j].Lookup(uint8(-naf_i)))
 			}
 		}
 

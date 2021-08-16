@@ -75,20 +75,23 @@ func edwardsDoubleScalarMulBasepointVartimeGenericInner(out *EdwardsPoint, a *sc
 	var r projectivePoint
 	r.Identity()
 
-	var t completedPoint
+	var (
+		tEp EdwardsPoint
+		t   completedPoint
+	)
 	for {
 		t.Double(&r)
 
 		if aNaf[i] > 0 {
-			t.AddCompletedProjectiveNiels(&t, tableA.Lookup(uint8(aNaf[i])))
+			t.AddEdwardsProjectiveNiels(tEp.setCompleted(&t), tableA.Lookup(uint8(aNaf[i])))
 		} else if aNaf[i] < 0 {
-			t.SubCompletedProjectiveNiels(&t, tableA.Lookup(uint8(-aNaf[i])))
+			t.SubEdwardsProjectiveNiels(tEp.setCompleted(&t), tableA.Lookup(uint8(-aNaf[i])))
 		}
 
 		if bNaf[i] > 0 {
-			t.AddCompletedAffineNiels(&t, tableB.Lookup(uint8(bNaf[i])))
+			t.AddEdwardsAffineNiels(tEp.setCompleted(&t), tableB.Lookup(uint8(bNaf[i])))
 		} else if bNaf[i] < 0 {
-			t.SubCompletedAffineNiels(&t, tableB.Lookup(uint8(-bNaf[i])))
+			t.SubEdwardsAffineNiels(tEp.setCompleted(&t), tableB.Lookup(uint8(-bNaf[i])))
 		}
 
 		r.SetCompleted(&t)

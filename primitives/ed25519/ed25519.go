@@ -262,13 +262,18 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 	if _, err := rCompressed.SetBytes(sig[:32]); err != nil {
 		return false
 	}
-	if _, err := R.SetCompressedY(&rCompressed); err != nil {
-		return false
-	}
+	if vOpts.verifyNeedsDecompressedR() {
+		if _, err := R.SetCompressedY(&rCompressed); err != nil {
+			return false
+		}
 
-	// Check R order.
-	if !vOpts.AllowSmallOrderR && R.IsSmallOrder() {
-		return false
+		// Check R order.
+		if !vOpts.AllowSmallOrderR && R.IsSmallOrder() {
+			return false
+		}
+	} else {
+		R.Identity()
+		R = nil
 	}
 
 	// Check if R is canonical.
@@ -278,6 +283,23 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// Unpack S.
 	if _, err := S.SetBytesModOrder(sig[32:]); err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (vOpts *VerifyOptions) verifyNeedsDecompressedR() bool {
+	// The following conditions all require decompressed R.
+	//  * Cofactorless verify
+	//  * Batch verification
+	//  * Reject small-order R
+	//
+	// As cofactorless verify is mutually exclusive with batch verification,
+	// there is no need to know if we are doing batch verify to determine
+	// if we need to do the decompression.
+
+	if vOpts.CofactorlessVerify && vOpts.AllowSmallOrderR {
 		return false
 	}
 
