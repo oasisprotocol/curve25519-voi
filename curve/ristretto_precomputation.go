@@ -60,7 +60,7 @@ func NewExpandedRistrettoPoint(p *RistrettoPoint) *ExpandedRistrettoPoint {
 	return ep.SetRistrettoPoint(p)
 }
 
-// ExpandedDoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// ExpandedDoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable-time,
 // where B is the Ed25519 basepoint, and returns p.
 func (p *RistrettoPoint) ExpandedDoubleScalarMulBasepointVartime(a *scalar.Scalar, A *ExpandedRistrettoPoint, b *scalar.Scalar) *RistrettoPoint {
 	p.inner.ExpandedDoubleScalarMulBasepointVartime(a, &A.inner, b)

@@ -58,8 +58,8 @@ func m(x, y uint32) uint64 {
 	//  * 32x32->64 multiply is constant time on everything that is
 	//    actually relevant (386, 486, VIA Nano 2000, ARM 7, ARM 9,
 	//    Cortex-M3 are not worth caring about).
-	//  * If what this is doing is actually variable time, then we
-	//    are no worse off from the runtime library's Ed25519
+	//  * If what this is doing is actually variable-time, then we
+	//    are no worse off from the runtime library's old Ed25519
 	//    implementation.
 	//  * Using the intrinsic utterly kills performance.
 	return uint64(x) * uint64(y)

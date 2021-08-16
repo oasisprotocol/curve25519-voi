@@ -83,7 +83,7 @@ func NewExpandedEdwardsPoint(p *EdwardsPoint) *ExpandedEdwardsPoint {
 	return ep.SetEdwardsPoint(p)
 }
 
-// ExpandedDoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// ExpandedDoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable-time,
 // where B is the Ed25519 basepoint, and returns p.
 func (p *EdwardsPoint) ExpandedDoubleScalarMulBasepointVartime(a *scalar.Scalar, A *ExpandedEdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	return expandedEdwardsDoubleScalarMulBasepointVartime(p, a, A, b)

@@ -160,7 +160,7 @@ func (p *CompressedEdwardsY) IsCanonical() bool {
 
 	// Test for the two cases with a canonically encoded y with a
 	// noncanonical sign bit.  Since it's just two cases, and this
-	// routine is explicitly variable time, just do variable-time
+	// routine is explicitly variable-time, just do variable-time
 	// byte comparisons.
 	for _, invalidEncoding := range noncanonicalSignBits {
 		if bytes.Equal(p[:], invalidEncoding[:]) {
@@ -358,7 +358,7 @@ func (p *EdwardsPoint) MulBasepoint(basepoint *EdwardsBasepointTable, scalar *sc
 	return edwardsBasepointTableMul(p, basepoint, scalar)
 }
 
-// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable-time,
 // where B is the Ed25519 basepoint, and returns p.
 func (p *EdwardsPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *EdwardsPoint, b *scalar.Scalar) *EdwardsPoint {
 	return edwardsDoubleScalarMulBasepointVartime(p, a, A, b)
