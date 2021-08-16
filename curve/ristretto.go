@@ -374,7 +374,7 @@ func (p *RistrettoPoint) MulBasepoint(basepoint *RistrettoBasepointTable, scalar
 	return p
 }
 
-// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable time,
+// DoubleScalarMulBasepointVartime sets `p = (aA + bB)` in variable-time,
 // where B is the Ristretto basepoint, and returns p.
 func (p *RistrettoPoint) DoubleScalarMulBasepointVartime(a *scalar.Scalar, A *RistrettoPoint, b *scalar.Scalar) *RistrettoPoint {
 	p.inner.DoubleScalarMulBasepointVartime(a, &A.inner, b)

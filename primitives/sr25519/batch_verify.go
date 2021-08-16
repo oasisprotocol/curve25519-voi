@@ -37,6 +37,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/internal/scalar128"
 	"github.com/oasisprotocol/curve25519-voi/internal/zeroreader"
 	"github.com/oasisprotocol/curve25519-voi/primitives/merlin"
 )
@@ -204,6 +205,7 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		if _, err = io.ReadFull(zs_rng, randomBytes[:scalar.ScalarSize/2]); err != nil {
 			panic("sr25519: failed to generate batch verification scalar: " + err.Error())
 		}
+		scalar128.FixRawRangeVartime(&randomBytes) // Be extra paranoid, and deal with 0.
 		if _, err = Rcoeffs[i].SetBits(randomBytes[:]); err != nil {
 			panic("sr25519: failed to deserialize batch verification scalar: " + err.Error())
 		}

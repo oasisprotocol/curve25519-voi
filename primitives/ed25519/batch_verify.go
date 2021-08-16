@@ -37,6 +37,7 @@ import (
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
+	"github.com/oasisprotocol/curve25519-voi/internal/scalar128"
 )
 
 const batchPippengerThreshold = (190 - 1) / 2
@@ -227,6 +228,11 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 		return false
 	}
 
+	zGen, err := scalar128.NewGenerator(rand)
+	if err != nil {
+		panic("ed25519: failed to initialize random scalar generator: " + err.Error())
+	}
+
 	// The batch verification equation is
 	//
 	// [-sum(z_i * s_i)]B + sum([z_i]R_i) + sum([z_i * k_i]A_i) = 0.
@@ -253,8 +259,6 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	// Note: There is no need to allocate a backing-store since B, Rs and
 	// As already have concrete instances.
 	var (
-		randomBytes [scalar.ScalarSize]byte
-
 		points []*curve.EdwardsPoint
 		Rs     []*curve.EdwardsPoint
 
@@ -284,22 +288,8 @@ func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 			As[i] = &entry.negA
 		}
 
-		// An inquisitive reader would ask why this doesn't just do
-		// `z.SetRandom(rand)`, and instead, opts to duplicate the code.
-		//
-		// Go's escape analysis fails to realize that `randomBytes`
-		// doesn't escape, so doing this saves n-1 allocations,
-		// which can be quite large, especially as the batch size
-		// increases.
-		//
-		// Additionally, we want z_i to be 128-bit scalars, so only
-		// sampling 128-bits, and skipping the reduction is more
-		// performant.
-		if _, err := io.ReadFull(rand, randomBytes[:scalar.ScalarSize/2]); err != nil {
-			panic("ed25519: failed to generate batch verification scalar: " + err.Error())
-		}
-		if _, err := Rcoeffs[i].SetBits(randomBytes[:]); err != nil {
-			panic("ed25519: failed to deserialize batch verification scalar: " + err.Error())
+		if err = zGen.SetScalarVartime(Rcoeffs[i]); err != nil {
+			panic("ed25519: failed to generate z_i: " + err.Error())
 		}
 
 		var sz scalar.Scalar
