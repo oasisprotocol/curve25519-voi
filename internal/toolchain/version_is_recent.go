@@ -27,9 +27,9 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-//go:build go1.15
-// +build go1.15
+//go:build go1.16
+// +build go1.16
 
 package toolchain
 
-const __SOFTWARE_REQUIRES_GO_VERSION_1_15__ = uint8(0)
+const __SOFTWARE_REQUIRES_GO_VERSION_1_16__ = uint8(0)
