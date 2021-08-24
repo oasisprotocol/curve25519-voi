@@ -49,6 +49,7 @@ func TestStdLib(t *testing.T) {
 	// Tests mostly shamelessly stolen from the standard library.
 	t.Run("SignVerify", testSignVerify)
 	t.Run("SignVerify/Hashed", testSignVerifyHashed)
+	t.Run("SignVerify/AddedRandomness", testSignVerifyAddedRandomness)
 	t.Run("CryptoSigner", testCryptoSigner)
 	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
 	t.Run("Equal", testEqual)
@@ -92,6 +93,30 @@ func testSignVerifyHashed(t *testing.T) {
 	wrongHash := sha512.Sum512([]byte("wrong message"))
 	if VerifyWithOptions(key[32:], wrongHash[:], sig, opts) {
 		t.Errorf("signature of different message accepted")
+	}
+}
+
+func testSignVerifyAddedRandomness(t *testing.T) {
+	var zero zeroreader.ZeroReader
+	public, private, _ := GenerateKey(zero)
+
+	msg := []byte("Personal weapons are what raised mankind out of the mud, and the rifle is the queen of personal weapons.")
+
+	opts := &Options{
+		AddedRandomness: true,
+	}
+	sig, err := private.Sign(rand.Reader, msg, opts)
+	if err != nil {
+		t.Fatalf("failed to sign with added entropy: %v", err)
+	}
+
+	if !Verify(public, msg, sig) {
+		t.Errorf("valid signature rejected")
+	}
+
+	sig2 := Sign(private, msg)
+	if bytes.Equal(sig, sig2) {
+		t.Errorf("standard signature matches entropy added signature")
 	}
 }
 

@@ -72,6 +72,8 @@ const (
 
 	// ContextMaxSize is the maximum allowed context length for Ed25519ctx.
 	ContextMaxSize = 255
+
+	addedRandomnessSize = 32
 )
 
 var (
@@ -113,6 +115,8 @@ var (
 		Verify: VerifyOptionsDefault,
 	}
 
+	addedRandomnessPadding [1024]byte
+
 	_ crypto.Signer = (PrivateKey)(nil)
 )
 
@@ -130,6 +134,13 @@ type Options struct {
 	// Warning: If Hash is crypto.Hash(0) and Context is a zero length
 	// string, plain Ed25519 will be used instead of Ed25519ctx.
 	Context string
+
+	// AddedRandomness includes additional randomness when signing to
+	// attempt to mitigate certain fault injection and side-channel
+	// attacks.
+	//
+	// Warning: If this is set, signatures will be non-deterministic.
+	AddedRandomness bool
 
 	// Verify allows specifying verification behavior for compatibility
 	// with other Ed25519 implementations.  If left unspecified, the
@@ -335,22 +346,31 @@ func (priv PrivateKey) Seed() []byte {
 	return s
 }
 
-// Sign signs the given message with priv. rand is ignored. If opts.HashFunc()
-// is crypto.SHA512, the pre-hashed variant Ed25519ph is used and message is
-// expected to be a SHA-512 hash, otherwise opts.HashFunc() must be
-// crypto.Hash(0) and the message must not be hashed, as Ed25519 performs two
-// passes over messages to be signed.
+// Sign signs the given message with priv.  If opts.HashFunc() is crypto.SHA512,
+// the pre-hashed variant Ed25519ph is used and message is expected to be a
+// SHA-512 hash, otherwise opts.HashFunc() must be crypto.Hash(0) and the
+// message must not be hashed, as Ed25519 performs two passes over messages
+// to be signed.
+//
+// If opts.AddRandomness is set, additional entropy from rand will be included.
+// If rand is nil, crypto/rand.Reader will be used.
 //
 // Warning: This routine will panic if opts is nil.
 func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
 	var (
-		context []byte
-		f       dom2Flag = fPure
+		context   []byte
+		f         dom2Flag = fPure
+		addedRand bool
 	)
 	if o, ok := opts.(*Options); ok {
 		f, context, err = o.verify()
 		if err != nil {
 			return nil, err
+		}
+
+		addedRand = o.AddedRandomness
+		if rand == nil {
+			rand = cryptorand.Reader
 		}
 	}
 
@@ -373,7 +393,7 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	extsk[31] &= 127
 	extsk[31] |= 64
 
-	// r = H(aExt[32..64], m)
+	// r = H(dom2, aExt[32..64], m)
 	var (
 		hashr [64]byte
 		r     scalar.Scalar
@@ -383,7 +403,18 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	if dom2 != nil {
 		_, _ = h.Write(dom2)
 	}
+	if addedRand {
+		var entropy [addedRandomnessSize]byte
+		if _, err := io.ReadFull(rand, entropy[:]); err != nil {
+			return nil, fmt.Errorf("ed25519: failed to read Z: %w", err)
+		}
+		_, _ = h.Write(entropy[:])
+	}
 	_, _ = h.Write(extsk[32:])
+	if addedRand {
+		padSize := len(addedRandomnessPadding) - (len(dom2) + addedRandomnessSize + 32)
+		_, _ = h.Write(addedRandomnessPadding[:padSize])
+	}
 	_, _ = h.Write(message)
 	h.Sum(hashr[:0])
 	if _, err = r.SetBytesModOrderWide(hashr[:]); err != nil {
