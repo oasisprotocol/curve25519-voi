@@ -44,13 +44,13 @@ var order = func() [4]uint64 {
 	return ret
 }()
 
-// ScMinimal returns true if the given byte-encoded scalar is less than
-// the order of the curve, in variable-time.
+// ScMinimalVartime returns true if the given byte-encoded scalar is
+// less than the order of the curve, in variable-time.
 //
 // This method is intended for verification applications, and is
 // significantly faster than deserializing the scalar and calling
 // IsCanonical.
-func ScMinimal(scalar []byte) bool {
+func ScMinimalVartime(scalar []byte) bool {
 	if scalar[31]&240 == 0 {
 		// 4 most significant bits unset, succeed fast
 		return true

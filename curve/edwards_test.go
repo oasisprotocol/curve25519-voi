@@ -143,7 +143,7 @@ func TestEdwards(t *testing.T) {
 	t.Run("MultiscalarMulPippengerVartime", testEdwardsMultiscalarMulPippengerVartime)
 	t.Run("AffineNielsPoint/ConditionalAssign", testAffineNielsConditionalAssign)
 	t.Run("AffineNielsPoint/ConversionClearsDenominators", testAffineNielsConversionClearsDenominators)
-	t.Run("IsCanonical", testIsCanonical)
+	t.Run("IsCanonicalVartime", testIsCanonicalVartime)
 }
 
 func testEdwardsDecompressionCompression(t *testing.T) {
@@ -589,7 +589,7 @@ func testAffineNielsConversionClearsDenominators(t *testing.T) {
 	}
 }
 
-func testIsCanonical(t *testing.T) {
+func testIsCanonicalVartime(t *testing.T) {
 	// Check to see that the hard-coded compressed points with non-canonical
 	// sign bits are indeed non-canonical.
 	for _, p := range noncanonicalSignBits {
@@ -602,8 +602,8 @@ func testIsCanonical(t *testing.T) {
 			t.Fatalf("pCheck == p (p: %v pCheck: %v)", p, pCheck)
 		}
 
-		if p.IsCanonical() {
-			t.Fatalf("p.IsCanonical() == true (p: %v)", p)
+		if p.IsCanonicalVartime() {
+			t.Fatalf("p.IsCanonicalVartime() == true (p: %v)", p)
 		}
 	}
 }

@@ -250,7 +250,7 @@ func (vOpts *VerifyOptions) unpackPublicKey(publicKey PublicKey, A *curve.Edward
 	}
 
 	// Check if A is canonical.
-	if !vOpts.AllowNonCanonicalA && !aCompressed.IsCanonical() {
+	if !vOpts.AllowNonCanonicalA && !aCompressed.IsCanonicalVartime() {
 		return false
 	}
 
@@ -264,7 +264,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 
 	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
 	// the range [0, order) in order to prevent signature malleability.
-	if !scalar.ScMinimal(sig[32:]) {
+	if !scalar.ScMinimalVartime(sig[32:]) {
 		return false
 	}
 
@@ -288,7 +288,7 @@ func (vOpts *VerifyOptions) unpackSignature(sig []byte, R *curve.EdwardsPoint, S
 	}
 
 	// Check if R is canonical.
-	if !vOpts.AllowNonCanonicalR && !rCompressed.IsCanonical() {
+	if !vOpts.AllowNonCanonicalR && !rCompressed.IsCanonicalVartime() {
 		return false
 	}
 

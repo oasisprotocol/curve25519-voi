@@ -185,7 +185,8 @@ func doProve(rand io.Reader, sk ed25519.PrivateKey, alphaString []byte) ([]byte,
 	return piString[:], nil
 }
 
-// ProofToHash implements ECVRF_proof_to_hash for the suite ECVRF-EDWARDS25519-SHA512-ELL2.
+// ProofToHash implements ECVRF_proof_to_hash for the suite ECVRF-EDWARDS25519-SHA512-ELL2,
+// in variable-time.
 //
 // ECVRF_proof_to_hash should be run only on pi_string that is known
 // to have been produced by ECVRF_prove, or from within ECVRF_verify.
@@ -225,7 +226,7 @@ func Verify(pk ed25519.PublicKey, piString, alphaString []byte) (bool, []byte) {
 	if _, err := yString.SetBytes(pk); err != nil {
 		return false, nil
 	}
-	if !yString.IsCanonical() { // Required by RFC 8032 decode semantics.
+	if !yString.IsCanonicalVartime() { // Required by RFC 8032 decode semantics.
 		return false, nil
 	}
 	if _, err := Y.SetCompressedY(&yString); err != nil {
@@ -349,7 +350,7 @@ func decodeProof(piString []byte) (*curve.EdwardsPoint, *scalar.Scalar, *scalar.
 		// Should *NEVER* happen.
 		panic("ecvrf: failed to copy gamma_string: " + err.Error())
 	}
-	if !gammaString.IsCanonical() { // Required by RFC 8032 decode semantics.
+	if !gammaString.IsCanonicalVartime() { // Required by RFC 8032 decode semantics.
 		return nil, nil, nil, fmt.Errorf("ecvrf: non-canonical gamma")
 	}
 	var gamma curve.EdwardsPoint
@@ -369,7 +370,7 @@ func decodeProof(piString []byte) (*curve.EdwardsPoint, *scalar.Scalar, *scalar.
 
 	// 7.  s = string_to_int(s_string)
 	var s scalar.Scalar
-	if !scalar.ScMinimal(piString[48:]) {
+	if !scalar.ScMinimalVartime(piString[48:]) {
 		return nil, nil, nil, fmt.Errorf("ecvrf: non-canonical s")
 	}
 	if _, err := s.SetBytesModOrder(piString[48:]); err != nil {

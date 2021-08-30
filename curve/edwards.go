@@ -139,8 +139,8 @@ func (p *CompressedEdwardsY) Identity() *CompressedEdwardsY {
 	return p
 }
 
-// IsCanonical returns true if p is a canonical encoding in variable-time.
-func (p *CompressedEdwardsY) IsCanonical() bool {
+// IsCanonicalVartime returns true if p is a canonical encoding in variable-time.
+func (p *CompressedEdwardsY) IsCanonicalVartime() bool {
 	// Check that Y is canonical, using the succeed-fast algorithm from
 	// the "Taming the many EdDSAs" paper.
 	yCanonical := func() bool {
