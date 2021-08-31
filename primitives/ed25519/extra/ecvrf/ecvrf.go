@@ -32,8 +32,10 @@
 package ecvrf
 
 import (
+	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"fmt"
+	"io"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
@@ -52,25 +54,52 @@ const (
 	twoString   = 0x02
 	threeString = 0x03
 	suiteString = 0x04
+
+	addedRandomnessSize = 32
 )
 
-// The domain separation tag DST, a parameter to the hash-to-curve
-// suite, SHALL be set to "ECVRF_" || h2c_suite_ID_string || suite_string
-var h2cDST = []byte{
-	'E', 'C', 'V', 'R', 'F', '_', // "ECVRF_"
-	'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9', '_', 'X', 'M', 'D', ':', 'S', 'H', 'A', '-', '5', '1', '2', '_', 'E', 'L', 'L', '2', '_', 'N', 'U', '_', // h2c_suite_ID_string
-	suiteString, // suite_string
-}
+var (
+	// The domain separation tag DST, a parameter to the hash-to-curve
+	// suite, SHALL be set to "ECVRF_" || h2c_suite_ID_string || suite_string
+	h2cDST = []byte{
+		'E', 'C', 'V', 'R', 'F', '_', // "ECVRF_"
+		'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9', '_', 'X', 'M', 'D', ':', 'S', 'H', 'A', '-', '5', '1', '2', '_', 'E', 'L', 'L', '2', '_', 'N', 'U', '_', // h2c_suite_ID_string
+		suiteString, // suite_string
+	}
+
+	addedRandomnessPadding [1024]byte
+)
 
 // Prove implements ECVRF_prove for the suite ECVRF-EDWARDS25519-SHA512-ELL2.
 func Prove(sk ed25519.PrivateKey, alphaString []byte) []byte {
+	piString, err := doProve(nil, sk, alphaString)
+	if err != nil {
+		panic(err)
+	}
+	return piString
+}
+
+// ProveWithAddedRandomness implements ECVRF_prove for the suite ECVRF-EDWARDS25519-SHA512-ELL2,
+// while including additional randomness to mitigate certain fault injection
+// and side-channel attacks.  If rand is nil, crypto/rand.Reader will be used.
+//
+// Warning: If this is set, proofs (`beta_string`) will be non-deterministic.
+// The VRF output (`pi_string`) is identical to that produced by Prove.
+func ProveWithAddedRandomness(rand io.Reader, sk ed25519.PrivateKey, alphaString []byte) ([]byte, error) {
+	if rand == nil {
+		rand = cryptorand.Reader
+	}
+	return doProve(rand, sk, alphaString)
+}
+
+func doProve(rand io.Reader, sk ed25519.PrivateKey, alphaString []byte) ([]byte, error) {
 	// 1.  Use SK to derive the VRF secret scalar x and the VRF
 	// public key Y = x*B (this derivation depends on the ciphersuite,
 	// as per Section 5.5; these values can be cached, for example,
 	// after key generation, and need not be rederived each time)
 
 	if len(sk) != ed25519.PrivateKeySize {
-		panic("ecvrf: bad private key length")
+		return nil, fmt.Errorf("ecvrf: bad private key length")
 	}
 
 	var (
@@ -84,14 +113,14 @@ func Prove(sk ed25519.PrivateKey, alphaString []byte) []byte {
 	extsk[31] &= 127
 	extsk[31] |= 64
 	if _, err := x.SetBits(extsk[:32]); err != nil {
-		panic("ecvrf: failed to deserialize x scalar: " + err.Error())
+		return nil, fmt.Errorf("ecvrf: failed to deserialize x scalar: %w", err)
 	}
 	Y := sk[32:]
 
 	// 2.  H = ECVRF_hash_to_curve(Y, alpha_string)
 	H, err := hashToCurveH2cSuite(Y, alphaString)
 	if err != nil {
-		panic("ecvrf: failed to hash point to curve: " + err.Error())
+		return nil, fmt.Errorf("ecvrf: failed to hash point to curve: %w", err)
 	}
 
 	// 3.  h_string = point_to_string(H)
@@ -112,11 +141,22 @@ func Prove(sk ed25519.PrivateKey, alphaString []byte) []byte {
 		k      scalar.Scalar
 	)
 	h.Reset()
+	if rand != nil {
+		var entropy [addedRandomnessSize]byte
+		if _, err := io.ReadFull(rand, entropy[:]); err != nil {
+			return nil, fmt.Errorf("ecvrf: failed to read Z: %w", err)
+		}
+		_, _ = h.Write(entropy[:])
+	}
 	_, _ = h.Write(extsk[32:])
+	if rand != nil {
+		padSize := len(addedRandomnessPadding) - (addedRandomnessSize + 32)
+		_, _ = h.Write(addedRandomnessPadding[:padSize])
+	}
 	_, _ = h.Write(hString[:])
 	h.Sum(digest[:0])
 	if _, err = k.SetBytesModOrderWide(digest[:]); err != nil {
-		panic("ecvrf: failed to deserialize k scalar: " + err.Error())
+		return nil, fmt.Errorf("ecvrf: failed to deserialize k scalar: %w", err)
 	}
 
 	// 6.  c = ECVRF_hash_points(H, Gamma, k*B, k*H) (see Section 5.4.3)
@@ -131,21 +171,22 @@ func Prove(sk ed25519.PrivateKey, alphaString []byte) []byte {
 	s.Add(&s, &k)
 
 	// 8.  pi_string = point_to_string(Gamma) || int_to_string(c, n) ||
-	// int_to_string(s, qLen)
+	//                 int_to_string(s, qLen)
 	var piString [ProofSize]byte
 	copy(piString[:32], gammaString[:])
 	if err = c.ToBytes(piString[32:64]); err != nil {
-		panic("ecvrf: failed to serialize c scalar: " + err.Error())
+		return nil, fmt.Errorf("ecvrf: failed to serialize c scalar: %w", err)
 	}
 	if err = s.ToBytes(piString[48:]); err != nil { // c is truncated (128-bits).
-		panic("ecvrf: failed to serialize s scalar: " + err.Error())
+		return nil, fmt.Errorf("ecvrf: failed to serialize s scalar: %w", err)
 	}
 
 	// 9.  Output pi_string
-	return piString[:]
+	return piString[:], nil
 }
 
-// ProofToHash implements ECVRF_proof_to_hash for the suite ECVRF-EDWARDS25519-SHA512-ELL2.
+// ProofToHash implements ECVRF_proof_to_hash for the suite ECVRF-EDWARDS25519-SHA512-ELL2,
+// in variable-time.
 //
 // ECVRF_proof_to_hash should be run only on pi_string that is known
 // to have been produced by ECVRF_prove, or from within ECVRF_verify.
@@ -185,7 +226,7 @@ func Verify(pk ed25519.PublicKey, piString, alphaString []byte) (bool, []byte) {
 	if _, err := yString.SetBytes(pk); err != nil {
 		return false, nil
 	}
-	if !yString.IsCanonical() { // Required by RFC 8032 decode semantics.
+	if !yString.IsCanonicalVartime() { // Required by RFC 8032 decode semantics.
 		return false, nil
 	}
 	if _, err := Y.SetCompressedY(&yString); err != nil {
@@ -309,7 +350,7 @@ func decodeProof(piString []byte) (*curve.EdwardsPoint, *scalar.Scalar, *scalar.
 		// Should *NEVER* happen.
 		panic("ecvrf: failed to copy gamma_string: " + err.Error())
 	}
-	if !gammaString.IsCanonical() { // Required by RFC 8032 decode semantics.
+	if !gammaString.IsCanonicalVartime() { // Required by RFC 8032 decode semantics.
 		return nil, nil, nil, fmt.Errorf("ecvrf: non-canonical gamma")
 	}
 	var gamma curve.EdwardsPoint
@@ -329,7 +370,7 @@ func decodeProof(piString []byte) (*curve.EdwardsPoint, *scalar.Scalar, *scalar.
 
 	// 7.  s = string_to_int(s_string)
 	var s scalar.Scalar
-	if !scalar.ScMinimal(piString[48:]) {
+	if !scalar.ScMinimalVartime(piString[48:]) {
 		return nil, nil, nil, fmt.Errorf("ecvrf: non-canonical s")
 	}
 	if _, err := s.SetBytesModOrder(piString[48:]); err != nil {

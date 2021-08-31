@@ -88,6 +88,23 @@ func testIETFVectors(t *testing.T) {
 			t.Fatalf("[%d] beta mismatch (Got: %x)", i, beta)
 		}
 
+		// Test that adding entropy to the signing process produces
+		// different pi, but identical beta.
+		piNonDeterministic, err := ProveWithAddedRandomness(nil, sk, vec.alpha)
+		if err != nil {
+			t.Fatalf("[%d] ProveWithAddedRandomness(): %v", i, err)
+		}
+		if bytes.Equal(piNonDeterministic, pi) {
+			t.Fatalf("[%d] pi (non-determinstic) matched (Got: %x)", i, piNonDeterministic)
+		}
+		ok, beta = Verify(pk, piNonDeterministic, vec.alpha)
+		if !ok {
+			t.Fatalf("[%d] Verify(pi_non_deterministic) failed", i)
+		}
+		if !bytes.Equal(vec.beta, beta) {
+			t.Fatalf("[%d] beta (non-determinstic pi) mismatch (Got: %x)", i, beta)
+		}
+
 		pi[0] ^= 0xa5
 		ok, _ = Verify(pk, pi, vec.alpha)
 		if ok {

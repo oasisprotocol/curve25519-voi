@@ -83,7 +83,7 @@ func (sig *Signature) UnmarshalBinary(data []byte) error {
 	upper[31] &= 127
 
 	// Check that the scalar is encoded in canonical form.
-	if !scalar.ScMinimal(upper[:]) {
+	if !scalar.ScMinimalVartime(upper[:]) {
 		return fmt.Errorf("sr25519: non-canonical signature scalar")
 	}
 	sigScalar, err := scalar.NewFromCanonicalBytes(upper[:])

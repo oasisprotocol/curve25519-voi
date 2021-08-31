@@ -117,7 +117,7 @@ func TestScalar(t *testing.T) {
 	t.Run("BatchInvert/Empty", testBatchInvertEmpty)
 	t.Run("BatchInvert/Consistency", testBatchInvertConsistency)
 	t.Run("PippengerRadix", testPippengerRadix)
-	t.Run("ScMinimal", testScMinimal)
+	t.Run("ScMinimalVartime", testScMinimalVartime)
 }
 
 func testFuzzerTestcaseReduction(t *testing.T) {
@@ -681,7 +681,7 @@ func testPippengerRadix(t *testing.T) {
 	}
 }
 
-func testScMinimal(t *testing.T) {
+func testScMinimalVartime(t *testing.T) {
 	// At this point I could have just left this hardcoded as in the
 	// Go standard library, but parsing out BASEPOINT_ORDER is probably
 	// better.
@@ -708,8 +708,8 @@ func testScMinimal(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to decode test scalar: %v", err)
 		}
-		if ScMinimal(b) != v.expected {
-			t.Fatalf("ScMinimal(%s) != %v", v.scalarHex, v.expected)
+		if ScMinimalVartime(b) != v.expected {
+			t.Fatalf("ScMinimalVartime(%s) != %v", v.scalarHex, v.expected)
 		}
 	}
 }

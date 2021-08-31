@@ -91,7 +91,7 @@ func NewExpandedPublicKey(publicKey PublicKey) (*ExpandedPublicKey, error) {
 
 	// Check before negating the point.
 	pre.isSmallOrder = p.IsSmallOrder()
-	pre.isCanonical = pre.compressed.IsCanonical()
+	pre.isCanonical = pre.compressed.IsCanonicalVartime()
 
 	// Serial verification uses -A, batch verification can just negate
 	// the corresponding scalar (dirt cheap), and it saves carrying

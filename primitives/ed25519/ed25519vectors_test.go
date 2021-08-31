@@ -169,7 +169,7 @@ func TestEd25519Vectors(t *testing.T) {
 	})
 }
 
-func TestIsCanonical(t *testing.T) {
+func TestIsCanonicalVartime(t *testing.T) {
 	// This should live in the curve package, but this is where the convenient
 	// test vectors live.
 	for i, vec := range ed25519Vectors {
@@ -188,14 +188,14 @@ func TestIsCanonical(t *testing.T) {
 			if _, err := p.SetBytes(vec.PublicKey(t)); err != nil {
 				t.Fatalf("failed to deserialize A: %v", err)
 			}
-			if isCanonical := p.IsCanonical(); isCanonical != canonicalA {
-				t.Fatalf("A.IsCanonical() mismatch: %v (%v)", isCanonical, canonicalA)
+			if isCanonical := p.IsCanonicalVartime(); isCanonical != canonicalA {
+				t.Fatalf("A.IsCanonicalVartime() mismatch: %v (%v)", isCanonical, canonicalA)
 			}
 			if _, err := p.SetBytes(vec.R(t)); err != nil {
 				t.Fatalf("failed to deserialize R: %v", err)
 			}
-			if isCanonical := p.IsCanonical(); isCanonical != canonicalR {
-				t.Fatalf("R.IsCanonical() mismatch: %v (%v)", isCanonical, canonicalR)
+			if isCanonical := p.IsCanonicalVartime(); isCanonical != canonicalR {
+				t.Fatalf("R.IsCanonicalVartime() mismatch: %v (%v)", isCanonical, canonicalR)
 			}
 		})
 	}
