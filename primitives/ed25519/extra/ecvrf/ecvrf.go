@@ -289,7 +289,9 @@ func gammaToHash(gamma *curve.EdwardsPoint) []byte {
 func hashToCurveH2cSuite(Y, alphaString []byte) (*curve.EdwardsPoint, error) {
 	// 1.  PK_string = point_to_string(Y)
 	// 2.  string_to_hash = PK_string || alpha_string
-	stringToHash := append(Y, alphaString...)
+	stringToHash := make([]byte, 0, len(Y) + len(alphaString))
+	stringToHash = append(stringToHash, Y...)
+	stringToHash = append(stringToHash, alphaString...)
 
 	// 3.  H = encode(string_to_hash)
 	// 4.  Output H
