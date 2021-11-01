@@ -6,7 +6,7 @@
 
 // func lookupAffineNiels(table *affineNielsPointLookupTable, out *affineNielsPoint, xabs uint8)
 // Requires: SSE2
-TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-24
+TEXT ·lookupAffineNiels(SB), NOSPLIT|NOFRAME, $0-17
 	// This is moderately annoying due to having 3x5 64-bit elements,
 	// which does not nicely fit into vector registers.  This is
 	// handled by duplicating one element in 2 registers, since
@@ -132,7 +132,7 @@ GLOBL cached_id_2_4<>(SB), RODATA|NOPTR, $32
 
 // func lookupCached(table *cachedPointLookupTable, out *cachedPoint, xabs uint8)
 // Requires: AVX, AVX2
-TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-24
+TEXT ·lookupCached(SB), NOSPLIT|NOFRAME, $0-17
 	MOVQ table+0(FP), AX
 
 	// Build the mask, zero all the registers
