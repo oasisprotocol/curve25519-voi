@@ -192,7 +192,7 @@ GLOBL shuffle_DBDB<>(SB), RODATA|NOPTR, $32
 
 // func vecConditionalSelect_AVX2(out *fieldElement2625x4, a *fieldElement2625x4, b *fieldElement2625x4, mask uint32)
 // Requires: AVX, AVX2
-TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-32
+TEXT ·vecConditionalSelect_AVX2(SB), NOSPLIT|NOFRAME, $0-28
 	MOVQ out+0(FP), AX
 	MOVQ a+8(FP), CX
 	MOVQ b+16(FP), DX
@@ -550,7 +550,7 @@ TEXT ·vecNegateLazyCached_AVX2(SB), NOSPLIT|NOFRAME, $0-16
 
 // func vecConditionalNegateLazyCached_AVX2(out *fieldElement2625x4, vec *cachedPoint, mask uint32)
 // Requires: AVX, AVX2
-TEXT ·vecConditionalNegateLazyCached_AVX2(SB), NOSPLIT|NOFRAME, $0-24
+TEXT ·vecConditionalNegateLazyCached_AVX2(SB), NOSPLIT|NOFRAME, $0-20
 	MOVQ    out+0(FP), AX
 	MOVQ    vec+8(FP), CX
 	VMOVDQU (CX), Y0
