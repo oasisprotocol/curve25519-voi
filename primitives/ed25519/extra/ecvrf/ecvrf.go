@@ -371,6 +371,7 @@ func decodeProof(piString []byte) (*curve.EdwardsPoint, *scalar.Scalar, *scalar.
 	}
 
 	// 7.  s = string_to_int(s_string)
+	// 8.  if s >= q output "INVALID" and stop
 	var s scalar.Scalar
 	if !scalar.ScMinimalVartime(piString[48:]) {
 		return nil, nil, nil, fmt.Errorf("ecvrf: non-canonical s")
