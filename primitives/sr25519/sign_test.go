@@ -30,8 +30,9 @@
 package sr25519
 
 import (
-	"encoding/hex"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 func TestSignS11n(t *testing.T) {
@@ -102,19 +103,13 @@ func TestVerifyVector(t *testing.T) {
 		msg    = "this is a message"
 	)
 
-	pkBytes, err := hex.DecodeString(pkHex)
-	if err != nil {
-		t.Fatalf("failed to deserialize public key hex: %v", err)
-	}
+	pkBytes := testhelpers.MustUnhex(t, pkHex)
 	var pk PublicKey
 	if err := pk.UnmarshalBinary(pkBytes); err != nil {
 		t.Fatalf("failed to deserialize public key: %v", err)
 	}
 
-	sigBytes, err := hex.DecodeString(sigHex)
-	if err != nil {
-		t.Fatalf("failed to deserialize signature hex: %v", err)
-	}
+	sigBytes := testhelpers.MustUnhex(t, sigHex)
 	var sig Signature
 	if err := sig.UnmarshalBinary(sigBytes); err != nil {
 		t.Fatalf("failed to deserialize signature: %v", err)

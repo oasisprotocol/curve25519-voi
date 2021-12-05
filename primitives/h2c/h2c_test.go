@@ -30,13 +30,13 @@
 package h2c
 
 import (
-	"encoding/hex"
 	"fmt"
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve"
 	"github.com/oasisprotocol/curve25519-voi/internal/elligator"
 	"github.com/oasisprotocol/curve25519-voi/internal/field"
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 type hashToCurveTestVector struct {
@@ -44,15 +44,9 @@ type hashToCurveTestVector struct {
 	x, y string
 }
 
-func (vec *hashToCurveTestVector) ToCoordinates() (*field.Element, *field.Element, error) {
-	x, err := hex.DecodeString(vec.x)
-	if err != nil {
-		return nil, nil, fmt.Errorf("h2c: failed to deserialize P.x: %w", err)
-	}
-	y, err := hex.DecodeString(vec.y)
-	if err != nil {
-		return nil, nil, fmt.Errorf("h2c: failed to deserialize P.y: %w", err)
-	}
+func (vec *hashToCurveTestVector) ToCoordinates(t *testing.T) (*field.Element, *field.Element, error) {
+	x := testhelpers.MustUnhex(t, vec.x)
+	y := testhelpers.MustUnhex(t, vec.y)
 
 	// The IETF test vectors provide all coordinates in big-endian byte order.
 	x = reversedByteSlice(x)
@@ -60,18 +54,18 @@ func (vec *hashToCurveTestVector) ToCoordinates() (*field.Element, *field.Elemen
 
 	// Generate a point from the test vector x and y-coordinates.
 	var feX, feY field.Element
-	if _, err = feX.SetBytes(x); err != nil {
+	if _, err := feX.SetBytes(x); err != nil {
 		return nil, nil, fmt.Errorf("h2c: failed to deserialize x: %w", err)
 	}
-	if _, err = feY.SetBytes(y); err != nil {
+	if _, err := feY.SetBytes(y); err != nil {
 		return nil, nil, fmt.Errorf("h2c: failed to deserialize y: %w", err)
 	}
 
 	return &feX, &feY, nil
 }
 
-func (vec *hashToCurveTestVector) ToEdwardsPoint() (*curve.EdwardsPoint, error) {
-	feX, feY, err := vec.ToCoordinates()
+func (vec *hashToCurveTestVector) ToEdwardsPoint(t *testing.T) (*curve.EdwardsPoint, error) {
+	feX, feY, err := vec.ToCoordinates(t)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +80,7 @@ func TestHashToCurve(t *testing.T) {
 	t.Run("edwards25519", func(t *testing.T) {
 		checkEdwards := func(t *testing.T, dst []byte, vecs []hashToCurveTestVector, isRO bool) {
 			for i, vec := range vecs {
-				expected, err := vec.ToEdwardsPoint()
+				expected, err := vec.ToEdwardsPoint(t)
 				if err != nil {
 					t.Fatalf("failed to deserialize test vector[%d]: %v", i, err)
 				}

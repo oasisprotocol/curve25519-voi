@@ -32,13 +32,16 @@ package ed25519
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
-type phTestVector struct {
+// This only tests Ed25519ctx, for Ed25519ph, see ed25519_test.go (testSignVerifyHashed).
+
+type ctxTestVector struct {
 	Name      string `json:"name"`
 	SecretKey string `json:"secret_key"`
 	PublicKey string `json:"public_key"`
@@ -47,44 +50,28 @@ type phTestVector struct {
 	Signature string `json:"signature"`
 }
 
-func (tv *phTestVector) Run(t *testing.T) {
+func (tv *ctxTestVector) Run(t *testing.T) {
 	// The Go representation of a raw private key includes the public
 	// key, the RFC test vector's idea of such does not.
-	rawPrivate, err := hex.DecodeString(tv.SecretKey + tv.PublicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawPublic, err := hex.DecodeString(tv.PublicKey)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rawPrivate := testhelpers.MustUnhex(t, tv.SecretKey+tv.PublicKey)
+	rawPublic := testhelpers.MustUnhex(t, tv.PublicKey)
 
-	privKey := PrivateKey(rawPrivate)
-	publicKey := privKey.Public().(PublicKey)
+	privateKey := PrivateKey(rawPrivate)
+	publicKey := privateKey.Public().(PublicKey)
 	if !bytes.Equal(publicKey[:], rawPublic) {
 		t.Fatalf("derived public key does not match test vectors")
 	}
 
-	msg, err := hex.DecodeString(tv.Message)
-	if err != nil {
-		t.Fatal(err)
-	}
+	msg := testhelpers.MustUnhex(t, tv.Message)
+	ctx := testhelpers.MustUnhex(t, tv.Context)
 
-	ctx, err := hex.DecodeString(tv.Context)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expectedSig, err := hex.DecodeString(tv.Signature)
-	if err != nil {
-		t.Fatal(err)
-	}
+	expectedSig := testhelpers.MustUnhex(t, tv.Signature)
 
 	opts := &Options{
 		Context: string(ctx),
 	}
 
-	sig, err := privKey.Sign(nil, msg, opts)
+	sig, err := privateKey.Sign(nil, msg, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +105,7 @@ func TestSignVerifyCtx(t *testing.T) {
 	}
 	defer rd.Close()
 
-	var testVectors []phTestVector
+	var testVectors []ctxTestVector
 	dec := json.NewDecoder(rd)
 	if err = dec.Decode(&testVectors); err != nil {
 		t.Fatal(err)

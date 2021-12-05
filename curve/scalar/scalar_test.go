@@ -33,9 +33,10 @@ package scalar
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"strconv"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 var testConstants = map[string]*Scalar{
@@ -704,10 +705,7 @@ func testScMinimalVartime(t *testing.T) {
 		{"0000000000000000000000000000000000000000000000000000000000000040", false},
 		{"0000000000000000000000000000000000000000000000000000000000000080", false},
 	} {
-		b, err := hex.DecodeString(v.scalarHex)
-		if err != nil {
-			t.Fatalf("failed to decode test scalar: %v", err)
-		}
+		b := testhelpers.MustUnhex(t, v.scalarHex)
 		if ScMinimalVartime(b) != v.expected {
 			t.Fatalf("ScMinimalVartime(%s) != %v", v.scalarHex, v.expected)
 		}

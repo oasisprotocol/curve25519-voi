@@ -39,11 +39,12 @@ package ed25519
 import (
 	"compress/gzip"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 type verificationImpl int
@@ -121,21 +122,12 @@ type speccheckTestVector struct {
 	Signature string `json:"signature"`
 }
 
-func (v *speccheckTestVector) toComponents() ([]byte, PublicKey, []byte, error) {
+func (v *speccheckTestVector) toComponents(t *testing.T) ([]byte, PublicKey, []byte, error) {
 	var pk PublicKey
 
-	msg, err := hex.DecodeString(v.Message)
-	if err != nil {
-		return nil, pk, nil, fmt.Errorf("failed to decode message: %w", err)
-	}
-	rawPk, err := hex.DecodeString(v.PublicKey)
-	if err != nil {
-		return nil, pk, nil, fmt.Errorf("failed to decode public key: %w", err)
-	}
-	sig, err := hex.DecodeString(v.Signature)
-	if err != nil {
-		return nil, pk, nil, fmt.Errorf("failed to decode signature: %w", err)
-	}
+	msg := testhelpers.MustUnhex(t, v.Message)
+	rawPk := testhelpers.MustUnhex(t, v.PublicKey)
+	sig := testhelpers.MustUnhex(t, v.Signature)
 	if len(rawPk) != PublicKeySize {
 		return nil, pk, nil, fmt.Errorf("invalid public key size")
 	}
@@ -149,7 +141,7 @@ func (v *speccheckTestVector) toComponents() ([]byte, PublicKey, []byte, error) 
 }
 
 func (v *speccheckTestVector) Run(t *testing.T, impl verificationImpl, opts *Options) bool {
-	msg, pk, sig, err := v.toComponents()
+	msg, pk, sig, err := v.toComponents(t)
 	if err != nil {
 		t.Fatal(err)
 	}

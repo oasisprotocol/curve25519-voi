@@ -32,12 +32,13 @@ package ed25519
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 type wycheproofTestVectors struct {
@@ -60,18 +61,12 @@ type wycheproofTestKey struct {
 	Type       string `json:"type"`
 }
 
-func (k *wycheproofTestKey) Keys() (PublicKey, PrivateKey, error) {
-	rawPk, err := hex.DecodeString(k.PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
+func (k *wycheproofTestKey) Keys(t *testing.T) (PublicKey, PrivateKey, error) {
+	rawPk := testhelpers.MustUnhex(t, k.PublicKey)
 	if len(rawPk) != PublicKeySize {
 		return nil, nil, fmt.Errorf("invalid public key size")
 	}
-	rawSeed, err := hex.DecodeString(k.PrivateKey)
-	if err != nil {
-		return nil, nil, err
-	}
+	rawSeed := testhelpers.MustUnhex(t, k.PrivateKey)
 	if len(rawSeed) != SeedSize {
 		return nil, nil, fmt.Errorf("invalid private key seed size")
 	}
@@ -98,15 +93,8 @@ func (tc *wycheproofTestCase) Run(t *testing.T, pubKey PublicKey, privKey Privat
 		t.Logf("%s", tc.Comment)
 	}
 
-	msg, err := hex.DecodeString(tc.Message)
-	if err != nil {
-		t.Fatalf("failed to parse message: %v", err)
-	}
-
-	sig, err := hex.DecodeString(tc.Signature)
-	if err != nil {
-		t.Fatalf("failed to parse signature: %v", err)
-	}
+	msg := testhelpers.MustUnhex(t, tc.Message)
+	sig := testhelpers.MustUnhex(t, tc.Signature)
 
 	var expectedResult bool
 	switch strings.ToLower(tc.Result) {
@@ -122,9 +110,9 @@ func (tc *wycheproofTestCase) Run(t *testing.T, pubKey PublicKey, privKey Privat
 	if expectedResult == true {
 		derivedSig := Sign(privKey, msg)
 		if !bytes.Equal(sig, derivedSig) {
-			t.Errorf("failed to re-generate signature: %v (expected %v)",
-				hex.EncodeToString(derivedSig),
-				hex.EncodeToString(sig),
+			t.Errorf("failed to re-generate signature: %x (expected %x)",
+				derivedSig,
+				sig,
 			)
 		}
 	}
@@ -174,7 +162,7 @@ func TestWycheproof(t *testing.T) {
 
 	var numTests int
 	for i, group := range testVectors.TestGroups {
-		pubKey, privKey, err := group.Key.Keys()
+		pubKey, privKey, err := group.Key.Keys(t)
 		if err != nil {
 			t.Errorf("failed to parse keys for test group %d: %v", i, err)
 			continue

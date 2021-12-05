@@ -30,14 +30,16 @@
 package h2c
 
 import (
+	"bytes"
 	"crypto"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"encoding/hex"
 	"fmt"
 	"testing"
 
 	"golang.org/x/crypto/sha3"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 type expandMessageTestVector struct {
@@ -45,7 +47,7 @@ type expandMessageTestVector struct {
 	expected string
 }
 
-func (vec *expandMessageTestVector) checkXMD(hFunc crypto.Hash, dst []byte) error {
+func (vec *expandMessageTestVector) checkXMD(t *testing.T, hFunc crypto.Hash, dst []byte) error {
 	outLen := len(vec.expected) / 2 // Hex string to bytes
 	out := make([]byte, outLen)
 
@@ -53,14 +55,15 @@ func (vec *expandMessageTestVector) checkXMD(hFunc crypto.Hash, dst []byte) erro
 		return err
 	}
 
-	if outHex := hex.EncodeToString(out); outHex != vec.expected {
-		return fmt.Errorf("output mismatch: got '%s'", outHex)
+	expected := testhelpers.MustUnhex(t, vec.expected)
+	if !bytes.Equal(out, expected) {
+		return fmt.Errorf("output mismatch: got '%x'", out)
 	}
 
 	return nil
 }
 
-func (vec *expandMessageTestVector) checkXOF(xofFunc sha3.ShakeHash, dst []byte) error {
+func (vec *expandMessageTestVector) checkXOF(t *testing.T, xofFunc sha3.ShakeHash, dst []byte) error {
 	outLen := len(vec.expected) / 2 // Hex string to bytes
 	out := make([]byte, outLen)
 
@@ -68,8 +71,9 @@ func (vec *expandMessageTestVector) checkXOF(xofFunc sha3.ShakeHash, dst []byte)
 		return err
 	}
 
-	if outHex := hex.EncodeToString(out); outHex != vec.expected {
-		return fmt.Errorf("output mismatch: got '%s'", outHex)
+	expected := testhelpers.MustUnhex(t, vec.expected)
+	if !bytes.Equal(out, expected) {
+		return fmt.Errorf("output mismatch: got '%x'", out)
 	}
 
 	return nil
@@ -128,7 +132,7 @@ func testExpandMessageXMD(t *testing.T) {
 		}
 
 		for i, vec := range vecs {
-			if err := vec.checkXMD(crypto.SHA256, dst); err != nil {
+			if err := vec.checkXMD(t, crypto.SHA256, dst); err != nil {
 				t.Fatalf("Test vector[%d]: %v", i, err)
 			}
 		}
@@ -180,7 +184,7 @@ func testExpandMessageXMD(t *testing.T) {
 		}
 
 		for i, vec := range vecs {
-			if err := vec.checkXMD(crypto.SHA512, dst); err != nil {
+			if err := vec.checkXMD(t, crypto.SHA512, dst); err != nil {
 				t.Fatalf("Test vector[%d]: %v", i, err)
 			}
 		}
@@ -235,7 +239,7 @@ func testExpandMessageXOF(t *testing.T) {
 		}
 
 		for i, vec := range vecs {
-			if err := vec.checkXOF(sha3.NewShake128(), dst); err != nil {
+			if err := vec.checkXOF(t, sha3.NewShake128(), dst); err != nil {
 				t.Fatalf("Test vector[%d]: %v", i, err)
 			}
 		}
@@ -287,7 +291,7 @@ func testExpandMessageXOF(t *testing.T) {
 		}
 
 		for i, vec := range vecs {
-			if err := vec.checkXOF(sha3.NewShake256(), dst); err != nil {
+			if err := vec.checkXOF(t, sha3.NewShake256(), dst); err != nil {
 				t.Fatalf("Test vector[%d]: %v", i, err)
 			}
 		}
