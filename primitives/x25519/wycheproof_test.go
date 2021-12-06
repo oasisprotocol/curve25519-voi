@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Oasis Labs Inc. All rights reserved.
+// Copyright (c) 2021 Oasis Labs Inc. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -27,7 +27,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-package ed25519
+package x25519
 
 import (
 	"bytes"
@@ -35,10 +35,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
+)
+
+type wycheproofXDHFlags int
+
+const (
+	flagLowOrderPublic wycheproofXDHFlags = iota
+	flagNonCanonicalPublic
+	flagSmallPublicKey
+	flagTwist
+	flagZeroSharedSecret
 )
 
 type wycheproofTestVectors struct {
@@ -49,98 +58,80 @@ type wycheproofTestVectors struct {
 }
 
 type wycheproofTestGroup struct {
-	Key   wycheproofTestKey    `json:"key"`
+	Curve string               `json:"string"`
+	Type  string               `json:"type"`
 	Tests []wycheproofTestCase `json:"tests"`
 }
 
-type wycheproofTestKey struct {
-	Curve      string `json:"curve"`
-	KeySize    int    `json:"keySize"`
-	PublicKey  string `json:"pk"`
-	PrivateKey string `json:"sk"`
-	Type       string `json:"type"`
-}
-
-func (k *wycheproofTestKey) Keys(t *testing.T) (PublicKey, PrivateKey, error) {
-	rawPk := testhelpers.MustUnhex(t, k.PublicKey)
-	if len(rawPk) != PublicKeySize {
-		return nil, nil, fmt.Errorf("invalid public key size")
-	}
-	rawSeed := testhelpers.MustUnhex(t, k.PrivateKey)
-	if len(rawSeed) != SeedSize {
-		return nil, nil, fmt.Errorf("invalid private key seed size")
-	}
-
-	privKey := NewKeyFromSeed(rawSeed)
-	pubKeyCheck := privKey.Public().(PublicKey)
-	if !bytes.Equal(pubKeyCheck[:], rawPk) {
-		return nil, nil, fmt.Errorf("derived public key does not match vectors")
-	}
-
-	return PublicKey(rawPk), privKey, nil
-}
-
 type wycheproofTestCase struct {
-	ID        int    `json:"tcId"`
-	Comment   string `json:"comment"`
-	Message   string `json:"msg"`
-	Signature string `json:"sig"`
-	Result    string `json:"result"`
+	ID      int      `json:"tcId"`
+	Comment string   `json:"comment"`
+	Public  string   `json:"public"`
+	Private string   `json:"private"`
+	Shared  string   `json:"shared"`
+	Result  string   `json:"result"`
+	Flags   []string `json:"flags"`
 }
 
-func (tc *wycheproofTestCase) Run(t *testing.T, pubKey PublicKey, privKey PrivateKey) {
+func (tc *wycheproofTestCase) Run(t *testing.T) {
 	if tc.Comment != "" {
 		t.Logf("%s", tc.Comment)
 	}
 
-	msg := testhelpers.MustUnhex(t, tc.Message)
-	sig := testhelpers.MustUnhex(t, tc.Signature)
+	publicKey := testhelpers.MustUnhex(t, tc.Public)
+	privateKey := testhelpers.MustUnhex(t, tc.Private)
+	sharedKey := testhelpers.MustUnhex(t, tc.Shared)
 
-	var expectedResult bool
-	switch strings.ToLower(tc.Result) {
-	case "invalid":
-	case "valid":
-		expectedResult = true
-	default:
-		t.Fatalf("failed to parse expected result: '%v'", tc.Result)
-	}
-
-	// If the test case has a valid signature, check to see if we can
-	// reproduce it.
-	if expectedResult == true {
-		derivedSig := Sign(privKey, msg)
-		if !bytes.Equal(sig, derivedSig) {
-			t.Errorf("failed to re-generate signature: %x (expected %x)",
-				derivedSig,
-				sig,
-			)
+	flags := make(map[wycheproofXDHFlags]bool)
+	for _, s := range tc.Flags {
+		switch s {
+		case "LowOrderPublic":
+			flags[flagLowOrderPublic] = true
+		case "NonCanonicalPublic":
+			flags[flagNonCanonicalPublic] = true
+		case "SmallPublicKey":
+			flags[flagSmallPublicKey] = true
+		case "Twist":
+			flags[flagTwist] = true
+		case "ZeroSharedSecret":
+			flags[flagZeroSharedSecret] = true
 		}
 	}
 
-	sigOk := Verify(pubKey, msg, sig)
-	if sigOk != expectedResult {
-		t.Errorf("signature validation result mismatch: %v (expected %v)",
-			sigOk,
-			expectedResult,
-		)
+	// First test the raw "Deprecated" ScalarMult routine.
+	var dst, in, base [32]byte
+	copy(in[:], privateKey)
+	copy(base[:], publicKey)
+	ScalarMult(&dst, &in, &base)
+
+	if !bytes.Equal(dst[:], sharedKey) {
+		t.Fatalf("failed ScalarMult(dst, priv, pub): %x (expected %x)", dst[:], sharedKey)
 	}
 
-	// Ensure that the expanded version also does the right thing.
-	expPub, err := NewExpandedPublicKey(pubKey)
-	if err != nil {
-		t.Fatalf("NewExpandedPublicKey: %v", err)
-	}
-	sigOk = VerifyExpandedWithOptions(expPub, msg, sig, optionsDefault)
-	if sigOk != expectedResult {
-		t.Errorf("expanded signature validation result mismatch: %v (expected %v)",
-			sigOk,
-			expectedResult,
-		)
+	// The "new" X25519 routine enforces contributory behavior, with an
+	// error message that appears as if it is rejecting low order public
+	// keys.  The check is for an all zero shared secret, so use that flag
+	// though both are excluseively set as a pair.
+	shouldFail := flags[flagZeroSharedSecret]
+
+	out, err := X25519(privateKey, publicKey)
+	switch shouldFail {
+	case true:
+		if err == nil {
+			t.Fatalf("X25519(priv, pub) returned no error when it should fail")
+		}
+	case false:
+		if err != nil {
+			t.Fatalf("failed X25519(priv, pub): %v", err)
+		}
+		if !bytes.Equal(out, sharedKey) {
+			t.Fatalf("failed X25519(priv, pub): %x (expected %x)", out, sharedKey)
+		}
 	}
 }
 
 func TestWycheproof(t *testing.T) {
-	f, err := os.Open("testdata/eddsa_test.json.gz")
+	f, err := os.Open("testdata/x25519_test.json.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,17 +152,11 @@ func TestWycheproof(t *testing.T) {
 	t.Logf("Wycheproof Version: %s", testVectors.Version)
 
 	var numTests int
-	for i, group := range testVectors.TestGroups {
-		pubKey, privKey, err := group.Key.Keys(t)
-		if err != nil {
-			t.Errorf("failed to parse keys for test group %d: %v", i, err)
-			continue
-		}
-
+	for _, group := range testVectors.TestGroups {
 		for _, testCase := range group.Tests {
 			n := fmt.Sprintf("TestCase/%d", testCase.ID)
 			t.Run(n, func(t *testing.T) {
-				testCase.Run(t, pubKey, privKey)
+				testCase.Run(t)
 			})
 			numTests++
 		}

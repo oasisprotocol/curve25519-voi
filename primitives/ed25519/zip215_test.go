@@ -32,25 +32,20 @@ package ed25519
 import (
 	"compress/gzip"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/oasisprotocol/curve25519-voi/internal/testhelpers"
 )
 
 type zip215TestVector [2]string
 
 func (tc zip215TestVector) Run(t *testing.T, isBatch, isZIP215 bool) {
 	msg := []byte("Zcash")
-	rawPk, err := hex.DecodeString(tc[0])
-	if err != nil {
-		t.Fatalf("failed to decode public key: %v", err)
-	}
-	sig, err := hex.DecodeString(tc[1])
-	if err != nil {
-		t.Fatalf("failed to decode signature: %v", err)
-	}
+	rawPk := testhelpers.MustUnhex(t, tc[0])
+	sig := testhelpers.MustUnhex(t, tc[1])
 
 	pk := PublicKey(rawPk)
 	var opts Options
