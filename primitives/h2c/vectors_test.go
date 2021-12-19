@@ -103,12 +103,12 @@ func TestVectors(t *testing.T) {
 	for _, suiteTest := range []suiteTestDef{
 		{
 			n:    "edwards25519_XMD:SHA-512_ELL2_RO_",
-			file: "testdata/edwards25519_XMD:SHA-512_ELL2_RO_.json.gz",
+			file: "testdata/edwards25519_XMD_SHA-512_ELL2_RO_.json.gz",
 			fn:   Edwards25519_XMD_SHA512_ELL2_RO,
 		},
 		{
 			n:    "edwards25519_XMD:SHA-512_ELL2_NU_",
-			file: "testdata/edwards25519_XMD:SHA-512_ELL2_NU_.json.gz",
+			file: "testdata/edwards25519_XMD_SHA-512_ELL2_NU_.json.gz",
 			fn:   Edwards25519_XMD_SHA512_ELL2_NU,
 		},
 	} {
