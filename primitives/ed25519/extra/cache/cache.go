@@ -79,7 +79,7 @@ func (v *Verifier) Add(verifier *ed25519.BatchVerifier, publicKey ed25519.Public
 }
 
 // AddWithOptions will add the signature to the batch verifier, with
-// extra Pptions.
+// extra Options.
 func (v *Verifier) AddWithOptions(verifier *ed25519.BatchVerifier, publicKey ed25519.PublicKey, message, sig []byte, opts *ed25519.Options) {
 	// Note: BatchVerifier.AddWithOptions will do the right thing if
 	// the expanded public key is nil.
