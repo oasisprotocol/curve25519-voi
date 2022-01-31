@@ -130,19 +130,18 @@ func (fe *Element) Invert(t *Element) *Element {
 // time, and returns fe.  This function always selects the nonnegative square
 // root.
 func (fe *Element) SqrtRatioI(u, v *Element) (*Element, int) {
-	var v3 Element
-	v3.Square(v)
-	v3.Mul(&v3, v)
-
-	var v7 Element
-	v7.Square(&v3)
-	v7.Mul(&v7, v)
+	// This uses the improved formula from the RFC 8032 eratta.
+	//
+	// See:
+	//  * https://vox.distorted.org.uk/mdw/2017/05/simpler-quosqrt.html
+	//  * https://www.rfc-editor.org/errata/eid5758
+	//  * https://mailarchive.ietf.org/arch/msg/cfrg/qlKpMBqxXZYmDpXXIx6LO3Oznv4/
+	var w Element
+	w.Mul(u, v)
 
 	var r Element
-	r.Mul(u, &v7)
-	r.pow_p58()
-	r.Mul(&r, &v3)
-	r.Mul(&r, u)
+	w.pow_p58()
+	r.Mul(u, &w)
 
 	var check Element
 	check.Square(&r)
@@ -204,8 +203,7 @@ func (fe *Element) pow22501() (Element, Element) {
 	return t19, t3
 }
 
-// pow_p58 raises the field element to the power (p-5)/8 = 2^252 - 3,
-// and returns fe.
+// pow_p58 raises the field element to the power (p-5)/8 = 2^252 - 3.
 func (fe *Element) pow_p58() {
 	// The bits of (p-5)/8 are 101111.....11.
 	//
