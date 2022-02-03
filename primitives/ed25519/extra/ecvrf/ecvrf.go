@@ -83,8 +83,8 @@ func Prove(sk ed25519.PrivateKey, alphaString []byte) []byte {
 // while including additional randomness to mitigate certain fault injection
 // and side-channel attacks.  If rand is nil, crypto/rand.Reader will be used.
 //
-// Warning: If this is set, proofs (`beta_string`) will be non-deterministic.
-// The VRF output (`pi_string`) is identical to that produced by Prove.
+// Warning: If this is set, proofs (`pi_string`) will be non-deterministic.
+// The VRF output (`beta_string`) is identical to that produced by Prove.
 func ProveWithAddedRandomness(rand io.Reader, sk ed25519.PrivateKey, alphaString []byte) ([]byte, error) {
 	if rand == nil {
 		rand = cryptorand.Reader
