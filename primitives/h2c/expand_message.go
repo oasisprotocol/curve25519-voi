@@ -51,6 +51,8 @@ func ExpandMessageXMD(out []byte, hFunc crypto.Hash, domainSeparator, message []
 	rInBytes := h.BlockSize()
 
 	// 0. Ensure parameters are sensible.
+	//
+	// The draft allows for 0-length output, we do not, because that is stupid.
 	if bInBytes < 2*kay/8 {
 		return fmt.Errorf("h2c: b_in_bytes insufficiently large: %d", bInBytes)
 	}
@@ -75,7 +77,9 @@ func ExpandMessageXMD(out []byte, hFunc crypto.Hash, domainSeparator, message []
 	// 1. ell = ceil(len_in_bytes / b_in_bytes)
 	ell := (lenInBytes + bInBytes - 1) / bInBytes
 
-	// 2. ABORT if ell > 255
+	// 2. ABORT if ell > 255 or len_in_bytes > 65535 or len(DST) > 255
+	//
+	// Note: len_in_bytes checks are done already.
 	if ell > 255 {
 		return fmt.Errorf("h2c: ell out of range: %d", ell)
 	}
@@ -167,7 +171,10 @@ func newXOF(xofFunc sha3.ShakeHash) sha3.ShakeHash {
 func ExpandMessageXOF(out []byte, xofFunc sha3.ShakeHash, domainSeparator, message []byte) error {
 	lenInBytes := len(out)
 
-	// 0. Ensure parameters are sensible.
+	// 1. ABORT if len_in_bytes > 65535 or len(DST) > 255
+	//
+	// Note: We do not allow len_in_bytes == 0, because that is nonsensical
+	// and we support over-sized DSTs (5.4.3).
 	if lenInBytes == 0 || lenInBytes > math.MaxUint16 {
 		return fmt.Errorf("h2c: len_in_bytes out of range: %d", lenInBytes)
 	}
@@ -179,11 +186,11 @@ func ExpandMessageXOF(out []byte, xofFunc sha3.ShakeHash, domainSeparator, messa
 	// inputs into the XOF one-by-one instead of allocating a temporary
 	// buffer.
 
-	// 2. msg_prime = msg || I2OSP(len_in_bytes, 2) || DST_prime (appended next)
+	// 3. msg_prime = msg || I2OSP(len_in_bytes, 2) || DST_prime (appended next)
 	_, _ = xof.Write(message)                                         // msg
 	_, _ = xof.Write([]byte{byte(lenInBytes >> 8), byte(lenInBytes)}) // I2OSP(len_in_bytes, 2)
 
-	// 1. DST_prime = DST || I2OSP(len(DST), 1)
+	// 2. DST_prime = DST || I2OSP(len(DST), 1)
 	DST := domainSeparator
 	lenDST := len(domainSeparator)
 	if lenDST > math.MaxUint8 {
@@ -202,7 +209,7 @@ func ExpandMessageXOF(out []byte, xofFunc sha3.ShakeHash, domainSeparator, messa
 	_, _ = xof.Write(DST)                  // DST
 	_, _ = xof.Write([]byte{byte(lenDST)}) // I2OSP(len(DST), 1)
 
-	// 3. uniform_bytes = H(msg_prime, len_in_bytes)
+	// 4. uniform_bytes = H(msg_prime, len_in_bytes)
 	if _, err := io.ReadFull(xof, out); err != nil {
 		return fmt.Errorf("h2c: failed to read XOF output: %w", err)
 	}
