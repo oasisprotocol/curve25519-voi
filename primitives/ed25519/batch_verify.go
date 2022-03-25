@@ -43,7 +43,7 @@ import (
 const batchPippengerThreshold = (190 - 1) / 2
 
 // BatchVerifier accumulates batch entries with Add, before performing
-// batch verifcation with Verify.
+// batch verification with Verify.
 type BatchVerifier struct {
 	entries []entry
 
@@ -202,8 +202,8 @@ func (v *BatchVerifier) AddExpandedWithOptions(publicKey *ExpandedPublicKey, mes
 // If a failure arises it is unknown which entry failed, the caller must
 // verify each entry individually.
 //
-// Calling Verify on an empty batch, or a batch containing any entries that
-// specifiy cofactor-less verification will return false.
+// Calling VerifyBatchOnly on an empty batch, or a batch containing any
+// entries that specify cofactor-less verification will return false.
 func (v *BatchVerifier) VerifyBatchOnly(rand io.Reader) bool {
 	if rand == nil {
 		rand = cryptorand.Reader
