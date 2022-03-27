@@ -27,7 +27,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build amd64 && !purego && gc
-// +build amd64,!purego,gc
 
 // This code was translated into a form compatible with 6a from the public
 // domain sources at https://github.com/gvanas/KeccakCodePackage

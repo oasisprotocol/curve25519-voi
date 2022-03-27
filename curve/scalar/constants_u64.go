@@ -30,8 +30,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build (amd64 || arm64 || ppc64le || ppc64 || s390x || force64bit) && !force32bit
-// +build amd64 arm64 ppc64le ppc64 s390x force64bit
-// +build !force32bit
 
 package scalar
 

@@ -29,8 +29,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build (386 || arm || mips || mipsle || mips64le || mips64 || force32bit) && !force64bit
-// +build 386 arm mips mipsle mips64le mips64 force32bit
-// +build !force64bit
 
 package field
 
