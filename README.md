@@ -81,8 +81,9 @@ the appropriate special cases to make `math/bits.Mul64`/`math/bits.Add64`
 perform well.
 
  * 64-bit: `amd64`, `arm64`, `ppc64le`, `ppc64`, `s390x`
- * 32-bit: `386`, `arm`, `mips`, `mipsle`, `mips64`
+ * 32-bit: `386`, `arm`, `mips`, `mipsle`, `mips64`, `mips64le`, `riscv64`
  * Unsupported: Everything else.
+ * Will never support: `wasm`
 
 The lack of a generic "just use 32-bit" fallback can be blamed on
 the Go developers rejecting [adding build tags for bit-width][3].
