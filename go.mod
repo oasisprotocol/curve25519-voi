@@ -1,6 +1,6 @@
 module github.com/oasisprotocol/curve25519-voi
 
-go 1.16
+go 1.17
 
 require (
 	golang.org/x/crypto v0.0.0-20210813211128-0a44fdfbc16e
