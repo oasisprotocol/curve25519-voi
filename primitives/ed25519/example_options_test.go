@@ -27,5 +27,53 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Package sr25519 provides examples for the sr25519 package.
-package sr25519
+package ed25519
+
+import (
+	"crypto/rand"
+	"fmt"
+)
+
+// ExampleOptions demonstrates the configurable verification behavior.
+func ExampleOptions() {
+	// As alluded to in the basic example, there are currently many
+	// definitions of Ed25519 signature verification in the wild.
+	//
+	// To navigate this, curve25519-voi provides a "sensible" default,
+	// and also supporting verification behavior that exactly matches
+	// other common implementations (within reason).
+
+	msg := []byte("test message")
+
+	publicKey, privateKey, err := GenerateKey(rand.Reader)
+	if err != nil {
+		panic("GenerateKey: " + err.Error())
+	}
+	sig := Sign(privateKey, msg)
+
+	// FIPS 186-5 (aka RFC 8032 with cofactored verification)
+	opts := &Options{
+		Verify: VerifyOptionsFIPS_186_5,
+	}
+	if !VerifyWithOptions(publicKey, msg, sig, opts) {
+		panic("VerifyWithOptions(FIPS_186_5): failed")
+	}
+
+	// ZIP-215 (aka ed25519consensus)
+	opts = &Options{
+		Verify: VerifyOptionsZIP_215,
+	}
+	opts.Verify = VerifyOptionsZIP_215
+	if !VerifyWithOptions(publicKey, msg, sig, opts) {
+		panic("VerifyWithOptions(default): failed")
+	}
+
+	// Go standard library (crypto/ed25519)
+	opts.Verify = VerifyOptionsStdLib
+	if !VerifyWithOptions(publicKey, msg, sig, opts) {
+		panic("VerifyWithOptions(StdLib): failed")
+	}
+
+	fmt.Println("ok")
+	// Output: ok
+}

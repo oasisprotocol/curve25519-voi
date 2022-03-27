@@ -32,12 +32,10 @@ package ed25519
 import (
 	"crypto/rand"
 	"fmt"
-
-	"github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
-// ExampleBatch demonstrates batch verification functionality.
-func ExampleBatch() { //nolint: govet
+// ExampleBatchVerifier demonstrates batch verification functionality.
+func ExampleBatchVerifier() {
 	// curve25519-voi provides batch verification, with an API that
 	// is similar to ed25519consensus.
 
@@ -47,31 +45,31 @@ func ExampleBatch() { //nolint: govet
 	msg4 := []byte("live free or test message")
 	msg5 := []byte("a good day to test message")
 
-	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	publicKey, privateKey, err := GenerateKey(rand.Reader)
 	if err != nil {
-		panic("ed25519.GenerateKey: " + err.Error())
+		panic("GenerateKey: " + err.Error())
 	}
 
-	publicKey2, privateKey2, err := ed25519.GenerateKey(rand.Reader)
+	publicKey2, privateKey2, err := GenerateKey(rand.Reader)
 	if err != nil {
-		panic("ed25519.GenerateKey: " + err.Error())
+		panic("GenerateKey: " + err.Error())
 	}
 
-	sig1 := ed25519.Sign(privateKey, msg1)
-	sig2 := ed25519.Sign(privateKey2, msg2)
-	sig3 := ed25519.Sign(privateKey, msg3)
-	opts := &ed25519.Options{
+	sig1 := Sign(privateKey, msg1)
+	sig2 := Sign(privateKey2, msg2)
+	sig3 := Sign(privateKey, msg3)
+	opts := &Options{
 		Context: "yippie ki-yay",
-		Verify:  ed25519.VerifyOptionsFIPS_186_5,
+		Verify:  VerifyOptionsFIPS_186_5,
 	}
 	sig4, err := privateKey.Sign(nil, msg4, opts)
 	if err != nil {
-		panic("ed25519.SignWithOptions: " + err.Error())
+		panic("SignWithOptions: " + err.Error())
 	}
-	sig5 := ed25519.Sign(privateKey, msg5)
+	sig5 := Sign(privateKey, msg5)
 
 	// Batch verification
-	verifier := ed25519.NewBatchVerifier()
+	verifier := NewBatchVerifier()
 	verifier.Add(publicKey, msg1, sig1)
 	verifier.Add(publicKey2, msg2, sig2) // Public keys can be different.
 	verifier.Add(publicKey, msg3, sig3)
