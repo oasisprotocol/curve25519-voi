@@ -29,8 +29,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build (amd64 || (go1.13 && arm64) || (go1.13 && ppc64le) || (go1.13 && ppc64) || (go1.14 && s390x) || force64bit) && !force32bit
-// +build amd64 go1.13,arm64 go1.13,ppc64le go1.13,ppc64 go1.14,s390x force64bit
-// +build !force32bit
 
 package field
 

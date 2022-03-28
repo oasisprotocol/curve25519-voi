@@ -27,5 +27,54 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Package x25519 provides examples for the x25519 package.
 package x25519
+
+import (
+	"bytes"
+	"crypto/rand"
+	"fmt"
+)
+
+// Example demonstrates common operations.
+func Example() {
+	// Basic operations are API compatible with x/crypto/curve25519.
+
+	// Key generation
+	alicePrivate := make([]byte, ScalarSize)
+	if _, err := rand.Read(alicePrivate); err != nil {
+		panic("rand.Read: " + err.Error())
+	}
+
+	alicePublic, err := X25519(alicePrivate, Basepoint)
+	if err != nil {
+		panic("x25519.X25519(Basepoint): " + err.Error())
+	}
+
+	var bobPrivate, bobPublic [32]byte
+	if _, err := rand.Read(bobPrivate[:]); err != nil {
+		panic("rand.Read: " + err.Error())
+	}
+	ScalarBaseMult(&bobPublic, &bobPrivate)
+
+	// Shared secret
+	//
+	// Note: If the "all zero output" check for contributory behavior
+	// is not wanted, then the "deprecated" ScalarMult call should be
+	// used.  Marking a routine that still has useful behavior as
+	// deprecated isn't great, but that is what x/crypto/curve25519 does.
+	aliceShared, err := X25519(alicePrivate, bobPublic[:])
+	if err != nil {
+		panic("x25519.X25519: " + err.Error())
+	}
+
+	var bobShared, tmp [32]byte
+	copy(tmp[:], alicePublic)
+	ScalarMult(&bobShared, &bobPrivate, &tmp) //nolint: staticcheck
+
+	if !bytes.Equal(aliceShared, bobShared[:]) {
+		panic("shared secret mismatch")
+	}
+
+	fmt.Println("ok")
+	// Output: ok
+}

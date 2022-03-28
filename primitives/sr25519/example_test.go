@@ -33,21 +33,19 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"fmt"
-
-	"github.com/oasisprotocol/curve25519-voi/primitives/sr25519"
 )
 
-// ExampleBasic demonstrates basic functionality.
-func ExampleBasic() { //nolint: govet
+// Example demonstrates common operations.
+func Example() {
 	// Basic operations attempt to be similar to the w3f/schnorrkel
 	// Rust crate, while being as close to an idiomatic Go API as
 	// possible.
 
 	// Key generation
 
-	miniSecretKey, err := sr25519.GenerateMiniSecretKey(rand.Reader)
+	miniSecretKey, err := GenerateMiniSecretKey(rand.Reader)
 	if err != nil {
-		panic("sr25519.GenerateMiniSecretKey: " + err.Error())
+		panic("GenerateMiniSecretKey: " + err.Error())
 	}
 
 	secretKey := miniSecretKey.ExpandUniform() // ExpandEd25519 is also supported
@@ -61,7 +59,7 @@ func ExampleBasic() { //nolint: govet
 		panic("publicKey.MarshalBinary: " + err.Error())
 	}
 
-	var publicKey2 sr25519.PublicKey
+	var publicKey2 PublicKey
 	if err = publicKey2.UnmarshalBinary(publicBytes); err != nil {
 		panic("publicKey.UnmarshalBinary: " + err.Error())
 	}
@@ -69,22 +67,22 @@ func ExampleBasic() { //nolint: govet
 		panic("public key did not round trip with BinaryMarshaller")
 	}
 
-	publicKey3, err := sr25519.NewPublicKeyFromBytes(publicBytes)
+	publicKey3, err := NewPublicKeyFromBytes(publicBytes)
 	if err != nil {
-		panic("sr25519.NewPublicKeyFromBytes: " + err.Error())
+		panic("NewPublicKeyFromBytes: " + err.Error())
 	}
 	if !publicKey.Equal(publicKey3) {
 		panic("public key did not round trip with NewPublicKeyFromBytes")
 	}
 
 	// Signing
-	signingContext := sr25519.NewSigningContext([]byte("example signing context"))
+	signingContext := NewSigningContext([]byte("example signing context"))
 	msg := []byte("test message")
 
 	transcript := signingContext.NewTranscriptBytes(msg)
 	signature, err := keypair.Sign(rand.Reader, transcript)
 	if err != nil {
-		panic("sr25519.Sign: " + err.Error())
+		panic("Sign: " + err.Error())
 	}
 
 	h := sha512.New512_256()
@@ -92,7 +90,7 @@ func ExampleBasic() { //nolint: govet
 	transcriptHashed := signingContext.NewTranscriptHash(h)
 	signatureHashed, err := keypair.Sign(rand.Reader, transcriptHashed)
 	if err != nil {
-		panic("sr25519.Sign(hashed): " + err.Error())
+		panic("Sign(hashed): " + err.Error())
 	}
 
 	signatureBytes, err := signature.MarshalBinary()
@@ -100,9 +98,9 @@ func ExampleBasic() { //nolint: govet
 		panic("signature.MarshalBinary: " + err.Error())
 	}
 
-	signature2, err := sr25519.NewSignatureFromBytes(signatureBytes)
+	signature2, err := NewSignatureFromBytes(signatureBytes)
 	if err != nil {
-		panic("sr25519.NewSignatureFromBytes: " + err.Error())
+		panic("NewSignatureFromBytes: " + err.Error())
 	}
 
 	// Verification
@@ -112,19 +110,18 @@ func ExampleBasic() { //nolint: govet
 	// from the signing example are reused for brevity.
 
 	if !publicKey.Verify(transcript, signature) {
-		panic("sr25519.Verify failed")
+		panic("Verify failed")
 	}
 	if !publicKey.Verify(transcript, signature2) {
-		panic("sr25519.Verify(signature2) failed, round-trip failure?")
+		panic("Verify(signature2) failed, round-trip failure?")
 	}
 
 	if !publicKey.Verify(transcriptHashed, signatureHashed) {
-		panic("sr25519.Verify(hashed) failed")
+		panic("Verify(hashed) failed")
 	}
 
 	// This would include a (separate) batch-verification example, but the
 	// API is essentially identical to Ed25519, except based around transcripts.
-
 
 	fmt.Println("ok")
 	// Output: ok

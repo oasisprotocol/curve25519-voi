@@ -29,7 +29,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build amd64 && !purego && !force32bit
-// +build amd64,!purego,!force32bit
 
 package field
 

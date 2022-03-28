@@ -28,8 +28,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //go:build (purego || (!amd64 && force64bit) || arm64 || ppc64le || ppc64 || s390x) && !force32bit
-// +build purego !amd64,force64bit arm64 ppc64le ppc64 s390x
-// +build !force32bit
 
 package field
 
