@@ -216,8 +216,7 @@ func (fe *Element) pow_p58() {
 // BatchInvert computes the inverses of slice of `Elements`s
 // in a batch, and replaces each element by its inverse.
 //
-// WARNING: The input field elements MUST be nonzero.  If you cannot prove
-// that this is the case you MUST not use this function.
+// When an input Element is zero, its value is unchanged.
 func BatchInvert(inputs []*Element) {
 	// Montgomery’s Trick and Fast Implementation of Masked AES
 	// Genelle, Prouff and Quisquater
@@ -229,13 +228,17 @@ func BatchInvert(inputs []*Element) {
 	}
 
 	// Keep an accumulator of all of the previous products.
-	acc := One
+	var acc Element
+	acc.One()
 
 	// Pass through the input vector, recording the previous
 	// products in the scratch space.
+	var tmp Element
 	for i, input := range inputs {
-		scratch[i] = acc
-		acc.Mul(&acc, input)
+		scratch[i].Set(&acc)
+		// acc <- acc * input, but skipping zeros (constant-time)
+		tmp.Mul(&acc, input)
+		acc.ConditionalSelect(&tmp, &acc, input.IsZero())
 	}
 
 	// Compute the inverse of all products.
@@ -243,11 +246,17 @@ func BatchInvert(inputs []*Element) {
 
 	// Pass through the vector backwards to compute the inverses
 	// in place.
+	var tmp2 Element
 	for i := n - 1; i >= 0; i-- {
 		input, scratch := inputs[i], scratch[i]
-		var tmp Element
 		tmp.Mul(&acc, input)
-		inputs[i].Mul(&acc, &scratch)
-		acc = tmp
+		tmp2.Mul(&acc, &scratch)
+
+		// input <- acc * scratch, then acc <- tmp
+		// Again, we skip zeros in a constant-time way
+		iz := input.IsZero()
+
+		inputs[i].ConditionalSelect(&tmp2, inputs[i], iz)
+		acc.ConditionalSelect(&tmp, &acc, iz)
 	}
 }

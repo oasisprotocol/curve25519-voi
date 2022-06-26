@@ -155,6 +155,9 @@ func testInvert(t *testing.T) {
 func testBatchInvertConsistency(t *testing.T) {
 	a := testConstants["A"]
 
+	var a0 Element
+	a0.Sub(a, a)
+
 	var a2 Element
 	a2.Add(a, a)
 
@@ -163,6 +166,7 @@ func testBatchInvertConsistency(t *testing.T) {
 		testConstants["AP58"],
 		testConstants["ASQ"],
 		testConstants["AINV"],
+		&a0,
 		&a2,
 	}
 	var ainvList []*Element
