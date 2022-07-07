@@ -24,7 +24,7 @@ does not escape this author.
  * primitives/ed25519/extra/ecvrf: A implementation of the "Verifiable Random Functions" draft (v10).
  * primitives/sr25519: A sr25519 implementation like `https://github.com/w3f/schnorrkel`.
  * primitives/merlin: A Merlin transcript implementation.
- * primitives/h2c: A implementation of the "Hashing to Elliptic Curves" draft (v14).
+ * primitives/h2c: A implementation of the "Hashing to Elliptic Curves" draft (v16).
 
 #### Ed25519 verification semantics
 
