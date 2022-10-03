@@ -50,6 +50,7 @@ func TestStdLib(t *testing.T) {
 	t.Run("SignVerify", testSignVerify)
 	t.Run("SignVerify/Hashed", testSignVerifyHashed)
 	t.Run("SignVerify/AddedRandomness", testSignVerifyAddedRandomness)
+	t.Run("SignVerify/SelfVerify", testSignVerifySelfVerify)
 	t.Run("CryptoSigner", testCryptoSigner)
 	t.Run("CryptoSigner/Hashed", testCryptoSignerHashed)
 	t.Run("Equal", testEqual)
@@ -117,6 +118,25 @@ func testSignVerifyAddedRandomness(t *testing.T) {
 	sig2 := Sign(private, msg)
 	if bytes.Equal(sig, sig2) {
 		t.Errorf("standard signature matches entropy added signature")
+	}
+}
+
+func testSignVerifySelfVerify(t *testing.T) {
+	var zero zeroreader.ZeroReader
+	public, private, _ := GenerateKey(zero)
+
+	msg := []byte("Of course, if you wish, you can spend them fighting for a lost cause, but you know that you've lost.")
+
+	opts := &Options{
+		SelfVerify: true,
+	}
+	sig, err := private.Sign(nil, msg, opts)
+	if err != nil {
+		t.Fatalf("failed to sign with self-verify: %v", err)
+	}
+
+	if !Verify(public, msg, sig) {
+		t.Errorf("valid signature rejected")
 	}
 }
 
