@@ -34,6 +34,7 @@ package sr25519
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
 	"testing"
 
 	"github.com/oasisprotocol/curve25519-voi/curve/scalar"
@@ -195,6 +196,60 @@ func TestSecretKey(t *testing.T) {
 
 		if sk.Equal(sk2) {
 			t.Fatalf("sk == sk2")
+		}
+	})
+	t.Run("Ed25519Bytes", func(t *testing.T) {
+		var err error
+
+		// Test some incorrect key byte slices.
+		for _, d := range []struct {
+			bytes   string
+			message string
+		}{
+			{
+				bytes:   "28b0ae221c6bb06856b287f60d7ea0d98552ea5a16db16956849aa371db3eb51fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca34aa",
+				message: "NewSecretKeyFromEd25519Bytes: using too long key must fail",
+			},
+			{
+				bytes:   "28b0ae221c6bb06856b287f60d7ea0d98552ea5a16db16956849aa371db3eb51fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca",
+				message: "NewSecretKeyFromEd25519Bytes: using too short key must fail",
+			},
+			{
+				bytes:   "28b0ae221c6bb06856b287f60d7ea0d98552ea5a16db16956849aa371db3ebd1fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca34",
+				message: "NewSecretKeyFromEd25519Bytes: scalar with fixed top bit must fail",
+			},
+			{
+				bytes:   "2ab0ae221c6bb06856b287f60d7ea0d98552ea5a16db16956849aa371db3eb51fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca34",
+				message: "NewSecretKeyFromEd25519Bytes: scalar not divisible by 8 must fail",
+			},
+		} {
+			decoded := testhelpers.MustUnhex(t, d.bytes)
+			_, err = NewSecretKeyFromEd25519Bytes(decoded)
+			if err == nil {
+				t.Errorf(d.message)
+			}
+		}
+
+		// Valid. For the test bytes, see the schnorrkel Rust crate and
+		// its SecretKey::from_ed25519_bytes method documentation.
+		ed25519Bytes := testhelpers.MustUnhex(t, "28b0ae221c6bb06856b287f60d7ea0d98552ea5a16db16956849aa371db3eb51fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca34")
+		sk, err := NewSecretKeyFromEd25519Bytes(ed25519Bytes)
+		if err != nil {
+			t.Fatalf("NewSecretKeyFromEd25519Bytes: %v", err)
+		}
+
+		skBytes := make([]byte, scalar.ScalarSize)
+		if sk.key.ToBytes(skBytes) != nil {
+			t.Fatalf("sk.ToBytes: %v", err)
+		}
+		expectedSkBytes := testhelpers.MustUnhex(t, "05d65584630d16cd4af6d0bec10f34bb504a5dcb62dba2122d49f5a663763d0a")
+		if !bytes.Equal(skBytes, expectedSkBytes) {
+			t.Fatalf("secret key bytes differ (%v != %v)", hex.EncodeToString(skBytes), hex.EncodeToString(expectedSkBytes))
+		}
+
+		expectedNonce := testhelpers.MustUnhex(t, "fd190cce74df356432b410bd64682309d6dedb27c76845daf388557cbac3ca34")
+		if !bytes.Equal(sk.nonce[:], expectedNonce) {
+			t.Fatalf("nonce bytes differ: %v != %v", hex.EncodeToString(sk.nonce[:]), hex.EncodeToString(expectedNonce))
 		}
 	})
 }
