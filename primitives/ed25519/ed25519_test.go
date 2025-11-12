@@ -467,3 +467,62 @@ func BenchmarkExpanded(b *testing.B) {
 		}
 	})
 }
+
+func TestEd25519PublicKey(t *testing.T) {
+	sk := PrivateKey(testhelpers.MustUnhex(t, "833fe62409237b9d62ec77587520911e9a759cec1d19755b7da901b96dca3d42ec172b93ad5e563bf4932c70e1245034c35467ef2efd4d64ebf819683467e2bf"))
+	pk := sk.Public().(PublicKey)
+	encoded := "7Bcrk61eVjv0kyxw4SRQNMNUZ+8u/U1k6/gZaDRn4r8="
+
+	t.Run("String", func(t *testing.T) {
+		text := pk.String()
+		if text != encoded {
+			t.Errorf("unexpected public key: want %s, got %s", encoded, text)
+		}
+	})
+
+	t.Run("MarshalText", func(t *testing.T) {
+		text, err := pk.MarshalText()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(text, []byte(encoded)) {
+			t.Errorf("unexpected public key: want %s, got %s", encoded, string(text))
+		}
+	})
+
+	t.Run("UnmarshalText", func(t *testing.T) {
+		var pk2 PublicKey
+		if err := pk2.UnmarshalText([]byte(encoded)); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(pk[:], pk2[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
+
+	t.Run("UnmarshalBinary", func(t *testing.T) {
+		var pk2 PublicKey
+		if err := pk2.UnmarshalBinary(pk[:]); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(pk[:], pk[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
+
+	t.Run("MarshalText_Roundtrip", func(t *testing.T) {
+		text, err := pk.MarshalText()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pk2 PublicKey
+		if err := pk2.UnmarshalText(text); err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(pk[:], pk2[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
+}

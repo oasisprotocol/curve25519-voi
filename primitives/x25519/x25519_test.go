@@ -292,6 +292,70 @@ func TestX25519GenerateKey(t *testing.T) {
 	var expected [32]byte
 	ScalarBaseMult(&expected, (*[ScalarSize]byte)(priv))
 	if !bytes.Equal(pub[:], expected[:]) {
-		t.Errorf("generated key pair doesn't match: %s", err)
+		t.Errorf("generated key pair doesn't match")
 	}
+}
+
+func TestX25519PublicKey(t *testing.T) {
+	sk := PrivateKey([32]byte{
+		0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d,
+		0x3c, 0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45,
+		0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0, 0x99, 0x2a,
+		0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a,
+	})
+	pk := sk.Public()
+	encoded := "hSDwCYkwp1R0i33ctD73Wg2/Og0mOBr066SpjqqbTmo="
+
+	t.Run("String", func(t *testing.T) {
+		text := pk.String()
+		if text != encoded {
+			t.Errorf("unexpected public key: want %s, got %s", encoded, text)
+		}
+	})
+
+	t.Run("MarshalText", func(t *testing.T) {
+		text, err := pk.MarshalText()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(text, []byte(encoded)) {
+			t.Errorf("unexpected public key: want %s, got %s", encoded, string(text))
+		}
+	})
+
+	t.Run("UnmarshalText", func(t *testing.T) {
+		var pk2 PublicKey
+		if err := pk2.UnmarshalText([]byte(encoded)); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(pk[:], pk2[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
+
+	t.Run("UnmarshalBinary", func(t *testing.T) {
+		var pk2 PublicKey
+		if err := pk2.UnmarshalBinary(pk[:]); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(pk[:], pk[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
+
+	t.Run("MarshalText_Roundtrip", func(t *testing.T) {
+		text, err := pk.MarshalText()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pk2 PublicKey
+		if err := pk2.UnmarshalText(text); err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(pk[:], pk2[:]) {
+			t.Errorf("unexpected public key: keys not equal")
+		}
+	})
 }
