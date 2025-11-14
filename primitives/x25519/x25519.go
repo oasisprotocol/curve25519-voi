@@ -36,6 +36,7 @@ import (
 	cryptorand "crypto/rand"
 	"crypto/sha512"
 	"crypto/subtle"
+	"encoding/base64"
 	"fmt"
 	"io"
 
@@ -89,6 +90,37 @@ func (priv *PrivateKey) DiffieHellman(pub *PublicKey) *SharedSecret {
 
 // PublicKey is the type of X25519 public keys.
 type PublicKey [PublicKeySize]byte
+
+// String returns a string representation of the public key.
+func (k PublicKey) String() string {
+	return base64.StdEncoding.EncodeToString(k[:])
+}
+
+// MarshalText encodes a public key into text form.
+func (k PublicKey) MarshalText() (data []byte, err error) {
+	return []byte(base64.StdEncoding.EncodeToString(k[:])), nil
+}
+
+// UnmarshalText decodes a text marshaled public key.
+func (k *PublicKey) UnmarshalText(text []byte) error {
+	b, err := base64.StdEncoding.DecodeString(string(text))
+	if err != nil {
+		return err
+	}
+
+	return k.UnmarshalBinary(b)
+}
+
+// UnmarshalBinary decodes a binary marshaled public key.
+func (k *PublicKey) UnmarshalBinary(data []byte) error {
+	if len(data) != PublicKeySize {
+		return fmt.Errorf("malformed public key")
+	}
+
+	copy(k[:], data)
+
+	return nil
+}
 
 // SharedSecret is the type of the result of a Diffie-Hellman key exchange.
 type SharedSecret [SharedSecretSize]byte
