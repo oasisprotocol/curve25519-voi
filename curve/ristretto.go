@@ -172,7 +172,7 @@ func (p *RistrettoPoint) UnmarshalBinary(data []byte) error {
 
 	var cp CompressedRistretto
 	if _, err := cp.SetBytes(data); err != nil {
-		return nil
+		return err
 	}
 	_, err := p.SetCompressed(&cp)
 	return err
