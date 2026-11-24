@@ -218,7 +218,7 @@ func (p *EdwardsPoint) UnmarshalBinary(data []byte) error {
 
 	var cp CompressedEdwardsY
 	if _, err := cp.SetBytes(data); err != nil {
-		return nil
+		return err
 	}
 	_, err := p.SetCompressedY(&cp)
 	return err
